@@ -211,15 +211,16 @@ def create_memory_from_outcome(
         memory_type = "episodic"
         emotional_weight = 0.4
     
-    # Build memory content
+    # Build memory content (find most recent user message)
     messages = state.get("messages", [])
     request_content = ""
-    if messages:
-        last_msg = messages[-1]
-        content = last_msg.get("content", "")
-        if isinstance(content, list):
-            content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
-        request_content = content[:200]  # Truncate
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
+            request_content = content[:200]  # Truncate
+            break
     
     action = state.get("selected_action", {})
     action_summary = f"{action.get('action_type', 'unknown')} with {len(action.get('work_units', []))} work units"

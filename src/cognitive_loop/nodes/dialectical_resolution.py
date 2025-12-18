@@ -53,15 +53,15 @@ def build_conflict_context(state: BabyMARSState) -> str:
     if goal_related:
         belief_strs = []
         for b in goal_related[:5]:
-            belief_strs.append(f"- {b['statement']} (strength={b.get('strength', 0):.2f})")
+            belief_strs.append(f"- {b.get('statement', '')} (strength={b.get('strength', 0):.2f})")
         parts.append(f"<relevant_beliefs>\n" + "\n".join(belief_strs) + "\n</relevant_beliefs>")
-    
+
     # People context (for authority in resolution)
     people = objects.get("people", [])
     if people:
         parts.append(f"<authority_context>")
         for p in people[:3]:
-            parts.append(f"- {p['name']} ({p['role']}): authority={p.get('authority', 0):.2f}")
+            parts.append(f"- {p.get('name', 'unknown')} ({p.get('role', 'unknown')}): authority={p.get('authority', 0):.2f}")
         parts.append("</authority_context>")
     
     return "\n\n".join(parts)

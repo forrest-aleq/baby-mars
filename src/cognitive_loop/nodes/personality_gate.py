@@ -139,13 +139,32 @@ Be strict. Even subtle violations count."""
                 "explanation": result,
             }
         else:
-            # Ambiguous - treat as clean but log
-            print(f"Ambiguous gate result: {result}")
+            # Ambiguous - fall back to pattern check
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Ambiguous gate result from Claude: {result[:100]}...")
+
+            # Use pattern check as fallback
+            pattern_violation = quick_violation_check(response)
+            if pattern_violation:
+                return {
+                    "detected": True,
+                    "explanation": f"Pattern match on {pattern_violation} (Claude response ambiguous)",
+                }
             return None
-            
+
     except Exception as e:
-        print(f"Gate check error: {e}")
-        # On error, let through but log
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Gate check error: {e}, response_preview={response[:100]}...")
+
+        # On error, fall back to pattern check instead of letting through
+        pattern_violation = quick_violation_check(response)
+        if pattern_violation:
+            return {
+                "detected": True,
+                "explanation": f"Pattern match on {pattern_violation} (Claude check failed)",
+            }
         return None
 
 

@@ -243,13 +243,20 @@ class MockToolExecutor:
         }
 
 
-# Singleton executor
+# Singleton executor (thread-safe)
+import threading
 _executor: Optional[MockToolExecutor] = None
+_executor_lock: threading.Lock = threading.Lock()
+
 
 def get_executor() -> MockToolExecutor:
+    """Get singleton executor (thread-safe with double-check locking)"""
     global _executor
     if _executor is None:
-        _executor = MockToolExecutor()
+        with _executor_lock:
+            # Double-check after acquiring lock
+            if _executor is None:
+                _executor = MockToolExecutor()
     return _executor
 
 

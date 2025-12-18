@@ -6,12 +6,14 @@ Single DATABASE_URL for both LangGraph checkpoints and belief storage.
 """
 
 import os
+import asyncio
 from typing import Optional
 from contextlib import asynccontextmanager
 import asyncpg
 
-# Connection pool singleton
+# Connection pool singleton with lock for thread safety
 _pool: Optional[asyncpg.Pool] = None
+_pool_lock: asyncio.Lock = asyncio.Lock()
 
 
 def get_database_url() -> str:
@@ -124,14 +126,17 @@ async def init_database() -> None:
 
 
 async def get_pool() -> asyncpg.Pool:
-    """Get or create connection pool"""
+    """Get or create connection pool (thread-safe with double-check locking)"""
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(
-            get_database_url(),
-            min_size=2,
-            max_size=10,
-        )
+        async with _pool_lock:
+            # Double-check after acquiring lock
+            if _pool is None:
+                _pool = await asyncpg.create_pool(
+                    get_database_url(),
+                    min_size=2,
+                    max_size=10,
+                )
     return _pool
 
 

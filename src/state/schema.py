@@ -380,13 +380,18 @@ def note_reducer(existing: list[Note], new: list[Note]) -> list[Note]:
     Merge notes, expire TTL-exceeded ones.
     Paper #8: Notes with TTL.
     """
+    import logging
+    import os
+    logger = logging.getLogger(__name__)
+
     now = datetime.now()
-    
+    is_production = os.environ.get("ENVIRONMENT", "").lower() == "production"
+
     # Merge by note_id
     by_id = {n["note_id"]: n for n in existing}
     for n in new:
         by_id[n["note_id"]] = n
-    
+
     # Filter expired
     valid = []
     for note in by_id.values():
@@ -395,10 +400,17 @@ def note_reducer(existing: list[Note], new: list[Note]) -> list[Note]:
             ttl = timedelta(hours=note["ttl_hours"])
             if now - created < ttl:
                 valid.append(note)
-        except (ValueError, KeyError):
-            # Keep notes with invalid dates for debugging
-            valid.append(note)
-    
+        except (ValueError, KeyError) as e:
+            # Log the error with context
+            logger.warning(
+                f"Invalid note data: note_id={note.get('note_id', 'unknown')}, "
+                f"created_at={note.get('created_at', 'missing')}, "
+                f"ttl_hours={note.get('ttl_hours', 'missing')}, error={e}"
+            )
+            # In production, drop invalid notes; otherwise keep for debugging
+            if not is_production:
+                valid.append(note)
+
     return valid
 
 
@@ -467,8 +479,8 @@ class BabyMARSState(TypedDict):
 # ============================================================
 
 def generate_id() -> str:
-    """Generate unique ID"""
-    return str(uuid.uuid4())[:8]
+    """Generate unique ID (full UUID to avoid collisions)"""
+    return str(uuid.uuid4())
 
 
 def create_initial_state(
@@ -584,20 +596,37 @@ def create_memory(
     }
 
 
+def compute_relationship_value(
+    authority: float,
+    interaction_strength: float,
+    context_relevance: float
+) -> float:
+    """
+    Compute relationship value per Paper #17 formula.
+
+    Formula: 0.6 * authority + 0.2 * interaction_strength + 0.2 * context_relevance
+
+    Use this function instead of duplicating the formula to avoid stale values.
+    """
+    return 0.6 * authority + 0.2 * interaction_strength + 0.2 * context_relevance
+
+
 def create_person(
     name: str,
     role: str,
     authority: float = 0.5
 ) -> PersonObject:
     """Factory function to create a new person"""
+    interaction_strength = 0.5
+    context_relevance = 0.5
     return {
         "person_id": generate_id(),
         "name": name,
         "role": role,
         "authority": authority,
-        "interaction_strength": 0.5,
-        "context_relevance": 0.5,
-        "relationship_value": 0.6 * authority + 0.2 * 0.5 + 0.2 * 0.5,
+        "interaction_strength": interaction_strength,
+        "context_relevance": context_relevance,
+        "relationship_value": compute_relationship_value(authority, interaction_strength, context_relevance),
         "preferences": [],
         "last_interaction": datetime.now().isoformat()
     }

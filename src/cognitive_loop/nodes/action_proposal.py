@@ -59,15 +59,16 @@ async def generate_action_summary(
 
     work_units_text = "\n".join(work_unit_descriptions) if work_unit_descriptions else "• (No specific actions defined)"
 
-    # Get the original request
+    # Get the original request (find most recent user message)
     messages = state.get("messages", [])
     original_request = ""
-    if messages:
-        last_msg = messages[-1]
-        content = last_msg.get("content", "")
-        if isinstance(content, list):
-            content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
-        original_request = content[:200]
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
+            original_request = content[:200]
+            break
 
     # Generate the summary using Claude
     prompt = f"""Generate a brief, professional summary of this proposed action for human approval.
@@ -125,8 +126,6 @@ def build_interrupt_payload(
         "requires_tools": action.get("requires_tools", []),
         "thread_id": state.get("thread_id"),
         "options": ["approve", "reject"],
-        # Include the raw action for debugging (frontend can ignore)
-        "_debug_action": action,
     }
 
 

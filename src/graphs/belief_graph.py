@@ -650,21 +650,28 @@ def create_belief_hierarchy(
 # SINGLETON INSTANCE
 # ============================================================
 
+import threading
+
 _belief_graph: Optional[BeliefGraph] = None
+_belief_graph_lock: threading.Lock = threading.Lock()
 
 
 def get_belief_graph() -> BeliefGraph:
-    """Get singleton belief graph instance"""
+    """Get singleton belief graph instance (thread-safe)"""
     global _belief_graph
     if _belief_graph is None:
-        _belief_graph = BeliefGraph()
+        with _belief_graph_lock:
+            # Double-check after acquiring lock
+            if _belief_graph is None:
+                _belief_graph = BeliefGraph()
     return _belief_graph
 
 
 def reset_belief_graph() -> None:
     """Reset the singleton (for testing)"""
     global _belief_graph
-    _belief_graph = None
+    with _belief_graph_lock:
+        _belief_graph = None
 
 
 # ============================================================
