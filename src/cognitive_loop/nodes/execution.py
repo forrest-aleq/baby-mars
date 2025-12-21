@@ -2,262 +2,31 @@
 Execution Node
 ===============
 
-Executes work units via MCP servers or tools.
+Executes work units via Stargate Lite.
 Implements the PTD Driver layer (Paper #20).
 
-For Baby MARS MVP, this is a mock implementation that
-simulates tool execution. Replace with real MCP integration.
+Stargate provides 295 capabilities across 20+ platforms.
+This is the ONLY execution path - no mocks.
+
+Requires:
+    STARGATE_URL=http://localhost:8001
+    STARGATE_API_KEY=your-api-key
 """
 
-import asyncio
-from datetime import datetime
-from typing import Any, Optional
 import uuid
+from typing import Optional
 
-from ...state.schema import (
-    BabyMARSState,
-    WorkUnit,
+from ...state.schema import BabyMARSState, WorkUnit
+from ...connectors.stargate import (
+    StargateExecutor,
+    get_stargate_client,
+    is_stargate_available,
+    map_work_unit_to_capability,
 )
+from ...observability import get_logger, get_metrics
 
-
-# ============================================================
-# MOCK TOOL EXECUTORS
-# ============================================================
-
-class MockToolExecutor:
-    """
-    Mock executor for development/testing.
-    
-    Replace with real MCP server connections:
-    - QuickBooks MCP
-    - NetSuite MCP
-    - Bank MCP
-    - Document MCP
-    """
-    
-    async def execute(self, work_unit: WorkUnit) -> dict:
-        """Execute a work unit and return result"""
-        tool = work_unit.get("tool", "unknown")
-        verb = work_unit.get("verb", "unknown")
-        
-        # Route to appropriate mock handler
-        handlers = {
-            "erp": self._execute_erp,
-            "bank": self._execute_bank,
-            "documents": self._execute_documents,
-            "email": self._execute_email,
-            "workflow": self._execute_workflow,
-        }
-        
-        handler = handlers.get(tool, self._execute_unknown)
-        return await handler(work_unit)
-    
-    async def _execute_erp(self, wu: WorkUnit) -> dict:
-        """Mock ERP operations"""
-        verb = wu.get("verb", "")
-        entities = wu.get("entities", {})
-        slots = wu.get("slots", {})
-        
-        # Simulate processing time
-        await asyncio.sleep(0.1)
-        
-        if verb == "process_invoice":
-            return {
-                "success": True,
-                "result": {
-                    "invoice_id": entities.get("invoice_id", "INV-MOCK-001"),
-                    "status": "processed",
-                    "gl_code": slots.get("gl_code", "5000"),
-                    "amount": slots.get("amount", 0),
-                    "posted_at": datetime.now().isoformat()
-                },
-                "message": "Invoice processed successfully"
-            }
-        
-        elif verb == "create_record":
-            return {
-                "success": True,
-                "result": {
-                    "record_id": f"REC-{uuid.uuid4().hex[:8].upper()}",
-                    "record_type": entities.get("record_type", "unknown"),
-                    "created_at": datetime.now().isoformat()
-                },
-                "message": "Record created"
-            }
-        
-        elif verb == "query_records":
-            return {
-                "success": True,
-                "result": {
-                    "records": [],
-                    "count": 0,
-                    "query": slots.get("filters", {})
-                },
-                "message": "Query executed"
-            }
-        
-        elif verb == "post_journal_entry":
-            return {
-                "success": True,
-                "result": {
-                    "entry_id": f"JE-{uuid.uuid4().hex[:8].upper()}",
-                    "debits_total": sum(d.get("amount", 0) for d in slots.get("debits", [])),
-                    "credits_total": sum(c.get("amount", 0) for c in slots.get("credits", [])),
-                    "posted_at": datetime.now().isoformat()
-                },
-                "message": "Journal entry posted"
-            }
-        
-        else:
-            return {
-                "success": True,
-                "result": {"verb": verb, "entities": entities},
-                "message": f"ERP operation '{verb}' completed"
-            }
-    
-    async def _execute_bank(self, wu: WorkUnit) -> dict:
-        """Mock bank operations"""
-        verb = wu.get("verb", "")
-        
-        await asyncio.sleep(0.1)
-        
-        if verb == "process_payment":
-            return {
-                "success": True,
-                "result": {
-                    "payment_id": f"PMT-{uuid.uuid4().hex[:8].upper()}",
-                    "status": "pending",
-                    "scheduled_date": wu.get("slots", {}).get("payment_date", datetime.now().isoformat())
-                },
-                "message": "Payment scheduled"
-            }
-        
-        elif verb == "reconcile_account":
-            return {
-                "success": True,
-                "result": {
-                    "matched_items": 0,
-                    "unmatched_items": 0,
-                    "variance": 0.0
-                },
-                "message": "Reconciliation completed"
-            }
-        
-        else:
-            return {
-                "success": True,
-                "result": {"verb": verb},
-                "message": f"Bank operation '{verb}' completed"
-            }
-    
-    async def _execute_documents(self, wu: WorkUnit) -> dict:
-        """Mock document operations"""
-        verb = wu.get("verb", "")
-        
-        await asyncio.sleep(0.05)
-        
-        if verb == "extract_data":
-            return {
-                "success": True,
-                "result": {
-                    "extracted_fields": wu.get("slots", {}).get("fields_to_extract", []),
-                    "confidence": 0.95
-                },
-                "message": "Data extracted"
-            }
-        
-        elif verb == "validate_document":
-            return {
-                "success": True,
-                "result": {
-                    "valid": True,
-                    "issues": []
-                },
-                "message": "Document validated"
-            }
-        
-        else:
-            return {
-                "success": True,
-                "result": {"verb": verb},
-                "message": f"Document operation '{verb}' completed"
-            }
-    
-    async def _execute_email(self, wu: WorkUnit) -> dict:
-        """Mock email operations"""
-        verb = wu.get("verb", "")
-        
-        await asyncio.sleep(0.05)
-        
-        return {
-            "success": True,
-            "result": {
-                "message_id": f"MSG-{uuid.uuid4().hex[:8].upper()}",
-                "recipient": wu.get("entities", {}).get("recipient_id", "unknown"),
-                "sent_at": datetime.now().isoformat()
-            },
-            "message": f"Email operation '{verb}' completed"
-        }
-    
-    async def _execute_workflow(self, wu: WorkUnit) -> dict:
-        """Mock workflow operations"""
-        verb = wu.get("verb", "")
-        
-        await asyncio.sleep(0.05)
-        
-        if verb == "approve_transaction":
-            return {
-                "success": True,
-                "result": {
-                    "approval_id": f"APR-{uuid.uuid4().hex[:8].upper()}",
-                    "status": "approved",
-                    "approved_at": datetime.now().isoformat()
-                },
-                "message": "Transaction approved"
-            }
-        
-        elif verb == "escalate_issue":
-            return {
-                "success": True,
-                "result": {
-                    "escalation_id": f"ESC-{uuid.uuid4().hex[:8].upper()}",
-                    "severity": wu.get("slots", {}).get("severity", "medium"),
-                    "escalated_at": datetime.now().isoformat()
-                },
-                "message": "Issue escalated"
-            }
-        
-        else:
-            return {
-                "success": True,
-                "result": {"verb": verb},
-                "message": f"Workflow operation '{verb}' completed"
-            }
-    
-    async def _execute_unknown(self, wu: WorkUnit) -> dict:
-        """Handler for unknown tools"""
-        return {
-            "success": False,
-            "result": None,
-            "message": f"Unknown tool: {wu.get('tool', 'unknown')}"
-        }
-
-
-# Singleton executor (thread-safe)
-import threading
-_executor: Optional[MockToolExecutor] = None
-_executor_lock: threading.Lock = threading.Lock()
-
-
-def get_executor() -> MockToolExecutor:
-    """Get singleton executor (thread-safe with double-check locking)"""
-    global _executor
-    if _executor is None:
-        with _executor_lock:
-            # Double-check after acquiring lock
-            if _executor is None:
-                _executor = MockToolExecutor()
-    return _executor
+logger = get_logger("execution")
+metrics = get_metrics()
 
 
 # ============================================================
@@ -267,62 +36,132 @@ def get_executor() -> MockToolExecutor:
 async def process(state: BabyMARSState) -> dict:
     """
     Execution Node
-    
-    Executes work units from the selected action:
-    1. Validate work units
+
+    Executes work units via Stargate:
+    1. Get org_id and user_id from state
     2. Execute each work unit in sequence
-    3. Collect results
-    4. Handle errors gracefully
+    3. Stop on permanent failure, retry transient errors
+    4. Return results for verification
+
+    Per Stargate Integration Contract v1.1:
+    - Uses turn_id for idempotency
+    - Follows retry strategies from error taxonomy
+    - Handles all 295 capabilities
     """
-    
+
     selected_action = state.get("selected_action")
-    
+
     if not selected_action:
+        logger.warning("No action selected for execution")
         return {
             "execution_results": [{
                 "success": False,
-                "message": "No action selected for execution"
+                "message": "No action selected for execution",
+                "error_type": "ValidationError",
             }]
         }
-    
+
     work_units = selected_action.get("work_units", [])
-    
+
     if not work_units:
+        logger.info("No work units to execute")
         return {
             "execution_results": [{
                 "success": True,
-                "message": "No work units to execute"
+                "message": "No work units to execute",
             }]
         }
-    
-    executor = get_executor()
-    results = []
-    
-    for wu in work_units:
-        try:
-            result = await executor.execute(wu)
-            results.append({
-                "unit_id": wu.get("unit_id", "unknown"),
-                "tool": wu.get("tool", "unknown"),
-                "verb": wu.get("verb", "unknown"),
-                **result
-            })
-            
-            # Stop on failure
-            if not result.get("success", False):
-                break
-                
-        except Exception as e:
-            results.append({
-                "unit_id": wu.get("unit_id", "unknown"),
-                "tool": wu.get("tool", "unknown"),
-                "verb": wu.get("verb", "unknown"),
-                "success": False,
-                "result": None,
-                "message": f"Execution error: {str(e)}"
-            })
-            break
-    
+
+    # Get org and user IDs
+    org_id = state.get("org_id", "default")
+    person = state.get("person", {})
+    user_id = person.get("person_id", "default")
+
+    # Generate turn_id for this execution (idempotency)
+    turn_id = state.get("turn_id") or str(uuid.uuid4())
+
+    logger.info(
+        "Executing work units via Stargate",
+        org_id=org_id,
+        user_id=user_id,
+        turn_id=turn_id,
+        work_unit_count=len(work_units),
+    )
+
+    # Execute via Stargate
+    executor = StargateExecutor()
+    results = await executor.execute_batch(
+        work_units=work_units,
+        org_id=org_id,
+        user_id=user_id,
+        turn_id=turn_id,
+    )
+
+    # Log results
+    success_count = sum(1 for r in results if r.get("success", False))
+    failure_count = len(results) - success_count
+
+    logger.info(
+        "Execution complete",
+        success_count=success_count,
+        failure_count=failure_count,
+        total=len(results),
+    )
+
+    metrics.increment("work_units_executed", count=len(results))
+    metrics.increment("work_units_succeeded", count=success_count)
+    metrics.increment("work_units_failed", count=failure_count)
+
     return {
-        "execution_results": results
+        "execution_results": results,
+        "turn_id": turn_id,
     }
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+async def check_stargate_health() -> dict:
+    """Check if Stargate is available and healthy."""
+    try:
+        client = get_stargate_client()
+        health = await client.health_check()
+
+        if health.get("status") == "healthy":
+            return {
+                "stargate": "connected",
+                "redis": health.get("redis", "unknown"),
+                "database": health.get("database", "unknown"),
+            }
+        else:
+            return {
+                "stargate": "unhealthy",
+                "error": health.get("error", "Unknown error"),
+            }
+    except Exception as e:
+        return {
+            "stargate": "disconnected",
+            "error": str(e),
+        }
+
+
+# ============================================================
+# CAPABILITY INFO
+# ============================================================
+
+def get_capability_for_work_unit(work_unit: WorkUnit) -> str:
+    """Get the Stargate capability key for a work unit."""
+    tool = work_unit.get("tool", "unknown")
+    verb = work_unit.get("verb", "unknown")
+    return map_work_unit_to_capability(tool, verb)
+
+
+async def list_available_capabilities() -> list[dict]:
+    """List all available Stargate capabilities."""
+    try:
+        client = get_stargate_client()
+        return await client.list_capabilities()
+    except Exception as e:
+        logger.error(f"Failed to list capabilities: {e}")
+        return []

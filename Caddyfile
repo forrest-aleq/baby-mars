@@ -1,0 +1,42 @@
+# Baby MARS Caddy Configuration
+# ==============================
+# Automatic HTTPS with Let's Encrypt
+#
+# For local development, use:
+#   localhost:443 {
+#     reverse_proxy api:8000
+#   }
+#
+# For production, replace with your domain:
+
+{$DOMAIN:localhost} {
+    # Reverse proxy to Baby MARS API
+    reverse_proxy api:8000
+
+    # Enable compression
+    encode gzip
+
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Prevent clickjacking
+        X-Frame-Options "DENY"
+        # XSS protection
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+        # Remove server header
+        -Server
+    }
+
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Health check endpoint (no TLS for internal checks)
+:80 {
+    respond /health 200
+}
