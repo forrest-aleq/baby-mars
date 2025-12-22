@@ -3,6 +3,8 @@ Claude Client Wrapper
 ======================
 
 Async client for Claude API with structured outputs support.
+Supports both direct Anthropic API and Azure AI Foundry.
+
 Uses the latest Anthropic SDK (December 2025) features:
 - Structured outputs (beta)
 - Tool use with strict schemas
@@ -15,11 +17,18 @@ from time import time
 from typing import Optional, Any, Type, TypeVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from anthropic import AsyncAnthropic, APIError, RateLimitError, APIConnectionError
+from anthropic import AsyncAnthropic, AsyncAnthropicFoundry, APIError, RateLimitError, APIConnectionError
 from pydantic import BaseModel
 
-# Default model - Claude Sonnet 4.5 for good balance of speed/quality
-DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+# Load .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# Default model - can be overridden by env var for Azure Foundry
+DEFAULT_MODEL = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "claude-sonnet-4-5-20250929")
 
 # Beta header for structured outputs
 STRUCTURED_OUTPUTS_BETA = "structured-outputs-2025-11-13"
@@ -105,9 +114,25 @@ class ClaudeClient:
         skills_dir: Optional[Path] = None
     ):
         self.config = config or ClaudeConfig()
-        self.client = AsyncAnthropic(
-            api_key=os.environ.get("ANTHROPIC_API_KEY")
-        )
+
+        # Check for Azure AI Foundry configuration
+        foundry_resource = os.environ.get("ANTHROPIC_FOUNDRY_RESOURCE")
+        foundry_api_key = os.environ.get("ANTHROPIC_FOUNDRY_API_KEY")
+
+        if foundry_resource and foundry_api_key:
+            # Use Azure AI Foundry with proper Foundry client
+            self.client = AsyncAnthropicFoundry(
+                api_key=foundry_api_key,
+                resource=foundry_resource,
+            )
+            self.using_foundry = True
+        else:
+            # Use direct Anthropic API
+            self.client = AsyncAnthropic(
+                api_key=os.environ.get("ANTHROPIC_API_KEY")
+            )
+            self.using_foundry = False
+
         self.skills_dir = skills_dir or Path(__file__).parent / "skills"
         self._skills_cache: dict[str, str] = {}
         
@@ -208,7 +233,7 @@ class ClaudeClient:
     # ============================================================
     
     T = TypeVar('T', bound=BaseModel)
-    
+
     async def complete_structured(
         self,
         messages: list[dict],
@@ -218,10 +243,9 @@ class ClaudeClient:
         temperature: Optional[float] = None
     ) -> T:
         """
-        Completion with guaranteed structured output.
+        Completion with structured output.
 
-        Uses Claude's structured outputs beta to ensure response
-        matches the provided Pydantic model schema.
+        Uses JSON mode with schema in prompt for Azure Foundry compatibility.
 
         Args:
             messages: Conversation history
@@ -238,19 +262,33 @@ class ClaudeClient:
         if system is None and skills:
             system = self.build_system_prompt(skills)
 
+        # Add JSON schema to system prompt for structured output
+        schema = response_model.model_json_schema()
+        schema_prompt = f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}\n\nOutput ONLY valid JSON, no other text."
+
+        full_system = (system or "") + schema_prompt
+
         try:
-            # Use beta.messages.parse for automatic schema handling
-            response = await self.client.beta.messages.parse(
+            response = await self.client.messages.create(
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
-                betas=[STRUCTURED_OUTPUTS_BETA],
                 temperature=temperature or self.config.temperature,
-                system=system or "",
-                messages=messages,
-                response_model=response_model
+                system=full_system,
+                messages=messages
             )
             _circuit_breaker.record_success()
-            return response.parsed_output
+
+            # Parse JSON response into model
+            response_text = response.content[0].text
+            # Handle potential markdown code blocks
+            if response_text.startswith("```"):
+                import re
+                match = re.search(r"```(?:json)?\s*(.*?)\s*```", response_text, re.DOTALL)
+                if match:
+                    response_text = match.group(1)
+
+            data = json.loads(response_text)
+            return response_model(**data)
         except (RateLimitError, APIConnectionError, APIError) as e:
             _circuit_breaker.record_failure()
             raise
