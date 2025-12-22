@@ -46,11 +46,20 @@ def build_appraisal_context(state: BabyMARSState) -> str:
     context_key = state.get("current_context_key", "*|*|*")
     parts.append(f"<context_key>{context_key}</context_key>")
     
-    # Activated beliefs
+    # Activated beliefs - prioritize competence/technical over identity
+    # Identity beliefs are constraints, competence beliefs drive capability
     beliefs = state.get("activated_beliefs", [])
     if beliefs:
+        # Group by category
+        competence_beliefs = [b for b in beliefs if b.get("category") in ("competence", "technical")]
+        other_beliefs = [b for b in beliefs if b.get("category") not in ("competence", "technical", "identity")]
+        identity_beliefs = [b for b in beliefs if b.get("category") == "identity"]
+
+        # Show competence first (most relevant for autonomy), then others, then identity
+        prioritized = competence_beliefs[:6] + other_beliefs[:2] + identity_beliefs[:2]
+
         belief_strs = []
-        for b in beliefs[:10]:  # Top 10
+        for b in prioritized:
             strength = b.get("resolved_strength", b.get("strength", 0))
             belief_strs.append(
                 f"- [{b['belief_id']}] {b['statement']} "
@@ -161,16 +170,19 @@ Return your appraisal in the structured format."""
             "involves_ethical_beliefs": appraisal.involves_ethical_beliefs
         }
         
-        # Determine supervision mode based on appraisal
-        supervision_mode = _determine_supervision_mode(appraisal, state)
-        
+        # Compute belief strength first (Paper #1)
+        belief_strength = _compute_aggregate_strength(
+            appraisal.relevant_belief_ids,
+            state.get("activated_beliefs", [])
+        )
+
+        # Determine supervision mode from belief strength (Paper #1)
+        supervision_mode = _determine_supervision_mode(appraisal, state, belief_strength)
+
         return {
             "appraisal": result,
             "supervision_mode": supervision_mode,
-            "belief_strength_for_action": _compute_aggregate_strength(
-                appraisal.relevant_belief_ids,
-                state.get("activated_beliefs", [])
-            )
+            "belief_strength_for_action": belief_strength
         }
         
     except Exception as e:
@@ -201,51 +213,81 @@ def _map_approach(approach: str) -> str:
     return mapping.get(approach, "guidance_needed")
 
 
-def _determine_supervision_mode(appraisal: AppraisalOutput, state: BabyMARSState) -> str:
+def _determine_supervision_mode(
+    appraisal: AppraisalOutput,
+    state: BabyMARSState,
+    belief_strength: float
+) -> str:
     """
-    Determine supervision mode based on appraisal.
-    
-    Factors:
-    - Recommended approach from Claude
-    - Belief strength
-    - Ethical involvement
-    - Difficulty level
+    Determine supervision mode primarily from belief strength (Paper #1).
+
+    Paper #1: Competence-Based Autonomy
+    - belief_strength < 0.4: guidance_seeking
+    - belief_strength 0.4-0.7: action_proposal
+    - belief_strength >= 0.7: autonomous
+
+    Exceptions that force lower autonomy:
+    - Difficulty 5: always guidance_seeking
+    - Difficulty 4: cap at action_proposal
+    - Low belief strength always wins
     """
-    # Always seek guidance for ethical matters
-    if appraisal.involves_ethical_beliefs:
+    from ...state.schema import AUTONOMY_THRESHOLDS
+
+    # Very high difficulty forces guidance_seeking
+    if appraisal.difficulty_assessment >= 5:
         return "guidance_seeking"
-    
-    # High difficulty requires more supervision
-    if appraisal.difficulty_assessment >= 4:
-        if appraisal.recommended_approach == "execute":
-            return "action_proposal"  # Downgrade
-        return "guidance_seeking"
-    
-    # Map approach to mode
-    approach_to_mode = {
-        "seek_guidance": "guidance_seeking",
-        "propose_action": "action_proposal",
-        "execute": "autonomous"
-    }
-    
-    return approach_to_mode.get(appraisal.recommended_approach, "guidance_seeking")
+
+    # Compute mode from belief strength (Paper #1)
+    if belief_strength < AUTONOMY_THRESHOLDS["guidance_seeking"]:
+        mode = "guidance_seeking"
+    elif belief_strength < AUTONOMY_THRESHOLDS["action_proposal"]:
+        mode = "action_proposal"
+    else:
+        mode = "autonomous"
+
+    # High difficulty (4) caps at action_proposal
+    if appraisal.difficulty_assessment >= 4 and mode == "autonomous":
+        mode = "action_proposal"
+
+    return mode
 
 
 def _compute_aggregate_strength(belief_ids: list[str], beliefs: list[dict]) -> float:
-    """Compute average strength of relevant beliefs"""
+    """
+    Compute average strength of relevant competence beliefs.
+
+    Paper #1: Autonomy is based on COMPETENCE beliefs, not identity.
+    Identity beliefs are immutable constraints, not capability indicators.
+    """
     if not belief_ids:
         return 0.3  # Default low
-    
+
     belief_map = {b["belief_id"]: b for b in beliefs}
-    strengths = []
-    
+    competence_strengths = []
+    other_strengths = []
+
     for bid in belief_ids:
         if bid in belief_map:
             b = belief_map[bid]
             strength = b.get("resolved_strength", b.get("strength", 0.5))
-            strengths.append(strength)
-    
-    if not strengths:
-        return 0.3
-    
-    return sum(strengths) / len(strengths)
+            category = b.get("category", "competence")
+
+            # Identity beliefs are constraints, not competence indicators
+            if category == "identity":
+                continue
+
+            # Competence and technical beliefs drive autonomy
+            if category in ("competence", "technical"):
+                competence_strengths.append(strength)
+            else:
+                other_strengths.append(strength)
+
+    # Prefer competence/technical beliefs
+    if competence_strengths:
+        return sum(competence_strengths) / len(competence_strengths)
+
+    # Fall back to other beliefs (moral, preference) if no competence beliefs
+    if other_strengths:
+        return sum(other_strengths) / len(other_strengths)
+
+    return 0.3  # Default low when no relevant beliefs
