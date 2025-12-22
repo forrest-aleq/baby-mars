@@ -154,7 +154,17 @@ class BeliefGraph:
         for candidate in ladder:
             if candidate in context_states:
                 return context_states[candidate]
-                
+
+        # Fallback to top-level belief strength if no context states
+        if not context_states:
+            return {
+                "strength": belief.get("strength", 0.5),
+                "last_updated": belief.get("last_updated"),
+                "success_count": belief.get("success_count", 0),
+                "failure_count": belief.get("failure_count", 0),
+                "last_outcome": None,
+            }
+
         # No match found
         return None
     
