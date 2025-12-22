@@ -31,7 +31,7 @@ _UPSERT_SQL = """
         $14, $15, $16,
         $17, $18, $19, $20
     )
-    ON CONFLICT (belief_id) DO UPDATE SET
+    ON CONFLICT (org_id, belief_id) DO UPDATE SET
         statement = EXCLUDED.statement,
         category = EXCLUDED.category,
         strength = EXCLUDED.strength,

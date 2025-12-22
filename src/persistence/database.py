@@ -11,6 +11,13 @@ from typing import Optional
 from contextlib import asynccontextmanager
 import asyncpg
 
+# Load .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Connection pool singleton with lock for thread safety
 _pool: Optional[asyncpg.Pool] = None
 _pool_lock: asyncio.Lock = asyncio.Lock()
