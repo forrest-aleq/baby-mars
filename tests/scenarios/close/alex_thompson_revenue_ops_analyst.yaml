@@ -1,0 +1,281 @@
+persona:
+  name: Alex Thompson
+  role: Revenue Operations Analyst
+  company: Dockwa
+  industry: saas
+metadata:
+  difficulty: 2
+  workflow_steps: 52
+  decision_points: 14
+  automation_susceptibility: 4
+test_cases:
+- id: daily_lockbox_processing_happy_path
+  description: Verifies agent can process a standard lockbox PDF with clear invoice
+    references and matching customer records
+  input: Process today's lockbox PDF from First Republic Bank - I see 5 payments totaling
+    $3,425.00 that need to be applied in Recurly and recorded in NetSuite
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: crm
+      verb: query_records
+      min_count: 5
+    - tool: stripe
+      verb: apply_payment
+      min_count: 5
+    - tool: netsuite
+      verb: create_record
+      min_count: 5
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.attachment.get
+    - pdf.extract
+    - recurly.customer.search
+    - recurly.invoice.get
+    - recurly.payment.apply
+    - netsuite.journal_entry.create
+    - excel.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - daily
+  skip: false
+- id: lockbox_customer_name_mismatch
+  description: Verifies agent can handle customer name variations between lockbox
+    PDF and Recurly records
+  input: 'Process the lockbox payment for SeaBreeze Yacht Club check #1847 for $1,200.00
+    referencing invoice DW-2025-0923 - I can''t find this customer name in Recurly'
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: crm
+      verb: query_records
+      min_count: 3
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - recurly.customer.search
+    - recurly.invoice.search
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - data_quality
+  skip: false
+- id: lockbox_prepayment_accounting
+  description: Verifies agent can handle prepayment accounting with deferred revenue
+    calculation
+  input: Apply a $1,200 payment from SB Yacht Club LLC for 10 months prepayment -
+    their subscription is $120/month and we need to defer future revenue
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: apply_payment
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - recurly.payment.apply
+    - netsuite.journal_entry.create
+    - netsuite.deferred_revenue.calculate
+    - excel.update
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - accounting
+  - complex
+  skip: false
+- id: lockbox_missing_invoice_reference
+  description: Verifies agent escalates when referenced invoice doesn't exist in Recurly
+  input: 'Process payment from Marina del Rey Storage check #3829 for $875.00 referencing
+    invoice DW-2025-0856, but I can''t find this invoice number in Recurly'
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: crm
+      verb: query_records
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - recurly.invoice.search
+    - recurly.customer.get
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - escalation
+  skip: false
+- id: lockbox_batch_allocation
+  description: Verifies agent can handle payment allocation across multiple old invoices
+  input: 'Apply $2,850 payment from Hartwell Marina Inc check #4729 - they have 10
+    unpaid monthly invoices from January to October at $285 each that this should
+    cover'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: stripe
+      verb: apply_payment
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - recurly.customer.get
+    - recurly.invoice.list
+    - recurly.payment.apply_batch
+    - netsuite.journal_entry.create
+    - excel.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - batch_processing
+  - allocation
+  skip: false
+- id: lockbox_payment_correction
+  description: Verifies agent can reverse and reapply incorrectly applied payments
+  input: I need to correct a payment - the $285 from Hartwell was applied to the wrong
+    Hartwell entity. It should be on Hartwell Marina Inc (cus_hartwell_marina_inc_2023)
+    not Hartwell Marine Services
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: void_payment
+      min_count: 1
+    - tool: stripe
+      verb: apply_payment
+      min_count: 1
+    - tool: netsuite
+      verb: update_record
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - recurly.payment.void
+    - recurly.payment.apply
+    - netsuite.journal_entry.update
+    - excel.update
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - error_correction
+  - reversal
+  skip: false
+- id: lockbox_reconciliation_check
+  description: Verifies agent can perform end-to-end reconciliation between lockbox
+    total, Recurly payments, and NetSuite entries
+  input: Run reconciliation on today's lockbox processing - verify that the PDF total
+    of $23,847.50 matches what was applied in Recurly and recorded in NetSuite
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - pdf.extract
+    - recurly.payment.list
+    - netsuite.journal_entry.query
+    - excel.calculate
+    - slack.message.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reconciliation
+  - validation
+  skip: false
+- id: lockbox_summary_report
+  description: Verifies agent can generate comprehensive lockbox processing summary
+    email
+  input: Create the daily lockbox summary email for September 30th - 23 payments totaling
+    $23,847.50 processed, including notable items like Hartwell's 10-month catch-up
+    and SeaBreeze prepayment
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - excel.read
+    - recurly.payment.list
+    - netsuite.journal_entry.query
+    - email.compose
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reporting
+  - communication
+  - daily
+  skip: false
+source_file: docs/scenarios/close/alex_thompson_revenue_ops_analyst.md

@@ -1,0 +1,252 @@
+persona:
+  name: Sarah Chen
+  role: Expense Coordinator
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 1
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_expense_review_initiation
+  description: Verifies agent can retrieve and assess monthly expense submissions
+    across all properties, identify flagged items, and generate priority assessment
+    dashboard
+  input: Pull up the November 2025 expense submissions for all 47 properties and show
+    me which ones need clarification
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: generate_report
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - document.extract
+    - erp.report.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly_process
+  skip: false
+- id: legal_expense_over_threshold_investigation
+  description: Verifies agent can identify policy violation for legal expense over
+    $5,000 without pre-approval, draft documentation request email, and flag for approval
+    escalation
+  input: Mike Rodriguez submitted a $8,400 legal fee from Wilson & Associates for
+    Denver Storage Center zoning issue. Check if this has proper pre-approval and
+    request missing documentation.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - email.draft
+    - policy.check
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - policy_violation
+  - high_priority
+  skip: false
+- id: duplicate_payment_investigation
+  description: Verifies agent can detect potential duplicate payments by cross-referencing
+    previous months, analyze differences, and draft clarification request
+  input: Lisa Thompson submitted $12,700 to Mountain Engineering Group in November,
+    but I see we paid them $11,200 in October. Investigate if this is a duplicate
+    payment.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - qb.vendor.query
+    - email.draft
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - fraud_prevention
+  - cross_reference
+  skip: false
+- id: marketing_budget_overage_roi_analysis
+  description: Verifies agent can calculate budget variance percentage, identify ROI
+    justification requirements, and draft documentation request with specific performance
+    metrics
+  input: Kevin Wu at Marina Storage spent $8,900 on Google Ads in November but his
+    monthly budget is $2,200. Request ROI documentation to justify this 340% overage.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: calculate_variance
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - qb.budget.compare
+    - email.draft
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - budget_variance
+  - medium_priority
+  skip: false
+- id: acquisition_expense_classification
+  description: Verifies agent can identify complex accounting treatment question for
+    pre-acquisition expenses, escalate to finance manager for capital vs expense determination
+  input: Jennifer Walsh submitted $23,800 in due diligence expenses for Salt Lake
+    acquisition. Determine if this should be capitalized or expensed and what documentation
+    we need.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - email.draft
+    - accounting.policy.check
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - complex_accounting
+  - escalation_required
+  skip: false
+- id: emergency_repair_competitive_bid_exception
+  description: Verifies agent can validate emergency repair justification, confirm
+    exception to competitive bidding policy is warranted, and request comparative
+    quotes for documentation
+  input: Carlos Martinez had an $18,700 emergency HVAC repair at Phoenix Storage Hub
+    on a Sunday. No competitive bids were obtained. Verify if emergency exception
+    is valid and what documentation we need.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - policy.check
+    - email.draft
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - emergency_exception
+  - policy_override
+  skip: false
+- id: insurance_claim_vs_expense_determination
+  description: Verifies agent can analyze whether repair should be insurance claim,
+    compare to deductible, determine capital vs repair classification, and request
+    adjuster documentation
+  input: Mike Rodriguez has a $12,300 roof leak repair at Denver Storage Center. Check
+    if this should be an insurance claim and whether it's a repair expense or capital
+    improvement.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - insurance.policy.check
+    - email.draft
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - insurance
+  - capital_classification
+  skip: false
+- id: monthly_summary_compilation_audit_prep
+  description: Verifies agent can compile comprehensive expense review metrics, identify
+    problem properties, generate category performance analysis, and prepare audit-ready
+    documentation packages
+  input: Generate the complete November 2025 expense review summary with overall metrics,
+    category performance, problem properties, and audit preparation documentation
+    for the board report.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 5
+    - tool: erp
+      verb: generate_report
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - qb.report.generate
+    - qb.analytics.calculate
+    - document.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - reporting
+  - monthly_close
+  skip: false
+source_file: docs/scenarios/close/sarah_chen_expense_coordinator.md

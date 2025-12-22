@@ -1,0 +1,258 @@
+persona:
+  name: Patricia Santos
+  role: Regional Operations Manager
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: manager_engagement_tracking_analysis
+  description: Verifies agent can analyze manager engagement patterns across multiple
+    months and identify accountability gaps
+  input: Pull the manager engagement data for the last 6 months and show me who's
+    actually reviewing their budget reports versus just filing them away. I need acknowledgment
+    rates, follow-up requirements, and verified review counts for all 12 property
+    managers.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - documents.query
+    - email.analytics.get
+    - reporting.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - analytics
+  skip: false
+- id: google_form_accountability_setup
+  description: Verifies agent can create structured Google Form with required fields
+    for mandatory budget review confirmation
+  input: Create a Google Form for my property managers to complete after reviewing
+    their monthly budget reports. Include sections for review verification with timestamp,
+    variance understanding questions, required action items, and optional feedback.
+    Make sure time spent reviewing and largest variance category are required dropdown
+    fields.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - google_forms.create
+    - form.field.configure
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - setup
+  - forms
+  skip: false
+- id: slack_integration_social_accountability
+  description: Verifies agent can set up Slack workspace with automated notifications
+    for budget review tracking and peer visibility
+  input: Set up a Slack workspace called 'StorageCorner Budget Reviews' with channels
+    for budget reports, review confirmations, performance highlights, and support
+    requests. Configure Zapier to automatically post when reports are distributed,
+    when each manager completes their review, and when the deadline approaches. I
+    need real-time status updates showing completion count.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: slack
+      verb: create_record
+      min_count: 4
+    - tool: workflow
+      verb: create_record
+      min_count: 3
+    capabilities_used:
+    - slack.workspace.create
+    - slack.channel.create
+    - zapier.workflow.configure
+    - slack.notification.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - setup
+  - integration
+  - notifications
+  skip: false
+- id: escalation_framework_non_responder
+  description: Verifies agent can execute escalation process for managers who haven't
+    completed budget review by deadline
+  input: 'It''s Day 4 and David Park, Maria Santos, and Roberto Martinez still haven''t
+    completed their October budget review confirmations. Execute the escalation process:
+    send the regional director CC''d email, schedule mandatory calls with each of
+    them, and document this in their personnel files.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: send
+      min_count: 3
+    - tool: workflow
+      verb: create_record
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 3
+    capabilities_used:
+    - email.send
+    - calendar.event.create
+    - hr.documentation.create
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - escalation
+  - compliance
+  skip: false
+- id: response_quality_scoring_dashboard
+  description: Verifies agent can analyze manager response quality and generate quality
+    scoring dashboard with trends
+  input: Analyze the quality of all manager responses to October budget reviews using
+    the 1-5 scale criteria. Generate a dashboard showing each manager's quality score,
+    their 6-month average, and trend direction. Flag anyone scoring below 2.5 and
+    highlight scores above 4.5.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 12
+    - tool: documents
+      verb: extract_data
+      min_count: 12
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - forms.response.get
+    - analytics.score
+    - reporting.dashboard.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - analytics
+  - quality_control
+  skip: false
+- id: real_time_engagement_dashboard
+  description: Verifies agent can create and update live dashboard showing real-time
+    manager engagement status with deadline tracking
+  input: Create a real-time engagement dashboard for October budget reviews showing
+    response status, average response time, quality scores, and who's still pending.
+    Update it automatically as managers complete their forms. Set alerts for 24 hours
+    before deadline and when deadline passes.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - reporting.dashboard.create
+    - forms.response.track
+    - alerts.configure
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - dashboard
+  - monitoring
+  skip: false
+- id: roi_calculation_accountability_system
+  description: Verifies agent can calculate comprehensive ROI for accountability system
+    including costs, benefits, and intangible value
+  input: Calculate the first-year ROI for our manager accountability system. Include
+    setup time at $55/hour, training costs, monthly administration, reduced follow-up
+    time savings, improved budget performance impact on our $147,000 annual revenue
+    per property, and estimated variance resolution savings. Give me payback period
+    and 3-year NPV with 5% discount rate.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - financial.calculation
+    - reporting.generate
+    - analytics.roi
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - financial
+  - analytics
+  skip: false
+- id: peer_mentoring_assignment_low_performers
+  description: Verifies agent can identify low-performing managers and assign appropriate
+    peer mentors based on quality scores and needs
+  input: Based on the 6-month quality scores, identify managers scoring below 3.0
+    who need peer mentoring. Match them with high performers (4.0+) who have relevant
+    strengths. Maria Santos needs basic budget literacy, David Park needs proactive
+    management emphasis, and Roberto Martinez needs operational efficiency insights.
+    Set up the mentoring pairs and send introduction emails.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 6
+    - tool: workflow
+      verb: create_record
+      min_count: 3
+    capabilities_used:
+    - analytics.query
+    - email.send
+    - program.management
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - training
+  - development
+  - mentoring
+  skip: false
+source_file: docs/scenarios/close/patricia_santos_operations_manager.md

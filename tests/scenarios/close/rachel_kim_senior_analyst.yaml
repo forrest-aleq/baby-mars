@@ -1,0 +1,361 @@
+persona:
+  name: Rachel Kim
+  role: Senior Financial Analyst
+  company: GGHC Investment Management
+  industry: investment_management
+metadata:
+  difficulty: 3
+  workflow_steps: 78
+  decision_points: 19
+  automation_susceptibility: 3
+test_cases:
+- id: monthly_fee_allocation_power_bi_to_netsuite
+  description: Complete monthly fee allocation process from Power BI data extraction
+    through NetSuite journal entry creation
+  input: Process the November 2025 monthly fee allocation from Power BI to NetSuite.
+    Export all 14 data tables, calculate management and performance fees, handle adjustments,
+    and create the journal entry import file.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: navigate
+      min_count: 1
+    - tool: browser
+      verb: extract_data
+      min_count: 14
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: transform_data
+      min_count: 5
+    - tool: documents
+      verb: calculate
+      min_count: 238
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: reconcile
+      min_count: 3
+    capabilities_used:
+    - powerbi.data.export
+    - excel.data.import
+    - excel.formula.calculate
+    - netsuite.journal_entry.create
+    - file.save
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly
+  - multi_system
+  skip: false
+- id: data_quality_cleanup_client_names
+  description: Identify and resolve data quality issues including duplicate client
+    names, formatting inconsistencies, and text-to-number conversions
+  input: Clean the Power BI client data - I'm seeing duplicates for Hartwell Industries
+    with different comma formatting, Morrison Family Trust has currency values stored
+    as text, and there are trailing spaces on some client names. Standardize everything
+    before I start calculations.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: find_replace
+      min_count: 3
+    - tool: documents
+      verb: transform_data
+      min_count: 2
+    - tool: documents
+      verb: validate_data
+      min_count: 1
+    capabilities_used:
+    - excel.find_replace
+    - excel.text_to_columns
+    - excel.conditional_formatting
+    - excel.formula.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - data_quality
+  - preprocessing
+  skip: false
+- id: tiered_management_fee_calculation
+  description: Calculate tiered management fees for all 238 clients using complex
+    breakpoint logic
+  input: 'Calculate quarterly management fees for all clients using our standard tiered
+    structure: 1.00% on first $5M, 0.85% on next $5M, 0.70% on next $10M, and 0.60%
+    above $20M. Apply to the Client_AUM_Detail data I just imported.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: calculate
+      min_count: 238
+    - tool: documents
+      verb: validate_data
+      min_count: 1
+    capabilities_used:
+    - excel.formula.create
+    - excel.calculate
+    - excel.data.validate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - calculation
+  - routine
+  skip: false
+- id: performance_fee_annual_calculation
+  description: Calculate annual performance fee with high water mark methodology for
+    Coastal Pension Fund
+  input: Calculate the annual performance fee for Coastal Pension Fund. Beginning
+    value was $47.3M on 1/1/2025, ending value $52.8M on 12/31/2025, distributions
+    of $1.2M. Use 8% hurdle rate and 20% performance fee on excess returns with high
+    water mark methodology.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: calculate
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - excel.formula.create
+    - excel.calculate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - calculation
+  - performance_fee
+  skip: false
+- id: handle_fee_adjustments_and_exceptions
+  description: Process manual fee adjustments including credits, waivers, prorations
+    for new accounts, and final billings for closed accounts
+  input: 'Process the following fee adjustments: Morrison Family Trust gets $2,500
+    credit for Q3 billing error, Hartwell Industries full waiver for October service
+    interruption, Patterson LLC opened 10/15 needs proration for 16 days, and Marina
+    Investment Partners closed 10/8 needs 8-day final billing.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 4
+    - tool: documents
+      verb: calculate
+      min_count: 2
+    - tool: documents
+      verb: update_record
+      min_count: 4
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - excel.formula.create
+    - excel.calculate
+    - excel.update
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - exceptions
+  - adjustments
+  - critical
+  skip: false
+- id: custodian_fee_integration_multi_format
+  description: Extract and integrate custodian fees from multiple sources with different
+    formats (PDF and Excel) and map to GGHC client identifiers
+  input: 'Integrate custodian fees from three sources: Schwab PDF showing custody
+    fees $14,247.32, Fidelity Excel file with their account numbers, and Interactive
+    Brokers statement. Map Fidelity accounts to our GGHC client IDs using the cross-reference
+    table and add to fee calculations.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: transform_data
+      min_count: 2
+    - tool: documents
+      verb: calculate
+      min_count: 1
+    capabilities_used:
+    - pdf.extract_data
+    - excel.data.import
+    - excel.vlookup
+    - excel.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - integration
+  - third_party
+  - multi_format
+  skip: false
+- id: netsuite_journal_entry_format_and_import
+  description: Format calculated fees for NetSuite journal entry import with proper
+    GL accounts, departments, classes, and create the import file
+  input: Format all calculated fees for NetSuite import. Create journal entries with
+    Account 4100 (Management Fee Revenue), Department 100 (Investment Management),
+    proper client entities, and generate reference numbers starting with MGT-2025-Q4-001.
+    Export as CSV for NetSuite import.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: transform_data
+      min_count: 1
+    - tool: documents
+      verb: format_data
+      min_count: 487
+    - tool: documents
+      verb: export_data
+      min_count: 1
+    - tool: netsuite
+      verb: validate_import
+      min_count: 1
+    capabilities_used:
+    - excel.formula.create
+    - excel.text.format
+    - excel.export.csv
+    - netsuite.journal_entry.validate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - netsuite
+  - export
+  - formatting
+  skip: false
+- id: comprehensive_reconciliation_and_variance_analysis
+  description: Perform multi-level reconciliation between Power BI totals, Excel calculations,
+    PortfolioCenter AUM, and prior month trends
+  input: Run full reconciliation on my November fee calculations. Compare my Excel
+    total against Power BI dashboard ($10,723,291.00), verify client count is 238,
+    check AUM values against PortfolioCenter, and analyze variance vs September total
+    of $10.2M. Flag anything over $1,000 variance.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: calculate
+      min_count: 3
+    - tool: documents
+      verb: reconcile
+      min_count: 4
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - excel.calculate
+    - excel.reconcile
+    - excel.conditional_formatting
+    - powerbi.data.query
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reconciliation
+  - quality_control
+  - critical
+  skip: false
+- id: performance_fee_multi_strategy_allocation
+  description: Create complex NetSuite journal entry for performance fee with multiple
+    GL accounts and strategy allocations
+  input: Create the NetSuite journal entry for Coastal Pension Fund's $167,942 quarterly
+    performance fee accrual. Split between equity strategy ($125,956) and fixed income
+    strategy ($41,986). Debit Accrued Performance Fee Receivable and credit the two
+    Performance Fee Revenue accounts.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: calculate
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 3
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - excel.calculate
+    - netsuite.journal_entry.create_multi_line
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - performance_fee
+  - complex_entry
+  - multi_line
+  skip: false
+- id: duplicate_client_detection_resolution
+  description: Identify duplicate client entries and determine if they are data errors
+    or legitimate separate accounts requiring different treatment
+  input: I found Coastal Pension Fund appearing twice in the data - once as 'Managed
+    Account' and once as 'Advisory Account' with different account types. Investigate
+    if this is a duplicate error or two legitimate accounts, and handle appropriately
+    for fee calculation.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: validate_data
+      min_count: 1
+    - tool: documents
+      verb: update_record
+      min_count: 2
+    capabilities_used:
+    - excel.conditional_formatting
+    - excel.filter
+    - excel.update
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - data_quality
+  - edge_case
+  - escalation
+  skip: false
+source_file: docs/scenarios/close/rachel_kim_senior_analyst.md

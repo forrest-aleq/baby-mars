@@ -1,0 +1,280 @@
+persona:
+  name: Sarah Martinez
+  role: Controller
+  company: Dockwa
+  industry: saas
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_bank_reconciliation_chase_operating
+  description: Verifies agent can download bank statements, export GL data, perform
+    transaction matching, and identify variances for primary operating account
+  input: Reconcile the Chase operating account for October 2025. Download the bank
+    statement, export the NetSuite GL data for account 1100, and identify any variances.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.statement.download
+    - netsuite.gl.query
+    - netsuite.gl.export
+    - documents.parse
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - month_end
+  skip: false
+- id: stripe_clearing_account_reconciliation
+  description: Verifies agent can handle complex Stripe reconciliation with fees,
+    holdbacks, and multi-day aggregation
+  input: Reconcile the Stripe clearing account for October. I need to match the daily
+    payouts to the underlying customer payments and verify all fees are properly recorded.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 2
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - stripe.payout.query
+    - stripe.transaction.query
+    - netsuite.gl.query
+    - netsuite.revenue.verify
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - complex
+  - payment_processing
+  skip: false
+- id: unmatched_transaction_investigation
+  description: Verifies agent can identify unmatched transactions, investigate root
+    causes, and propose correcting journal entries
+  input: I found a $3,200 deposit on October 15 in the bank statement that doesn't
+    have a corresponding NetSuite entry. Investigate this transaction and create the
+    appropriate journal entry if needed.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.transaction.query
+    - netsuite.gl.query
+    - netsuite.journal_entry.create
+    - email.search
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - investigation
+  skip: false
+- id: fraud_detection_review_new_vendors
+  description: Verifies agent can identify suspicious transactions, flag new vendors
+    without proper documentation, and escalate for approval
+  input: Review October bank transactions for any unusual activity or fraud red flags.
+    Flag any payments to new vendors, duplicate payments, or unusual transaction patterns.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 2
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.transaction.query
+    - netsuite.vendor.query
+    - netsuite.transaction.query
+    - email.search
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - fraud_detection
+  - compliance
+  skip: false
+- id: correcting_journal_entries_bank_fees
+  description: Verifies agent can create multiple correcting journal entries for unrecorded
+    bank fees and expenses
+  input: 'Create journal entries for the following October items: $45 bank account
+    maintenance fee on Chase, $247 in lockbox processing fees, and an $847.32 quarterly
+    employment tax payment.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: create_record
+      min_count: 3
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - netsuite.journal_entry.create
+    - netsuite.account.query
+    - netsuite.gl.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - journal_entries
+  skip: false
+- id: outstanding_items_reconciliation
+  description: Verifies agent can identify and properly categorize outstanding checks
+    and deposits in transit
+  input: Identify all outstanding items for the Chase operating account as of October
+    31st. I need to know which checks haven't cleared and which deposits are in transit.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - netsuite.gl.query
+    - bank.transaction.query
+    - netsuite.payment.query
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - reconciliation
+  skip: false
+- id: audit_documentation_package
+  description: Verifies agent can compile comprehensive audit documentation including
+    statements, reconciliations, and supporting documents
+  input: Prepare the complete audit documentation package for October 2025 bank reconciliation.
+    Include all bank statements, NetSuite exports, reconciliation workbooks, correcting
+    journal entries, and a summary report.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 4
+    - tool: netsuite
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - bank.statement.download
+    - netsuite.gl.export
+    - netsuite.journal_entry.query
+    - documents.generate_report
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - compliance
+  - audit
+  skip: false
+- id: multi_account_reconciliation_summary
+  description: Verifies agent can reconcile all accounts simultaneously and generate
+    executive summary with variances
+  input: 'Complete the full month-end bank reconciliation for October 2025. Reconcile
+    all accounts: Chase operating, Stripe clearing, First Republic lockbox, and SVB
+    payroll. Give me a summary with all variances and reconciling items.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 4
+    - tool: netsuite
+      verb: query_records
+      min_count: 4
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.statement.download
+    - netsuite.gl.query
+    - stripe.payout.query
+    - netsuite.reconciliation.create
+    - documents.generate_report
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - month_end
+  - comprehensive
+  skip: false
+source_file: docs/scenarios/close/sarah_martinez_controller.md

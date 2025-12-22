@@ -1,0 +1,277 @@
+persona:
+  name: Robert Kim
+  role: Finance Analyst
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 3
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_variance_investigation_scope
+  description: Verifies agent can identify and categorize budget variances across
+    all properties using defined thresholds and prioritize investigation workload
+  input: Run the October 2025 variance analysis for all 23 properties and show me
+    which items need investigation prioritized by severity
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 23
+    - tool: erp
+      verb: calculate_variance
+      min_count: 207
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.report.budget_variance
+    - qb.query
+    - excel.analysis
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly_process
+  skip: false
+- id: critical_variance_investigation_repairs
+  description: Verifies agent can conduct deep-dive investigation of critical variance
+    including vendor verification, weather correlation, and insurance claim identification
+  input: Investigate the Pacifica Storage repairs and maintenance variance - it's
+    showing +$4,347 which is 51% over budget. I need full transaction details, vendor
+    verification, and determine if manager follow-up is needed.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 6
+    - tool: browser
+      verb: search
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.detail
+    - qb.vendor.verify
+    - weather.api.check
+    - insurance.claim.identify
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - investigation
+  skip: false
+- id: systemic_variance_pattern_analysis
+  description: Verifies agent can identify and analyze variance patterns affecting
+    multiple properties and correlate with operational metrics like occupancy rates
+  input: I'm seeing marketing expenses down 15-25% across 8 different properties.
+    Analyze this pattern and tell me if it's a problem or if there's a legitimate
+    business reason.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 8
+    - tool: crm
+      verb: query_records
+      min_count: 8
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.query.multi_property
+    - qb.trend.analysis
+    - occupancy.correlation
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - pattern_analysis
+  - multi_property
+  skip: false
+- id: vendor_price_fraud_investigation
+  description: Verifies agent can detect vendor pricing anomalies across properties,
+    compare historical pricing, and flag potential fraud or overcharging
+  input: Four properties have office supplies variances all from Corporate Office
+    Solutions - Redwood City +188%, San Mateo +138%, Marina +119%, Phoenix +158%.
+    Investigate this vendor and pricing.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 4
+    - tool: browser
+      verb: search
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 4
+    - tool: email
+      verb: send
+      min_count: 4
+    capabilities_used:
+    - qb.vendor.pricing_analysis
+    - qb.vendor.background_check
+    - vendor.comparison
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - fraud_detection
+  - vendor_management
+  skip: false
+- id: seasonal_utility_variance_with_equipment
+  description: Verifies agent can investigate utility variances with weather correlation,
+    HVAC efficiency analysis, and capital investment ROI calculation
+  input: Phoenix Storage utilities are up $2,847 which is 45% over budget. Check if
+    this is weather-related or if we have equipment problems that need capital investment.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: browser
+      verb: search
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.utility.analysis
+    - weather.api.check
+    - maintenance.log.review
+    - roi.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - seasonal
+  - capital_planning
+  - equipment
+  skip: false
+- id: contract_violation_investigation
+  description: Verifies agent can detect contract violations, verify approval processes,
+    calculate unauthorized charges, and initiate dispute resolution
+  input: Marina Storage has legal fees of $3,800 vs budget of $1,400. Our contract
+    with Wilson & Associates requires pre-approval for anything over $2,000. Check
+    if proper authorization was obtained and if we should dispute charges.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 2
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.invoice.detail
+    - contract.verify
+    - approval.check
+    - dispute.initiate
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - compliance
+  - contract_management
+  skip: false
+- id: travel_expense_roi_verification
+  description: Verifies agent can investigate travel variances, verify mileage and
+    business purpose, and calculate ROI when travel generated business value
+  input: David Park at Reno Storage has travel expenses up $623 (77.9% over budget)
+    with 4,389 miles driven. Verify the trips were legitimate and whether manager
+    follow-up is needed.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 5
+    - tool: browser
+      verb: search
+      min_count: 5
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.expense.detail
+    - mileage.verify
+    - trip.validation
+    - roi.calculate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - expense_verification
+  - travel
+  skip: false
+- id: variance_investigation_summary_report
+  description: Verifies agent can compile comprehensive variance investigation results
+    with categorization, financial impact analysis, and manager communication plan
+  input: Generate the complete October variance investigation summary report with
+    all 43 variances categorized, financial impact calculated, and manager follow-up
+    communications drafted.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 43
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 8
+    - tool: workflow
+      verb: create_record
+      min_count: 4
+    capabilities_used:
+    - qb.report.generate
+    - variance.categorize
+    - financial.impact.calculate
+    - communication.draft
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - reporting
+  - monthly_process
+  skip: false
+source_file: docs/scenarios/close/robert_kim_finance_analyst.md

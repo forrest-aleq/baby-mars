@@ -1,0 +1,248 @@
+persona:
+  name: Thomas Chen
+  role: Finance Director
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 47
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: analyze_current_process_inefficiencies
+  description: Verifies agent can calculate total labor costs across multiple staff
+    members and summarize current process inefficiencies
+  input: Calculate our current monthly labor costs for budget report generation and
+    distribution. Jennifer spends 20 hours at $65/hour, Robert spends 6 hours at $58/hour,
+    and Patricia spends 5 hours at $62/hour. Give me the total and a breakdown.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - calculation.perform
+    - reporting.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - cost_analysis
+  skip: false
+- id: create_job_description
+  description: Verifies agent can create comprehensive job description with specific
+    responsibilities, qualifications, and salary details
+  input: Create a job description for a Financial Reporting Coordinator position.
+    This role should handle budget report management (40% time), manager relationship
+    management (35%), process improvement (15%), and technology support (10%). Reports
+    to Finance Director. Salary range $55k-$65k. Requires Bachelor's in Finance/Accounting/Business
+    and 2-4 years experience.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - document.create
+    - hr.job_description.draft
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - hr
+  skip: false
+- id: compare_candidate_profiles
+  description: Verifies agent can analyze multiple candidates against job requirements
+    and identify strengths/concerns for each
+  input: 'Compare these three candidates for Financial Reporting Coordinator: Amanda
+    Rodriguez (3 yrs Financial Analyst at commercial property management, BS Finance,
+    MBA in progress, QuickBooks expert), Kevin Park (4 yrs Operations Coordinator
+    at self-storage, BS Business, CPA candidate, self-storage experience), and Lisa
+    Martinez (5 yrs Budget Analyst at healthcare, BS Accounting, CPA, advanced analysis
+    skills). Who should we prioritize for interviews?'
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - hr.candidate.evaluate
+    - analysis.compare
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - hr
+  - decision_support
+  skip: false
+- id: calculate_roi_human_bridge_solution
+  description: Verifies agent can perform complex ROI calculation comparing monthly
+    investment against multiple benefit categories
+  input: 'Calculate the ROI for Amanda''s position. Monthly costs: $6,500 salary+benefits,
+    $300 training, $150 tools. Monthly benefits: $488 senior staff time savings, $1,764
+    from 1.2% budget performance improvement on $147K revenue, $2,200 faster issue
+    resolution, $800 manager development value. What''s the net monthly cost and when
+    do we break even?'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - calculation.perform
+    - financial.analysis
+    - reporting.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - financial_analysis
+  skip: false
+- id: design_onboarding_plan
+  description: Verifies agent can create detailed 4-week onboarding schedule with
+    specific activities, training, and gradual responsibility transition
+  input: Design a 4-week onboarding plan for Amanda Rodriguez starting November 20th.
+    Week 1 should cover systems orientation and QuickBooks training. Week 2 should
+    be shadowing Jennifer, Robert, and Patricia. Week 3 should be supervised independence
+    with 5 properties. Week 4 should transition to full responsibility for all 23
+    properties. Include daily activities.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: notion
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - hr.onboarding.plan
+    - document.create
+    - project.schedule
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - hr
+  - onboarding
+  skip: false
+- id: workflow_process_redesign_comparison
+  description: Verifies agent can document and compare old vs new workflow processes
+    with time calculations
+  input: 'Document our workflow redesign. Old process: Jennifer generates reports
+    (8 hrs), emails managers (1 hr), Patricia follows up (4-6 hrs), Robert investigates
+    (6+ hrs). New process with Amanda: generates customized reports (4 hrs), calls
+    23 managers (15 min each), documents explanations (2 hrs), follows up on commitments
+    (2 hrs), weekly status reports (1 hr). Calculate total time for each and time
+    savings.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - workflow.analyze
+    - calculation.perform
+    - document.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - process_improvement
+  skip: false
+- id: setup_performance_metrics_dashboard
+  description: Verifies agent can create performance tracking dashboard with targets,
+    actuals, and trend indicators
+  input: 'Set up a monthly performance dashboard for Amanda with these metrics: Manager
+    Response Rate (target 90%, October 78%, November 85%), Average Resolution Time
+    (target 3 days, October 5.2 days, November 4.1 days), Documentation Completeness
+    (target 95%, October 89%, November 93%), Manager Satisfaction (target 4.0+, October
+    3.8, November 4.2), Senior Staff Time Saved (target 8+ hrs, October 6.5 hrs, November
+    7.8 hrs). Show trends.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: notion
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - dashboard.create
+    - metrics.track
+    - reporting.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - performance_tracking
+  skip: false
+- id: draft_executive_approval_request
+  description: Verifies agent can synthesize business case into executive communication
+    with costs, benefits, risks, and implementation plan
+  input: Draft an executive approval request for hiring the Financial Reporting Coordinator.
+    Include the $78K annual investment, current $235K in senior staff time spent on
+    routine follow-up, improvement from 53% to 90% manager engagement, 18-month payback
+    period, Amanda Rodriguez as selected candidate with November 20th start date,
+    90-day probationary period, and performance metrics. Keep it concise for executive
+    review.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.draft
+    - document.create
+    - executive.communication
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - executive_communication
+  skip: false
+source_file: docs/scenarios/storagecorner/thomas_chen_finance_director.md

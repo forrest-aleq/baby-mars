@@ -1,0 +1,271 @@
+persona:
+  name: Maria Santos
+  role: AP Specialist
+  company: Dockwa
+  industry: maritime_technology
+metadata:
+  difficulty: 3
+  workflow_steps: 58
+  decision_points: 21
+  automation_susceptibility: 3
+test_cases:
+- id: lockbox_pdf_batch_processing
+  description: Verifies agent can process multiple lockbox PDFs, perform OCR extraction,
+    correct errors, match customer names across systems, and apply payments to invoices
+  input: 'I have 6 new lockbox PDFs from First Republic Bank in my email from last
+    night. Please process all the payments, match them to customers in Recurly and
+    NetSuite, and apply them to the correct invoices. The files are: LockboxBatch001_20251001.pdf
+    through LockboxBatch006_20251001.pdf'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 6
+    - tool: documents
+      verb: process_invoice
+      min_count: 40
+    - tool: erp
+      verb: query_records
+      min_count: 47
+    - tool: stripe
+      verb: query_records
+      min_count: 47
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.fetch
+    - ocr.extract_text
+    - recurly.customer.search
+    - netsuite.invoice.query
+    - netsuite.payment.apply
+    - netsuite.journal_entry.create
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - ocr
+  - multi-system
+  skip: false
+- id: customer_name_mismatch_resolution
+  description: Verifies agent can handle customer name variations between check payment
+    name and system records by querying customer database for name mappings
+  input: I extracted a payment from SeaBreeze Yacht Club for $1,200.00 referencing
+    invoice DW-2025-0923, but I can't find this customer name in Recurly. Can you
+    look up the correct customer name and apply the payment?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 3
+    - tool: crm
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: stripe
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - recurly.customer.search
+    - airtable.query
+    - netsuite.invoice.query
+    - recurly.payment.apply
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - customer-matching
+  - data-quality
+  skip: false
+- id: ocr_error_correction
+  description: Verifies agent can identify and flag OCR extraction errors where numbers
+    are misread (8 as B) and requires human review before processing
+  input: 'The OCR output shows ''HARTWELL MARINA INC CK# 4729 $2,B50.00 INV: DW-2025-0B47''
+    and ''Marina del Ray Storage 3B29 B75.00 DW-2025-0B56''. Please correct the OCR
+    errors and process these payments.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: stripe
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - ocr.validate
+    - netsuite.invoice.query
+    - recurly.payment.apply
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - ocr
+  - data-validation
+  - error-handling
+  skip: false
+- id: multi_invoice_payment_allocation
+  description: Verifies agent can handle payment that covers multiple invoices and
+    determine proper allocation strategy
+  input: I received a check from Hartwell Marina Inc for $2,850.00 referencing invoice
+    DW-2025-0847, but that invoice is only for $285.00. Can you find all their outstanding
+    invoices and tell me how to allocate this payment?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - netsuite.invoice.query
+    - netsuite.customer.get_balance
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - payment-allocation
+  - decision-required
+  skip: false
+- id: sister_company_payment_verification
+  description: Verifies agent can identify when payment is from related entity and
+    escalate for verification before applying to different legal entity
+  input: We received a check from Marina del Rey Storage for invoice DW-2025-0856,
+    but that invoice belongs to Marina del Rey Services LLC. Should I apply this payment?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: crm
+      verb: query_records
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - netsuite.customer.query
+    - netsuite.invoice.get
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - entity-verification
+  - compliance
+  skip: false
+- id: recurly_bulk_upload_error_resolution
+  description: Verifies agent can handle bulk payment upload validation errors and
+    process flagged entries individually
+  input: 'I tried to bulk upload 47 payments to Recurly and got 8 validation errors:
+    3 customers not found, 2 invalid invoice numbers, 2 amount mismatches, and 1 duplicate
+    payment. Please resolve these and complete the upload.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 8
+    - tool: erp
+      verb: query_records
+      min_count: 8
+    - tool: crm
+      verb: query_records
+      min_count: 3
+    - tool: stripe
+      verb: create_record
+      min_count: 7
+    capabilities_used:
+    - recurly.customer.search
+    - netsuite.invoice.query
+    - recurly.payment.query
+    - recurly.payment.apply
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - bulk-processing
+  - error-resolution
+  - validation
+  skip: false
+- id: netsuite_journal_entry_creation
+  description: Verifies agent can create consolidated journal entry for batch of payments
+    with proper account coding and documentation
+  input: I've finished processing 47 lockbox payments totaling $73,924.50 from October
+    1st in Recurly. Please create the journal entry in NetSuite to record these deposits
+    to First Republic checking and reduce AR, and attach all the supporting documentation.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 6
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - netsuite.journal_entry.create
+    - netsuite.account.query
+    - netsuite.attachment.upload
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - accounting
+  - journal-entry
+  - reconciliation
+  skip: false
+- id: daily_processing_summary_report
+  description: Verifies agent can generate comprehensive daily processing summary
+    with metrics, issues, and follow-up items
+  input: Generate my daily lockbox processing summary report for October 1st. I processed
+    6 PDFs with 47 payments totaling $73,924.50, took 4 hours 16 minutes, had 23%
+    OCR accuracy, 12 name lookups, 5 invoice discrepancies, 3 manual transcriptions,
+    and 8 Recurly errors. Include recommendations for process improvements.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.send
+    - analytics.generate_report
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reporting
+  - metrics
+  - documentation
+  skip: false
+source_file: docs/scenarios/close/maria_santos_ap_specialist.md

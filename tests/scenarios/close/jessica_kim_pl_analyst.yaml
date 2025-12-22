@@ -1,0 +1,330 @@
+persona:
+  name: Jessica Kim
+  role: P&L Analyst
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_pl_anomaly_detection
+  description: Verifies agent can identify expense variances and flag properties requiring
+    manager consultation
+  input: Run the November 2025 P&L review across all 47 properties and identify expense
+    variances exceeding 15% from budget. Flag properties requiring manager consultation
+    and prioritize by variance amount.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 47
+    - tool: erp
+      verb: calculate_variance
+      min_count: 47
+    - tool: documents
+      verb: generate_report
+      min_count: 1
+    - tool: workflow
+      verb: create_task
+      min_count: 12
+    capabilities_used:
+    - qb.report.pl_statement
+    - qb.query
+    - qb.budget.compare
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly_process
+  - variance_analysis
+  skip: false
+- id: capital_vs_expense_classification
+  description: Verifies agent can analyze expense items and recommend capital vs expense
+    treatment with proper accounting rationale
+  input: Phoenix Storage Hub has an $8,400 HVAC replacement charge coded as Repairs
+    & Maintenance. The vendor invoice shows it replaced failed components with higher
+    efficiency units that extend equipment life by 3-5 years. Should this be capitalized
+    or expensed?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: create_journal_entry
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.journal_entry.create
+    - qb.account.reclassify
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - accounting_classification
+  - capital_decision
+  skip: false
+- id: development_cost_reclassification
+  description: Verifies agent can identify miscoded development expenses and reclassify
+    them to proper project accounts
+  input: Tom Bradley from Bozeman Development coded $18,700 in site office furniture
+    and equipment to Office Supplies. These are for the temporary construction trailer.
+    Reclassify these expenses to proper Development Cost accounts and explain the
+    change to Tom.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: erp
+      verb: reclassify_transaction
+      min_count: 3
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: erp
+      verb: update_record
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.account.reclassify
+    - qb.transaction.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reclassification
+  - development_costs
+  - manager_training
+  skip: false
+- id: travel_policy_compliance_review
+  description: Verifies agent can identify policy violations in travel expenses and
+    escalate for documentation
+  input: Review the Denver Storage Center November travel expenses totaling $2,100
+    for Mike Rodriguez. Check for pre-approval documentation and policy compliance.
+    The expenses include a $1,400 leadership training seminar and $450 in vendor meals.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: search
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_task
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - qb.attachment.get
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - compliance
+  - policy_violation
+  - approval_required
+  skip: false
+- id: manager_email_consultation_tracking
+  description: Verifies agent can send P&L variance inquiry emails to managers and
+    track responses systematically
+  input: Send an email to Mike Chen at Pacifica Storage about the November marketing
+    expense variance. Actual spend was $28,900 vs $34,700 budget (16.7% under). Ask
+    about Google Ads changes, seasonal adjustments, and whether the low spend is related
+    to the 94.2% occupancy rate. Track for response by 5 PM today.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_task
+      min_count: 1
+    - tool: workflow
+      verb: set_reminder
+      min_count: 1
+    capabilities_used:
+    - qb.report.pl_statement
+    - qb.budget.compare
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - manager_communication
+  - variance_inquiry
+  - follow_up
+  skip: false
+- id: equipment_threshold_classification_dispute
+  description: Verifies agent can apply capitalization thresholds to bundled equipment
+    purchases and escalate mixed treatment decisions
+  input: 'A property manager purchased IT equipment totaling $12,400: 6 desktop computers
+    at $1,200 each ($7,200 total), network equipment at $3,400, and annual software
+    licenses at $1,800. Our policy capitalizes equipment over $2,500 per unit. The
+    manager wants everything capitalized. What''s the proper treatment and do we need
+    management approval?'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - qb.expense.query
+    - qb.fixed_asset.create
+    - qb.policy.check
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - policy_application
+  - management_decision
+  - capitalization
+  skip: false
+- id: professional_services_variance_analysis
+  description: Verifies agent can perform deep-dive analysis on expense category variances
+    and categorize by service type
+  input: Analyze the November Professional Services category showing an 82.8% variance
+    ($23,400 actual vs $12,800 budget). Break down by service type, identify properties
+    affected, and determine which variances require investigation vs. normal operations.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 10
+    - tool: erp
+      verb: categorize_expenses
+      min_count: 1
+    - tool: documents
+      verb: generate_report
+      min_count: 1
+    - tool: workflow
+      verb: create_task
+      min_count: 3
+    capabilities_used:
+    - qb.expense.query
+    - qb.report.expense_detail
+    - qb.vendor.query
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - variance_analysis
+  - category_deep_dive
+  - investigation
+  skip: false
+- id: monthly_pl_summary_compilation
+  description: Verifies agent can compile comprehensive P&L review summary with reclassifications,
+    manager outcomes, and process improvements
+  input: Generate the November 2025 P&L review summary for the finance team. Include
+    all reclassifications made ($62,600 total), manager consultation outcomes (12
+    consultations), resolved coding disputes (8 disputes), and recommendations for
+    process improvements. Send to Jennifer Walsh and Rachel Torres.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 47
+    - tool: documents
+      verb: generate_report
+      min_count: 1
+    - tool: workflow
+      verb: query_records
+      min_count: 12
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.report.pl_statement
+    - qb.journal_entry.query
+    - qb.report.custom
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly_reporting
+  - management_communication
+  - summary
+  skip: false
+- id: parking_lot_improvement_capitalization
+  description: Verifies agent can evaluate maintenance vs capital improvement for
+    facility enhancements and apply proper accounting treatment
+  input: We have $23,700 in parking lot resurfacing costs across 3 properties. The
+    property manager coded it as routine maintenance expense, but the work extends
+    the parking surface useful life by 8-10 years and increases property values. Determine
+    proper accounting treatment and provide rationale.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: reclassify_transaction
+      min_count: 3
+    - tool: erp
+      verb: create_depreciation_schedule
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - qb.fixed_asset.create
+    - qb.account.reclassify
+    - qb.depreciation.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - capital_improvement
+  - depreciation
+  - property_accounting
+  skip: false
+source_file: docs/scenarios/close/jessica_kim_pl_analyst.md

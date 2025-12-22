@@ -1,0 +1,269 @@
+persona:
+  name: Jennifer Walsh
+  role: Finance Manager
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_property_budget_variance_report
+  description: Verifies agent can generate complete budget-to-actual reports for all
+    23 properties, extract QuickBooks data, identify variances exceeding thresholds
+    (>10% or >$500), and create manager-specific reports
+  input: Generate the October 2025 budget-to-actual reports for all 23 StorageCorner
+    properties. Flag any variances greater than 10% or $500 and create individual
+    manager reports.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 23
+    - tool: netsuite
+      verb: extract_data
+      min_count: 23
+    - tool: documents
+      verb: create_record
+      min_count: 23
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - qb.reports.generate
+    - qb.query
+    - excel.create
+    - excel.format
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly_reporting
+  skip: false
+- id: single_property_variance_investigation
+  description: Verifies agent can deep-dive into specific property variances, analyze
+    transaction details, determine if manager follow-up is needed based on context
+  input: Investigate the Pacifica Self Storage repairs & maintenance variance for
+    October. The actual was $12,847 vs budget of $8,500. Pull transaction details
+    and tell me if Roberto needs to provide an explanation.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.vendor.analyze
+    - qb.reports.detail
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - variance_analysis
+  - happy_path
+  skip: false
+- id: peer_property_benchmarking
+  description: Verifies agent can compare property performance against peer properties
+    by size and geography, calculate per-unit metrics
+  input: Create a peer benchmark comparison for Pacifica Self Storage's October expenses.
+    Compare R&M, utilities, and marketing per unit against other large California
+    properties.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 5
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - qb.query
+    - qb.reports.compare
+    - excel.calculate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - benchmarking
+  - analytics
+  skip: false
+- id: manager_report_distribution_tracking
+  description: Verifies agent can distribute reports to property managers via multiple
+    channels (Slack, email, SMS) and track response status
+  input: Send October budget reports to all 23 property managers. Use Slack notifications
+    with Google Sheets links, send backup emails with PDFs, and send text reminders.
+    Track who responds by November 5th.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: slack
+      verb: send
+      min_count: 23
+    - tool: email
+      verb: send
+      min_count: 23
+    - tool: documents
+      verb: create_record
+      min_count: 23
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - slack.message.send
+    - email.send
+    - sheets.share
+    - task.track
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - distribution
+  - communication
+  - critical
+  skip: false
+- id: manager_follow_up_escalation
+  description: Verifies agent can track non-responsive managers and execute escalation
+    protocol (reminders, phone calls, CC regional manager)
+  input: It's November 4th and 5 property managers haven't responded to their October
+    reports yet. Send reminder texts to those who are due to respond by November 5th.
+    Prepare escalation list for managers who miss the deadline.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: workflow
+      verb: query_records
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 5
+    - tool: email
+      verb: send
+      min_count: 5
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - task.query
+    - slack.message.send
+    - email.send
+    - workflow.escalate
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - follow_up
+  - escalation
+  - edge_case
+  skip: false
+- id: expense_miscategorization_detection
+  description: Verifies agent can identify potential expense miscategorizations (capital
+    improvements coded as operating expenses) and flag for correction
+  input: Review San Mateo Storage's office supplies variance of +$397. The transactions
+    include a $247 printer replacement. Determine if this is miscategorized and should
+    be equipment instead of supplies.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.category.analyze
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - categorization
+  - exception_handling
+  skip: false
+- id: executive_summary_generation
+  description: Verifies agent can compile portfolio-wide performance summary with
+    key metrics, notable findings, and recommendations for executive team
+  input: Create the executive summary for October property performance across all
+    23 properties. Include portfolio variance, properties meeting budget, significant
+    findings, and process improvement metrics.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 23
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.reports.aggregate
+    - excel.summarize
+    - email.compose
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - executive_reporting
+  - summary
+  skip: false
+- id: variance_auto_resolution
+  description: Verifies agent can automatically resolve obvious variances without
+    manager follow-up (emergency repairs, high occupancy marketing reductions, seasonal
+    patterns)
+  input: Review all 42 flagged variances for October. Auto-resolve any that are operationally
+    justified like emergency repairs, occupancy-driven marketing changes, or seasonal
+    utility fluctuations. Tell me which ones still need manager explanations.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 42
+    - tool: netsuite
+      verb: extract_data
+      min_count: 42
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.analyze
+    - qb.query
+    - excel.filter
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - automation
+  - variance_analysis
+  - efficiency
+  skip: false
+source_file: docs/scenarios/close/jennifer_walsh_finance_manager.md

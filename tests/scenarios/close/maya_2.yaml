@@ -1,0 +1,314 @@
+persona:
+  name: Maya Patel
+  role: Senior Financial Analyst
+  company: GGHC Investment Management
+  industry: investment_management
+metadata:
+  difficulty: 4
+  workflow_steps: 47
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: monthly_fee_allocation_power_bi_export
+  description: Tests the complete monthly fee allocation workflow from Power BI export
+    through NetSuite journal entry creation with proper data validation
+  input: Pull the September 2025 fee allocation data from Power BI and create the
+    journal entries in NetSuite for management and performance fees
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: authenticate
+      min_count: 1
+    - tool: browser
+      verb: navigate_to_dashboard
+      min_count: 1
+    - tool: browser
+      verb: apply_filters
+      min_count: 1
+    - tool: browser
+      verb: export_data
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: validate_calculations
+      min_count: 1
+    - tool: netsuite
+      verb: create_journal_entry
+      min_count: 2
+    - tool: netsuite
+      verb: attach_file
+      min_count: 1
+    capabilities_used:
+    - powerbi.data.export
+    - excel.formula.validate
+    - netsuite.journal.create
+    - netsuite.file.attach
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - month_end
+  - revenue_recognition
+  skip: false
+- id: fee_rate_contract_amendment_adjustment
+  description: Tests detection and handling of fee rate changes from contract amendments
+    that haven't propagated to billing systems, including downstream performance fee
+    impacts
+  input: Process September fee allocations and verify all client fee rates match their
+    current contracts. Flag any discrepancies.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: browser
+      verb: export_data
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: compare_values
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: recalculate
+      min_count: 1
+    capabilities_used:
+    - powerbi.data.export
+    - sharepoint.document.read
+    - excel.formula.calculate
+    - email.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - exception_handling
+  - compliance
+  skip: false
+- id: client_name_standardization_vlookup_fix
+  description: Tests detection and resolution of client name inconsistencies between
+    Power BI exports and allocation rules that break VLOOKUP formulas
+  input: Map the Power BI fee calculation export to our client allocation rules and
+    create the allocation breakdown by entity
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: compare_records
+      min_count: 1
+    - tool: documents
+      verb: standardize_names
+      min_count: 1
+    - tool: documents
+      verb: apply_formula
+      min_count: 1
+    - tool: documents
+      verb: validate_calculations
+      min_count: 1
+    capabilities_used:
+    - excel.data.match
+    - excel.formula.validate
+    - data.standardization
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - data_quality
+  - reconciliation
+  skip: false
+- id: custodian_report_retrieval_with_system_failure
+  description: Tests handling of third-party portal system failures and fallback to
+    manual request via customer service
+  input: Get the Northern Trust performance attribution report for September 2025
+    to support our fee calculations
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: browser
+      verb: authenticate
+      min_count: 1
+    - tool: browser
+      verb: navigate
+      min_count: 1
+    - tool: browser
+      verb: generate_report
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_reminder
+      min_count: 1
+    capabilities_used:
+    - browser.navigation
+    - portal.report.generate
+    - email.send
+    - task.tracking
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - exception_handling
+  - third_party_integration
+  skip: false
+- id: journal_entry_controller_approval_revision
+  description: Tests the submission of journal entries for controller review, handling
+    feedback requiring revisions for downstream calculation impacts
+  input: Create the September fee allocation journal entries for management fees of
+    $2,847,592.18 and performance fees of $1,294,750.00, then submit to Janet for
+    approval
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: create_journal_entry
+      min_count: 2
+    - tool: netsuite
+      verb: attach_file
+      min_count: 1
+    - tool: netsuite
+      verb: save_as_draft
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: request_approval
+      min_count: 1
+    capabilities_used:
+    - netsuite.journal.create
+    - netsuite.file.attach
+    - email.send
+    - workflow.approval
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - approval_workflow
+  - revenue_recognition
+  skip: false
+- id: fee_allocation_data_validation_spot_check
+  description: Tests spot-checking of fee calculations from Power BI export against
+    manual calculations to ensure data integrity
+  input: Validate the Power BI fee calculations for September by spot-checking the
+    math on several clients including Hartwell Industries
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: calculate
+      min_count: 3
+    - tool: documents
+      verb: compare_values
+      min_count: 3
+    - tool: documents
+      verb: flag_discrepancies
+      min_count: 1
+    capabilities_used:
+    - excel.data.read
+    - calculation.verify
+    - data.validation
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - data_quality
+  - validation
+  skip: false
+- id: month_end_documentation_and_archival
+  description: Tests complete documentation and archival of fee allocation process
+    including all source files, calculations, adjustments, and supporting correspondence
+  input: Archive all September 2025 fee allocation documentation including the Power
+    BI export, allocation calculations, custodian reports, Morrison adjustment emails,
+    and NetSuite journal entry screenshots to the shared drive
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: create_folder
+      min_count: 1
+    - tool: documents
+      verb: save_file
+      min_count: 5
+    - tool: documents
+      verb: capture_screenshot
+      min_count: 1
+    - tool: email
+      verb: extract_thread
+      min_count: 1
+    - tool: documents
+      verb: update_log
+      min_count: 1
+    capabilities_used:
+    - sharepoint.folder.create
+    - sharepoint.file.upload
+    - documentation.archive
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - compliance
+  - documentation
+  - audit_trail
+  skip: false
+- id: performance_fee_recalculation_management_fee_impact
+  description: Tests the complex recalculation of performance fees when management
+    fee adjustments affect the hurdle rate base calculation
+  input: Recalculate Morrison Family Trust's September performance fee accounting
+    for their management fee reduction from 1.25% to 1.00% and the impact on the performance
+    hurdle rate
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: calculate
+      min_count: 3
+    - tool: documents
+      verb: update_value
+      min_count: 2
+    - tool: documents
+      verb: validate_formula
+      min_count: 1
+    - tool: netsuite
+      verb: update_journal_entry
+      min_count: 1
+    capabilities_used:
+    - excel.formula.calculate
+    - excel.data.update
+    - netsuite.journal.revise
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - complex_calculation
+  - revenue_recognition
+  skip: false
+source_file: docs/scenarios/close/maya-2.md

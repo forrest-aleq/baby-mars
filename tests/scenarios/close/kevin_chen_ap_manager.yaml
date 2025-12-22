@@ -1,0 +1,274 @@
+persona:
+  name: Kevin Chen
+  role: AP Manager
+  company: Dockwa
+  industry: maritime_software
+metadata:
+  difficulty: 2
+  workflow_steps: 47
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: urgent_vendor_payment_wire
+  description: Verifies agent can process urgent vendor payment via wire transfer
+    when payment is due same day and service interruption is threatened
+  input: I need to process the AquaTech invoice for $4,200 today - they're threatening
+    to pause our IoT sensors if we don't pay by end of business. Can you handle this
+    as a priority?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: billcom
+      verb: approve_transaction
+      min_count: 1
+    capabilities_used:
+    - email.invoice.read
+    - documents.pdf.extract
+    - billcom.bill.create
+    - slack.message.send
+    - bank.balance.get
+    - billcom.payment.wire.create
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - urgent_payment
+  - wire_transfer
+  skip: false
+- id: stripe_payout_verification
+  description: Verifies agent can check Stripe payout status and confirm funds cleared
+    to operating account before processing vendor payments
+  input: Check if today's Stripe payout has hit our Chase operating account yet. I
+    need to confirm we have liquidity before processing vendor payments.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - stripe.payout.get
+    - stripe.balance.get
+    - bank.transactions.list
+    - bank.balance.get
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - cash_flow
+  skip: false
+- id: autopay_failure_expired_card
+  description: Verifies agent can diagnose autopay failure due to expired card and
+    update payment method to prevent service interruption
+  input: Our AWS autopay failed for $3,847.23 with an insufficient funds error. Can
+    you investigate why this happened and fix it immediately? This powers our entire
+    platform.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: browser
+      verb: query_records
+      min_count: 1
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: browser
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.read
+    - browser.login
+    - stripe.card.get
+    - browser.form.submit
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - autopay_failure
+  - card_expiration
+  skip: false
+- id: batch_vendor_payment_processing
+  description: Verifies agent can prioritize and batch process multiple vendor invoices
+    based on due dates and payment terms
+  input: I have 19 vendor invoices in my AP inbox that need to be processed. Can you
+    categorize them by priority (same day, 2-3 days, 5-7 days) and set up the appropriate
+    payment methods?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 19
+    - tool: billcom
+      verb: create_record
+      min_count: 19
+    - tool: billcom
+      verb: approve_transaction
+      min_count: 2
+    capabilities_used:
+    - email.invoice.read
+    - documents.pdf.extract
+    - billcom.bill.create
+    - billcom.payment.ach.schedule
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - batch_processing
+  skip: false
+- id: duplicate_payment_exception
+  description: Verifies agent can detect and resolve duplicate payment scenarios where
+    vendor sends both check and has autopay scheduled
+  input: Marina del Rey sent us a check for $2,400, but they also have an ACH autopay
+    scheduled for the same amount on the same day. What should I do to avoid double
+    payment?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - billcom.payment.search
+    - billcom.autopay.get
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - duplicate_payment
+  - exception_handling
+  skip: false
+- id: stripe_partner_revenue_distribution
+  description: Verifies agent can review and approve marina partner revenue payouts
+    through Stripe Connect with correct commission splits
+  input: Review yesterday's marina partner payouts in Stripe Connect. We processed
+    $28,472.15 in gross reservations and need to distribute revenue to 23 marina partners.
+    Can you verify the commission splits are correct?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: stripe
+      verb: approve_transaction
+      min_count: 1
+    capabilities_used:
+    - stripe.connect.payout.list
+    - stripe.connect.transfer.get
+    - stripe.connect.payout.approve
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - revenue_distribution
+  - stripe_connect
+  skip: false
+- id: netsuite_payment_reconciliation
+  description: Verifies agent can create journal entries in NetSuite for vendor payments
+    across multiple payment methods and accounts
+  input: 'Create NetSuite journal entries for today''s vendor payments: AquaTech wire
+    transfer for $4,200 plus $25 fee, AWS manual payment of $3,847.23 on Stripe card,
+    and batch ACH payments totaling $4,892 with $6.50 in fees.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: create_record
+      min_count: 3
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - netsuite.journal_entry.create
+    - billcom.payment.get
+    - netsuite.gl_account.query
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - reconciliation
+  - accounting
+  skip: false
+- id: daily_cash_flow_dashboard_update
+  description: Verifies agent can update cash flow monitoring dashboard with beginning
+    balance, Stripe payouts, vendor payments, and projected ending balance
+  input: Update my daily cash flow dashboard. Beginning balance was $187,432.18, we
+    received a Stripe payout of $46,443.72, and processed vendor payments totaling
+    $13,365.73. What's our projected ending balance?
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - documents.spreadsheet.read
+    - bank.balance.get
+    - stripe.payout.get
+    - billcom.payment.list
+    - documents.spreadsheet.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - cash_flow
+  - reporting
+  skip: false
+source_file: docs/scenarios/close/kevin_chen_ap_manager.md

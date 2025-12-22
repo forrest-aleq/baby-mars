@@ -1,0 +1,341 @@
+persona:
+  name: Elena Martinez
+  role: Entity Specialist
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: multi_entity_management_invoice_allocation
+  description: Verifies agent can analyze a single invoice covering multiple entities,
+    calculate proportional allocations, and structure separate payments maintaining
+    entity separation
+  input: 'I have an invoice from Professional Property Management LLC for $47,300
+    covering 23 properties across 4 entities (Pacific: 6 props/$234,700 revenue, Mountain:
+    8 props/$289,400 revenue, Desert: 4 props/$156,200 revenue, Northwest: 5 props/$109,500
+    revenue). Need to allocate this 6% management fee properly and set up separate
+    payments from each entity''s bank account.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 4
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 4
+    - tool: bank
+      verb: query_records
+      min_count: 4
+    capabilities_used:
+    - qb.invoice.query
+    - qb.payment.create
+    - qb.entity.query
+    - plaid.account.get
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - multi_entity
+  - allocation
+  skip: false
+- id: insurance_premium_risk_based_allocation
+  description: Verifies agent can perform complex multi-factor allocation for umbrella
+    insurance across 12 entities using weighted methodology (property value 40%, revenue
+    30%, square footage 20%, claims 10%)
+  input: 'Mountain West Business Insurance sent a $189,200 umbrella liability premium
+    covering all 12 entities. Need to allocate using our standard methodology: 40%
+    property value, 30% revenue, 20% square footage, 10% claims history. Pacific LLC
+    has $89.2M property/$2.8M revenue/890K sqft/low claims. Mountain LLC has $76.8M
+    property/$3.5M revenue/1.2M sqft/medium claims. Desert LLC has $45.1M property/$0.9M
+    revenue/456K sqft/no claims. Calculate allocations and create payment records.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 12
+    - tool: erp
+      verb: create_record
+      min_count: 12
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.entity.query
+    - qb.payment.create
+    - qb.invoice.create
+    - document.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - allocation
+  - complex_calculation
+  skip: false
+- id: new_entity_bank_account_setup_texas
+  description: Verifies agent can coordinate new bank account opening for new entity
+    including documentation checklist, authorized signer setup with limits, and regulatory
+    compliance
+  input: 'Set up new banking relationship for StorageCorner Texas LLC at Lone Star
+    Bank of Texas. Need Operating, Reserve, and Construction accounts. Authorized
+    signers: Jonathan Walsh (Managing Member, unlimited), Rachel Torres (Treasurer,
+    $100K limit), Jennifer Walsh (Finance Manager, $25K limit), Local Property Manager
+    (emergency only, $5K limit). What documentation and steps do we need?'
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 5
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - document.generate
+    - document.query
+    - email.send
+    - workflow.create
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - setup
+  - banking
+  - compliance
+  skip: false
+- id: bank_consolidation_legal_opinion_request
+  description: Verifies agent recognizes legal complexity of bank account consolidation
+    proposal, identifies entity piercing risks, and appropriately escalates to legal
+    counsel
+  input: We're considering consolidating all Colorado entity accounts at Glacier FCB
+    with separate sub-accounts instead of separate banks. Would this create entity
+    piercing risk? Mountain LLC, Development LLC, and Holdings LLC would all bank
+    at Glacier. Draft a legal opinion request to Wilson & Associates covering consolidation
+    viability and entity protection measures.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    capabilities_used:
+    - email.send
+    - document.generate
+    - qb.entity.query
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - legal
+  - compliance
+  - escalation
+  skip: false
+- id: utility_service_address_entity_mapping
+  description: Verifies agent can match utility service addresses to entity property
+    assignments, verify single-entity ownership, and route payment to correct bank
+    account
+  input: 'Xcel Energy Colorado bill for $34,700 with these meters: 1234 Storage Way
+    Denver (DEN-8847, 12,400 kWh), 5678 Self Store Blvd C.Springs (COS-9923, 8,900
+    kWh), 9012 Vault Street Boulder (BOU-1156, 6,700 kWh), 3456 Box Lane Fort Collins
+    (FTC-7734, 6,700 kWh). Verify which entity owns these properties and set up payment
+    from correct account.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 4
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.property.query
+    - qb.entity.query
+    - plaid.account.get
+    - qb.payment.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - address_mapping
+  - utilities
+  skip: false
+- id: cross_entity_security_service_allocation
+  description: Verifies agent can identify multi-entity service coverage, recommend
+    separate contracts over consolidated structure, and properly allocate costs while
+    maintaining entity separation
+  input: Rocky Mountain Security Services sent a $12,400 monthly contract covering
+    5 Montana properties and 8 Colorado properties. Montana portion is $5,400 (StorageCorner
+    Northwest LLC), Colorado portion is $7,000 (StorageCorner Mountain LLC). Should
+    we do one contract with allocation or separate entity contracts? Set this up properly.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.entity.query
+    - qb.vendor.query
+    - document.generate
+    - qb.payment.create
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - multi_entity
+  - contract_structure
+  - vendor_management
+  skip: false
+- id: new_vendor_texas_entity_exclusive_setup
+  description: Verifies agent can establish new vendor with entity-exclusive relationship,
+    implement payment controls preventing cross-entity payments, and configure system
+    restrictions
+  input: 'Set up Lone Star Property Services LLC (Tax ID: 74-1234567, 1234 Texas Way
+    Austin TX 78701) as new vendor for Texas properties only. Should only be paid
+    by StorageCorner Texas LLC from Lone Star Bank Operating account ending 5847.
+    Net 30 terms. Add system controls to prevent any other entity from paying them.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - qb.vendor.create
+    - qb.entity.query
+    - plaid.account.get
+    - qb.vendor.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - vendor_setup
+  - entity_controls
+  - routine
+  skip: false
+- id: multi_entity_professional_services_framework
+  description: Verifies agent can establish proper entity assignment protocol for
+    multi-entity professional service provider based on service type and beneficiary,
+    with appropriate payment routing
+  input: 'Mountain West Legal Services provides legal counsel across all our states.
+    Need framework for which entity pays based on service type: property acquisition
+    law (acquiring entity), corporate governance (Holdings LLC), litigation defense
+    (affected entity), contract review (beneficiary entity). Document this protocol
+    and set up vendor relationship.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 12
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - document.generate
+    - qb.vendor.create
+    - qb.entity.query
+    - workflow.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - professional_services
+  - protocol
+  - documentation
+  skip: false
+- id: entity_allocation_audit_trail_documentation
+  description: Verifies agent creates comprehensive audit trail documentation for
+    complex allocation decisions including methodology, legal basis, approvals, and
+    compliance verification
+  input: Document the Mountain West Business Insurance allocation decision for $189,200
+    umbrella policy covering 12 entities. Include allocation methodology (property
+    value/revenue/sqft/claims weighting), legal basis for each entity benefiting proportionally,
+    calculated results for Pacific LLC $63,247 and Mountain LLC $67,390, banking assignments
+    showing no inter-company debt, and approvals from Jennifer Walsh and Rachel Torres.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - document.generate
+    - qb.invoice.query
+    - qb.entity.query
+    - document.store
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - documentation
+  - audit_trail
+  - compliance
+  skip: false
+source_file: docs/scenarios/storagecorner/elena_martinez_entity_specialist.md

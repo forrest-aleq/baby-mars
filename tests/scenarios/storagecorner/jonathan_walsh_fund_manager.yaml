@@ -1,0 +1,277 @@
+persona:
+  name: Jonathan Walsh
+  role: Fund Manager
+  company: StorageCorner
+  industry: real_estate_investment
+metadata:
+  difficulty: 3
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: fund_i_monthly_distribution_calculation
+  description: Verifies complete monthly distribution waterfall calculation for Fund
+    I including NOI aggregation, preferred return calculation, carried interest, and
+    per-investor allocation across 23 investors
+  input: Calculate and prepare Fund I monthly distributions for November 2025. We
+    have $1,290,300 in total NOI across all 8 properties, $454,200 in debt service,
+    $289,400 in property operations, $58,700 corporate overhead allocation, and $123,400
+    in capital reserves. Outstanding investor principal is $28.7M with 8% preferred
+    return and 20% GP carry.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - documents.extract
+    - erp.query
+    - calculation.waterfall
+    - documents.generate_report
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly
+  - calculation
+  skip: false
+- id: multi_investor_ach_batch_execution
+  description: Verifies ACH batch creation and execution for 23 Fund I investors with
+    routing validation, account verification, and total reconciliation
+  input: Execute Fund I November distributions totaling $329,947 via ACH to 23 investors.
+    Payment date November 30, 2025. Use Fund I Operating Account at Chase Bank. Largest
+    payments are Pacific Coast Pension $48,277 to Wells Fargo routing 121042882 account
+    4729384719, and Mountain West Insurance $35,635 to First Interstate routing 092901683
+    account 8847293847.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: create_ach_batch
+      min_count: 1
+    - tool: bank
+      verb: validate_routing
+      min_count: 23
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: schedule_payment
+      min_count: 23
+    capabilities_used:
+    - bank.ach.create_batch
+    - bank.routing.validate
+    - bank.payment.schedule
+    - erp.investor.query
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - payment
+  - ach
+  skip: false
+- id: fund_ii_negative_cashflow_distribution_decision
+  description: Verifies decision logic when fund has negative cash flow due to development
+    activity, including investor communication preparation and cash preservation analysis
+  input: Analyze Fund II quarterly distribution for Q4 2025. Current operating properties
+    generate $210,000 monthly NOI but active development costs are $234,700 monthly,
+    resulting in negative $24,700 cash flow. We have $2.4M in development contingency
+    reserves. Should we distribute this quarter?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    capabilities_used:
+    - erp.cashflow.analyze
+    - documents.agreement.query
+    - calculation.distribution_policy
+    - email.draft
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - decision_point
+  - negative_cashflow
+  skip: false
+- id: personalized_investor_statement_generation
+  description: Verifies generation of individualized investor statements with distribution
+    details, YTD performance, and portfolio highlights for all 23 Fund I investors
+  input: Generate November 2025 distribution statements for all Fund I investors.
+    Include individual distribution amounts, monthly and annualized return rates,
+    YTD totals, cumulative distributions since inception, and portfolio highlights
+    showing 94.7% occupancy and 8.2% same-store NOI growth.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 23
+    - tool: email
+      verb: send
+      min_count: 23
+    capabilities_used:
+    - erp.investor.query
+    - erp.distribution.history
+    - documents.generate_statement
+    - email.send_bulk
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - reporting
+  - investor_relations
+  skip: false
+- id: post_distribution_cash_position_validation
+  description: Verifies cash position remains adequate after distributions, checking
+    against operating reserves, debt service, capital commitments, and covenant requirements
+  input: Validate cash position after executing $329,947 Fund I distribution. Starting
+    available cash was $16.89M. Verify we still meet $3.2M operating reserves, $1.9M
+    debt service requirements, $2.4M capital commitments, $2.65M covenant minimums,
+    and $2M emergency reserve.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_balance
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - bank.balance.get
+    - erp.reserves.query
+    - erp.covenants.check
+    - calculation.cash_adequacy
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - compliance
+  - cash_management
+  skip: false
+- id: monthly_investor_call_preparation
+  description: Verifies preparation of materials and agenda for monthly investor call
+    including portfolio performance review, distribution walkthrough, and Q&A preparation
+  input: Prepare for December 3, 2025 Fund I monthly investor call. Create presentation
+    covering November operating results (94.7% occupancy, $1,290,300 NOI, 8.2% same-store
+    growth), distribution calculation walkthrough showing $329,947 total at 13.8%
+    annualized return, and prepare responses for common questions about distribution
+    variability and 2026 outlook.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send_notification
+      min_count: 1
+    capabilities_used:
+    - erp.performance.query
+    - documents.presentation.create
+    - documents.faq.generate
+    - slack.notify
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - investor_relations
+  - communication
+  skip: false
+- id: ach_routing_validation_failure
+  description: Verifies handling of invalid routing number during ACH batch setup,
+    including error flagging and investor contact requirement
+  input: Execute Fund I distributions but I'm getting an error on the Hartwell Family
+    Trust payment for $32,203. Their routing number 092901999 to Chase Bank account
+    5847293847 is showing as invalid. What should I do?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: validate_routing
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: draft_message
+      min_count: 1
+    capabilities_used:
+    - bank.routing.validate
+    - erp.investor.query
+    - email.draft
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - error_handling
+  - payment
+  skip: false
+- id: 2026_distribution_projection_modeling
+  description: Verifies forward-looking distribution projections for Q1 2026 based
+    on projected NOI growth and occupancy trends
+  input: 'Model Fund I distribution projections for Q1 2026. Expected monthly NOI:
+    January $1,320,000, February $1,290,000, March $1,310,000. Maintain same expense
+    structure and $28.7M investor principal with 8% preferred and 20% GP carry. What
+    are the projected monthly distributions and annualized rates?'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.projection.calculate
+    - calculation.waterfall
+    - documents.forecast.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - planning
+  - projection
+  - routine
+  skip: false
+source_file: docs/scenarios/storagecorner/jonathan_walsh_fund_manager.md

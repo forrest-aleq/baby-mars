@@ -1,0 +1,243 @@
+persona:
+  name: GGHC Finance Team
+  role: Finance & Operations
+  company: GGHC
+  industry: investment_management
+metadata:
+  difficulty: 4
+  workflow_steps: 40
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: power_bi_journal_entry_allocation
+  description: Verifies agent can extract Power BI data, merge with third-party reports,
+    apply allocation logic, and prepare NetSuite journal entries
+  input: I need to process this month's fee allocation. Pull the Power BI revenue
+    report, merge it with the custodian fee schedules, apply our standard allocation
+    percentages, and create the journal entry for NetSuite with about 25 lines.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.navigate
+    - document.parse
+    - netsuite.journal_entry.create
+    - excel.formula.apply
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - accounting
+  - automation
+  skip: false
+- id: bank_reconciliation_monthly
+  description: Verifies agent can download bank statements, match transactions with
+    NetSuite GL, and identify discrepancies
+  input: Run the monthly bank reconciliation for our main operating account. Download
+    the bank statement, pull the NetSuite GL transactions, match everything up, and
+    flag any unmatched items or timing differences.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.transactions.get
+    - netsuite.query
+    - reconciliation.match
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - treasury
+  - reconciliation
+  skip: false
+- id: bank_recon_discrepancy_investigation
+  description: Verifies agent can identify and escalate unusual discrepancies during
+    bank reconciliation
+  input: I'm reviewing the bank reconciliation and there's a $15,000 withdrawal that
+    doesn't match anything in our GL. Can you investigate this and tell me what it
+    might be?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 2
+    capabilities_used:
+    - plaid.transactions.get
+    - netsuite.query
+    - anomaly.detect
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - fraud_detection
+  - treasury
+  skip: false
+- id: ap_invoice_processing_ocr
+  description: Verifies agent can process invoice through OCR, extract key fields,
+    suggest GL coding, and route for approval
+  input: Process this vendor invoice I just received from our data provider. Extract
+    the invoice number, amount, due date, and suggest the GL code based on previous
+    invoices from this vendor.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - document.ocr
+    - netsuite.vendor.query
+    - billcom.invoice.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - accounts_payable
+  - automation
+  - ocr
+  skip: false
+- id: ap_duplicate_invoice_detection
+  description: Verifies agent can detect and flag duplicate invoices during AP processing
+  input: 'Process this invoice from our custodian - invoice #INV-2024-0456 for $8,500
+    dated March 15th.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - document.ocr
+    - billcom.invoice.query
+    - duplicate.detect
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - accounts_payable
+  - fraud_detection
+  skip: false
+- id: allocation_validation_failure
+  description: Verifies agent detects when allocation percentages don't sum to 100%
+    and escalates
+  input: 'Apply the fee allocation across our four funds using the Q1 percentages
+    and create the journal entry. The allocations should be: Fund A 35%, Fund B 28%,
+    Fund C 25%, Fund D 10%.'
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - excel.formula.apply
+    - validation.check
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - validation
+  - accounting
+  skip: false
+- id: investment_research_peer_comparison
+  description: Verifies agent can use AI to generate peer comparison analysis and
+    cross-reference with structured data
+  input: Compare the financial ratios and growth metrics for NVDA against AMD, INTC,
+    and QCOM. Pull data from Capital IQ and generate a summary with P/E, revenue growth,
+    and margin trends.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: query_records
+      min_count: 4
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.navigate
+    - ai.analyze
+    - document.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - research
+  - analysis
+  - autonomous
+  skip: false
+- id: multi_source_data_merge_error
+  description: Verifies agent can detect when third-party data formats don't align
+    with Power BI exports and request guidance
+  input: Merge the Power BI fee report with the custodian performance feed and prepare
+    the allocation. The custodian file has transaction IDs but they're in a different
+    format than our BI system.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - document.parse
+    - data.normalize
+    - format.validate
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - data_transformation
+  - validation
+  skip: false
+source_file: docs/scenarios/gghc/gghc.md

@@ -1,0 +1,269 @@
+persona:
+  name: Rachel Wong
+  role: Senior Financial Analyst
+  company: Portfolio Real Estate
+  industry: real_estate
+metadata:
+  difficulty: 5
+  workflow_steps: 47
+  decision_points: 18
+  automation_susceptibility: 3
+test_cases:
+- id: q3_debt_covenant_analysis_ashworth
+  description: Complete quarterly DSCR covenant calculation for a single property
+    with expense reclassifications and normalizing adjustments
+  input: Calculate Q3 2025 debt service coverage ratio for Ashworth Gardens property.
+    The loan agreement requires minimum 1.25x DSCR. I need the full calculation with
+    all normalizing adjustments per the loan agreement.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.report.pl
+    - qb.transaction.query
+    - document.loan_agreement.parse
+    - calculation.dscr
+    - qb.expense.reclassify
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - covenant_compliance
+  - regulatory
+  skip: false
+- id: expense_reclassification_capex_vs_opex
+  description: Identify and reclassify expenses between capital expenditures and operating
+    expenses per loan agreement definitions
+  input: Review all Q3 expenses for Ashworth Gardens and identify any items that should
+    be reclassified as capital expenditures instead of operating expenses. The loan
+    agreement excludes CapEx from operating expenses for DSCR calculations.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: update_record
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.expense.categorize
+    - qb.transaction.update
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - classification
+  - expense_analysis
+  skip: false
+- id: mezzanine_loan_balance_verification
+  description: Calculate correct mezzanine loan outstanding balance after partial
+    prepayments and compute weighted average interest for debt service
+  input: Verify the current outstanding balance on the Ashworth Gardens mezzanine
+    loan. The original balance was $850,000 but there may have been prepayments. Calculate
+    Q3 interest expense using the variable rate schedule.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.transaction.query
+    - calculation.loan_balance
+    - calculation.interest_weighted_average
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - debt_calculation
+  - reconciliation
+  skip: false
+- id: normalizing_adjustments_vacancy_and_capex
+  description: Apply loan agreement normalizing adjustments for vacancy rates and
+    capital reserves to NOI calculation
+  input: Apply the normalizing adjustments to Ashworth Gardens NOI per the loan agreement.
+    Actual vacancy is 2.1%, market vacancy is 4.5%, and we have 156 units. Need to
+    determine if vacancy normalization applies and calculate the $250 per unit capital
+    reserve.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - document.loan_agreement.parse
+    - qb.property.query
+    - calculation.vacancy_adjustment
+    - calculation.capex_reserve
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - normalization
+  - loan_compliance
+  skip: false
+- id: covenant_violation_detection_and_notification
+  description: Detect covenant violation when DSCR falls below minimum requirement
+    and prepare notification documentation
+  input: The final DSCR calculation for Ashworth Gardens is 0.707x against a required
+    1.25x minimum. Prepare a covenant violation notice to Regional Bank with full
+    supporting documentation and draft a remediation plan proposal.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 3
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - document.covenant_notice.create
+    - document.calculation_workpaper.create
+    - email.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - covenant_violation
+  - compliance
+  skip: false
+- id: cross_property_expense_correction
+  description: Identify and correct expense transactions that were coded to wrong
+    property in accounting system
+  input: I found that $5,272 in legal expenses was coded to Ashworth Gardens but it
+    was actually for Cedar Point property acquisition due diligence. Also found $3,400
+    in insurance coded to Ashworth that belongs to a different property. Reclassify
+    these transactions.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: erp
+      verb: update_record
+      min_count: 2
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.transaction.reclassify
+    - qb.journal_entry.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - correction
+  - accounting_accuracy
+  skip: false
+- id: portfolio_wide_covenant_risk_assessment
+  description: Assess covenant violation risk across entire 12-property portfolio
+    based on initial findings from one property
+  input: Ashworth Gardens shows a covenant violation due to rising interest rates
+    and increased operating costs. Run a preliminary covenant risk assessment on all
+    11 remaining properties in the portfolio to identify which ones might be at risk
+    of similar violations.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 11
+    - tool: documents
+      verb: extract_data
+      min_count: 11
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.report.pl
+    - document.loan_agreement.parse
+    - calculation.dscr
+    - analysis.risk_assessment
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - portfolio_analysis
+  - risk_assessment
+  skip: false
+- id: loan_agreement_interpretation_clarification
+  description: Extract covenant calculation definitions from loan agreement and request
+    clarification on ambiguous terms from lender
+  input: Pull the debt service coverage ratio definition and normalizing adjustments
+    from the Ashworth Gardens loan agreement (page 89 and Exhibit C). The vacancy
+    normalization and capital reserve calculations reference 'standard industry practices'
+    that aren't clearly defined. Draft questions for the lender.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - document.loan_agreement.parse
+    - document.loan_agreement.extract_covenants
+    - email.draft
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - legal_interpretation
+  - documentation
+  skip: false
+source_file: docs/scenarios/close/rachel-1.md

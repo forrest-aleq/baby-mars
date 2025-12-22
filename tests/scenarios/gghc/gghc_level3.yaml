@@ -1,0 +1,307 @@
+persona:
+  name: Controller
+  role: Controller
+  company: GGHC
+  industry: investment_management
+metadata:
+  difficulty: 4
+  workflow_steps: 39
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: power_bi_journal_entry_allocation
+  description: Verifies complete workflow from Power BI export through NetSuite journal
+    entry posting with proper dual-control review and compliance documentation
+  input: I need to create the monthly fee allocation journal entries. Pull the Power
+    BI fee allocation report, merge it with the custodian fee files from SFTP, apply
+    our standard allocation percentages, and prepare the NetSuite journal entry file
+    for my review.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: retrieve
+      min_count: 2
+    - tool: documents
+      verb: validate
+      min_count: 1
+    - tool: documents
+      verb: merge_data
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: attach
+      min_count: 3
+    capabilities_used:
+    - browser.data.extract
+    - documents.retrieve
+    - documents.validate
+    - netsuite.journal.create
+    - netsuite.attachment.add
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - compliance
+  - dual_control
+  skip: false
+- id: monthly_bank_reconciliation
+  description: Tests bank reconciliation workflow with matching, flagging unmatched
+    items, and controller sign-off process
+  input: Run the monthly bank reconciliation for all our accounts. Download the statements,
+    match them to NetSuite GL, flag any discrepancies, and prepare the reconciliation
+    package for my approval.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: retrieve_statements
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: reconcile
+      min_count: 1
+    - tool: documents
+      verb: create_report
+      min_count: 1
+    - tool: workflow
+      verb: flag_items
+      min_count: 1
+    capabilities_used:
+    - plaid.statements.get
+    - netsuite.gl.query
+    - netsuite.reconciliation.create
+    - documents.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - compliance
+  - monthly
+  skip: false
+- id: bank_rec_unresolved_discrepancy_escalation
+  description: Tests escalation path when bank reconciliation has discrepancies unresolved
+    after 3 business days
+  input: The bank reconciliation from 4 days ago still has $15,000 in unmatched withdrawals
+    that I can't identify. I've documented my research but need to escalate this to
+    the CFO.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: retrieve
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    - tool: netsuite
+      verb: add_note
+      min_count: 1
+    capabilities_used:
+    - email.send
+    - slack.message.send
+    - netsuite.record.update
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - escalation
+  - compliance
+  skip: false
+- id: ap_invoice_processing_stampley
+  description: Verifies automated invoice processing with OCR, validation against
+    vendor master, and routing for approval
+  input: Process the new invoices in the AP inbox. Extract the data with Stampley,
+    validate against our vendor master file and contracts, and route for approval
+    based on our delegation of authority policy.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: validate
+      min_count: 1
+    - tool: workflow
+      verb: route_approval
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.retrieve
+    - ocr.extract
+    - netsuite.vendor.query
+    - billcom.invoice.create
+    - workflow.approval.route
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - automation
+  skip: false
+- id: ap_invoice_no_matching_po
+  description: Tests handling of invoice when no matching PO or contract exists in
+    system
+  input: There's an invoice from Acme Consulting for $8,500 but I can't find an approved
+    contract or PO in NetSuite. What should I do?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: search
+      min_count: 1
+    - tool: workflow
+      verb: flag_exception
+      min_count: 1
+    capabilities_used:
+    - netsuite.po.query
+    - netsuite.contract.query
+    - documents.search
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - compliance
+  - approval
+  skip: false
+- id: research_ai_analysis_with_compliance
+  description: Tests AI-assisted research workflow with proper logging, cross-referencing,
+    and compliance retention
+  input: I need to analyze the technology sector peers for our Q3 report. Use AI to
+    pull fundamentals and generate a draft comp analysis, then cross-reference with
+    Bloomberg data and prepare it for supervisory review.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: query_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: validate
+      min_count: 1
+    - tool: workflow
+      verb: route_approval
+      min_count: 1
+    - tool: documents
+      verb: archive
+      min_count: 1
+    capabilities_used:
+    - ai.query
+    - browser.data.extract
+    - documents.create
+    - documents.validate
+    - workflow.compliance.log
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - research
+  - compliance
+  - ai_assisted
+  skip: false
+- id: ap_payment_release_controller_review
+  description: Tests final controller review before payment file release with segregation
+    of duties enforcement
+  input: The approved invoices for this week total $127,000 across 15 vendors. Generate
+    the payment file and present it to me for final review before release.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    - tool: billcom
+      verb: generate_payment_file
+      min_count: 1
+    - tool: documents
+      verb: create_report
+      min_count: 1
+    - tool: workflow
+      verb: request_approval
+      min_count: 1
+    capabilities_used:
+    - billcom.payment.query
+    - billcom.payment.generate
+    - documents.generate
+    - workflow.approval.request
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - dual_control
+  - payment
+  skip: false
+- id: journal_entry_allocation_validation_failure
+  description: Tests exception handling when allocation percentages don't match governing
+    agreements or AUM data
+  input: The fee allocation calculations are showing a 2.3% variance from our contractual
+    fee schedules. Flag this issue and help me identify the source of the discrepancy.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: compare
+      min_count: 1
+    - tool: workflow
+      verb: flag_exception
+      min_count: 1
+    - tool: documents
+      verb: create_report
+      min_count: 1
+    capabilities_used:
+    - documents.retrieve
+    - documents.compare
+    - workflow.exception.flag
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - validation
+  - compliance
+  skip: false
+source_file: docs/scenarios/gghc/gghc-level3.md

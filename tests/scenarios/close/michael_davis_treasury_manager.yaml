@@ -1,0 +1,284 @@
+persona:
+  name: Michael Davis
+  role: Treasury Manager
+  company: StorageCorner Real Estate Investment LLC
+  industry: real_estate
+metadata:
+  difficulty: 3
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: weekly_cash_forecast_generation
+  description: Verifies agent can generate comprehensive 4-week rolling cash flow
+    forecast using current balances, historical patterns, and known upcoming obligations
+  input: Generate the weekly cash flow forecast for the next 4 weeks starting November
+    13, 2025. Include property rent collections, operating expenses, debt service,
+    corporate overhead, and any special payments like the Thanksgiving week holiday
+    impact and the Missoula construction draw.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.query
+    - plaid.balance.get
+    - excel.analysis
+    - forecast.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - forecasting
+  - cash_management
+  skip: false
+- id: loan_covenant_compliance_check
+  description: Verifies agent can monitor and validate compliance with multiple loan
+    covenants across different credit facilities
+  input: Check our loan covenant compliance across all facilities. I need to verify
+    we're maintaining the $2M minimum in Chase accounts, $500K in Glacier construction
+    accounts, and $150K in the Heritage interest reserve account. Current balances
+    are Chase $12.85M, Glacier construction $847K, and Heritage reserve $289K.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - compliance.check
+    - document.parse
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - compliance
+  - risk_management
+  skip: false
+- id: interbank_transfer_execution_multi_property
+  description: Verifies agent can plan and execute complex interbank transfers to
+    rebalance property accounts with optimal fee structure
+  input: 'Execute property account rebalancing: transfer $40,408 from Phoenix Storage
+    Hub to Santa Fe Storage (both Heritage Bank), $46,528 from Denver Storage Center
+    (Glacier) to Yuma Storage (Heritage), and $43,153 from Redwood City Storage (Chase)
+    to Farmington Storage (Glacier). Optimize for lowest fees.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 6
+    - tool: bank
+      verb: approve_transaction
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 3
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - plaid.transfer.create
+    - plaid.balance.get
+    - wire.transfer.initiate
+    - fees.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - transfers
+  - liquidity_management
+  skip: false
+- id: excess_cash_investment_optimization
+  description: Verifies agent can calculate excess cash and recommend optimal investment
+    strategy across multiple vehicles
+  input: We have $28.07M total cash. Calculate excess cash available for investment
+    after reserving $3.2M for operations, $2.65M for loan covenants, $1.5M for corporate
+    working capital, and $2M emergency reserve. Then recommend investment allocation
+    across Heritage money market (1.15% APY), 90-day CDs (2.25% APY), and 13-week
+    Treasury Bills (2.15% yield).
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: browser
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - calculation.financial
+    - investment.analyze
+    - yield.compare
+    - recommendation.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - investment
+  - optimization
+  skip: false
+- id: covenant_breach_risk_scenario
+  description: Verifies agent can detect potential covenant breach and escalate when
+    planned transfers would violate minimum balance requirements
+  input: I need to transfer $11M from our Chase operating account to fund a new acquisition.
+    Our Chase credit facility requires $2M minimum liquidity at all times. Current
+    Chase balance is $12.85M. Can we proceed with this transfer?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - compliance.check
+    - risk.assess
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - edge_case
+  - compliance
+  - risk_management
+  skip: false
+- id: wire_transfer_cross_bank_verification
+  description: Verifies agent can validate wire transfer details across banks including
+    routing numbers, account verification, and fee calculation
+  input: Set up a wire transfer of $46,528 from Denver Storage Center operating account
+    at Glacier Bank (account ****4735) to Yuma Storage Solutions at Heritage Bank
+    (routing 321176851, account ****8850). What are the fees and when will it arrive?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: bank
+      verb: approve_transaction
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - wire.transfer.validate
+    - routing.verify
+    - fees.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - wire_transfers
+  - verification
+  skip: false
+- id: stress_test_emergency_scenario
+  description: Verifies agent can perform liquidity stress testing and assess coverage
+    for unexpected major expenses
+  input: 'Run a stress test scenario: if we have a $500K unexpected property emergency
+    expense, do we have sufficient immediate liquidity without breaking any loan covenants
+    or liquidating investments? Our immediate liquidity is $15.32M across operating
+    accounts and money market.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - scenario.analyze
+    - liquidity.assess
+    - compliance.check
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - risk_management
+  - stress_testing
+  - scenario_analysis
+  skip: false
+- id: weekly_treasury_report_compilation
+  description: Verifies agent can compile comprehensive weekly treasury report with
+    cash position, investments, compliance status, and forecasts
+  input: Prepare the weekly treasury management report for November 13, 2025. Include
+    total cash position of $29.04M, the investment rebalancing we completed ($18.72M
+    moved to higher-yield investments), 4-week cash flow forecast showing +$581K net,
+    all loan covenant compliance status, and the investment portfolio breakdown showing
+    1.65% average yield.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 3
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - report.generate
+    - forecast.compile
+    - compliance.summarize
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - reporting
+  - executive_summary
+  skip: false
+source_file: docs/scenarios/close/michael_davis_treasury_manager.md

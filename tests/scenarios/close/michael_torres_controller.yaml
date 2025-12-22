@@ -1,0 +1,335 @@
+persona:
+  name: Michael Torres
+  role: Controller
+  company: GGHC Investment Management
+  industry: investment_management
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_multi_bank_reconciliation
+  description: Verifies agent can perform comprehensive month-end bank reconciliation
+    across 12 accounts totaling $487.1M, including NetSuite export, bank statement
+    downloads, transaction matching, and variance analysis
+  input: Perform the October 2025 bank reconciliation for all 12 accounts. I need
+    the full reconciliation workbook with transaction matching, variance analysis,
+    and supporting documentation for audit.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: export_data
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 12
+    - tool: bank
+      verb: download_statement
+      min_count: 12
+    - tool: documents
+      verb: extract_data
+      min_count: 12
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - netsuite.cash_management.query
+    - netsuite.report.generate
+    - bank.statement.download
+    - bank.transaction.query
+    - excel.reconciliation.create
+    - excel.vlookup.execute
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - month_end
+  - multi_account
+  skip: false
+- id: unmatched_transaction_investigation
+  description: Verifies agent can investigate unmatched transactions, identify root
+    causes (timing differences, missing fees, unrecorded deposits), and propose correcting
+    journal entries
+  input: I found 47 unmatched NetSuite transactions totaling $2.4M and 31 unmatched
+    bank items totaling $1.8M in the Chase account. Investigate these discrepancies
+    and prepare the necessary journal entries.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 47
+    - tool: bank
+      verb: query_records
+      min_count: 31
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 5
+    - tool: netsuite
+      verb: create_record
+      min_count: 3
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - netsuite.transaction.query
+    - bank.transaction.search
+    - email.search
+    - netsuite.journal_entry.create
+    - netsuite.transaction.match
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - investigation
+  - variance_resolution
+  skip: false
+- id: international_fx_reconciliation
+  description: Verifies agent can reconcile international transactions with currency
+    conversion, identify exchange rate differences, and create FX adjustment entries
+  input: Reconcile the HSBC international account for October. We have EUR, GBP, and
+    CHF transactions that need FX rate verification and any exchange rate difference
+    adjustments.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: browser
+      verb: query_records
+      min_count: 3
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.international.query
+    - netsuite.fx_rate.query
+    - fx.rate.lookup
+    - netsuite.journal_entry.create
+    - netsuite.currency.reconcile
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - international
+  - fx_conversion
+  - currency
+  skip: false
+- id: custody_account_client_segregation
+  description: Verifies agent can reconcile custody accounts with trade settlement
+    timing, dividend processing, and verify client funds segregation compliance
+  input: Reconcile the Charles Schwab custody account showing $156.4M. I need verification
+    that all client funds are properly segregated and the $2.8M variance is explained
+    with trade settlement timing.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: browser
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - schwab.custody.query
+    - netsuite.client_funds.query
+    - netsuite.trade_settlement.analyze
+    - compliance.segregation.verify
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - custody
+  - client_segregation
+  - regulatory_compliance
+  skip: false
+- id: fraud_detection_security_review
+  description: Verifies agent can perform monthly fraud detection analysis, flag suspicious
+    transactions based on patterns, and investigate anomalies
+  input: Run the monthly fraud detection review for October. Flag any unusual transactions
+    including round numbers over $100K, weekend activity, new vendors, and geographic
+    anomalies. I need investigation results for the three flagged items.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 12
+    - tool: documents
+      verb: query_records
+      min_count: 5
+    - tool: email
+      verb: query_records
+      min_count: 3
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - netsuite.transaction.analyze
+    - bank.transaction.pattern_detection
+    - fraud.detection.run
+    - document.approval.verify
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - fraud_detection
+  - security
+  skip: false
+- id: regulatory_capital_compliance_verification
+  description: Verifies agent can verify regulatory capital requirements, confirm
+    minimum balance maintenance, and prepare compliance reporting
+  input: Verify the Wells Fargo escrow account maintained the $5M minimum regulatory
+    capital requirement throughout October and prepare the SEC balance verification
+    report due within 10 business days.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - bank.balance.query_historical
+    - compliance.minimum_balance.verify
+    - sec.report.generate
+    - netsuite.regulatory.query
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - regulatory
+  - compliance
+  - sec_reporting
+  skip: false
+- id: unrecorded_client_deposit_resolution
+  description: Verifies agent can identify unrecorded client deposits, search for
+    supporting documentation, create appropriate journal entries, and flag incomplete
+    client onboarding
+  input: There's a $234,847.92 incoming wire from Pacific Coast Investments on October
+    22nd that's not in NetSuite. Find out what this is and create the appropriate
+    journal entry. Also flag if there are any client setup issues.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: crm
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - bank.wire.query
+    - netsuite.transaction.search
+    - email.search
+    - crm.client.query
+    - netsuite.journal_entry.create
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - investigation
+  - client_onboarding
+  - unrecorded_transaction
+  skip: false
+- id: audit_documentation_package_preparation
+  description: Verifies agent can compile comprehensive audit documentation including
+    all bank statements, reconciliation workbooks, supporting documents, and management
+    certifications
+  input: Prepare the complete audit documentation package for October bank reconciliation.
+    I need all 12 bank statements, reconciliation workbooks, NetSuite reports, supporting
+    documentation, and the management representation letter organized for PwC.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: download_statement
+      min_count: 12
+    - tool: netsuite
+      verb: export_data
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 15
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - bank.statement.download_bulk
+    - netsuite.report.export
+    - document.package.create
+    - document.archive.store
+    - audit.documentation.compile
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - audit
+  - documentation
+  - compliance
+  skip: false
+source_file: docs/scenarios/close/michael_torres_controller.md

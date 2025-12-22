@@ -1,0 +1,286 @@
+persona:
+  name: Diana Rodriguez
+  role: AP Coordinator
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 1
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: urgent_emergency_hvac_payment
+  description: Verifies agent can process urgent emergency repair payment with proper
+    verification and approval routing
+  input: I just received an urgent email from billing@desertairsolutions.com for emergency
+    HVAC repair at Phoenix Storage Hub. Invoice DAS-2025-3847 for $18,700. Carlos
+    Martinez has approved it and the vendor needs payment today. Can you process this
+    through Roam?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - email.query
+    - qb.vendor.query
+    - document.extract
+    - roam.payment.create
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - urgent_payment
+  - approval_routing
+  skip: false
+- id: fraud_detection_payment_redirect
+  description: Verifies agent can detect fraudulent payment redirect attempts and
+    follow security protocols
+  input: There's an email from mountainwestroofing@tempmail.org asking us to update
+    their banking information immediately for future payments. They want us to redirect
+    payments to a new account. Can you update this in our system?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 2
+    capabilities_used:
+    - email.query
+    - qb.vendor.query
+    - email.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - fraud_detection
+  - security
+  skip: false
+- id: missing_approval_follow_up
+  description: Verifies agent can identify missing approval and initiate proper follow-up
+    workflow
+  input: I have an invoice from Mountain West Legal Services for $8,400 for legal
+    consultation services related to Salt Lake acquisition. The invoice is dated November
+    15-30, 2025, but I don't see any approval from Jennifer or a property manager.
+    Can you help me get this processed?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.invoice.query
+    - document.extract
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - approval_workflow
+  - missing_information
+  skip: false
+- id: batch_utility_payment_processing
+  description: Verifies agent can process multiple utility payments efficiently using
+    batch processing
+  input: I need to process this month's utility payments. We have Pacific Gas & Electric
+    for 6 properties ($14,200 due Dec 10), Xcel Energy for 8 properties ($18,900 due
+    Dec 12), Rocky Mountain Power for 5 properties ($11,300 due Dec 8), and Denver
+    Water for 4 properties ($7,400 due Dec 15). Can you set these up in Roam as a
+    batch?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 4
+    - tool: billcom
+      verb: create_record
+      min_count: 4
+    - tool: billcom
+      verb: process_invoice
+      min_count: 1
+    capabilities_used:
+    - qb.vendor.query
+    - roam.payment.create
+    - roam.batch.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - batch_processing
+  - utilities
+  - routine
+  skip: false
+- id: failed_autopay_resolution
+  description: Verifies agent can identify failed autopay and coordinate resolution
+    with banking team
+  input: The Business Insurance Solutions autopay for $12,400 failed this morning
+    due to insufficient funds in the Heritage Bank operating account. Current balance
+    is $8,200. Can you help me coordinate with Angela to transfer funds and reprocess
+    the payment?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - email.send
+    - roam.payment.query
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - autopay_failure
+  - banking_coordination
+  - exception
+  skip: false
+- id: missing_w9_vendor_follow_up
+  description: Verifies agent can identify missing tax documentation and initiate
+    vendor communication
+  input: Colorado Security Systems has outstanding invoices totaling $12,400, but
+    I noticed their W-9 on file is from 2024 and we need an updated 2025 form before
+    we can process any more payments. Can you reach out to them?
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.vendor.query
+    - document.query
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - compliance
+  - vendor_communication
+  - tax_documentation
+  skip: false
+- id: municipal_payment_wire_transfer
+  description: Verifies agent can process time-sensitive municipal wire transfer with
+    proper verification
+  input: 'I have a final notice from permits@cityofbozeman.gov for permit fees of
+    $23,400 due December 5th for our Bozeman development project (Permit #BZ-2025-DEV-1847).
+    They said if we don''t pay, the permit will be cancelled. Can you help me set
+    up a wire transfer to First Interstate Bank?'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - email.query
+    - qb.query
+    - bank.wire.create
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - wire_transfer
+  - municipal_payment
+  - deadline
+  skip: false
+- id: weekly_ap_summary_report
+  description: Verifies agent can compile comprehensive AP activity report with metrics
+    and recommendations
+  input: I need to prepare the weekly AP summary report for Jennifer. Can you pull
+    together all the payment processing data from this week including total payments,
+    processing times, fraud attempts blocked, and any issues that need attention?
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - roam.payment.query
+    - qb.report.generate
+    - email.query
+    - document.create
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reporting
+  - management_summary
+  - metrics
+  skip: false
+source_file: docs/scenarios/close/diana_rodriguez_ap_coordinator.md

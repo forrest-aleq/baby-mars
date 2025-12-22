@@ -1,0 +1,234 @@
+persona:
+  name: Samantha Lee
+  role: Property Coordinator
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 1
+  workflow_steps: 47
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: generate_filtered_manager_report
+  description: Verifies agent can generate a manager-focused expense report showing
+    only controllable categories (8-10 items) from full QuickBooks P&L with 47+ line
+    items
+  input: Generate Roberto's filtered expense report for Pacifica Storage for October
+    2025. Show only his controllable categories and remove all corporate allocations,
+    depreciation, and debt service.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.report.get
+    - qb.expense.query
+    - document.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - happy_path
+  skip: false
+- id: categorize_expense_controllability
+  description: Verifies agent can analyze QuickBooks chart of accounts and categorize
+    expenses by manager control level (Full Control, Partial Control, Awareness Only,
+    No Relevance)
+  input: Analyze our QuickBooks chart of accounts and categorize all 127 expense codes
+    by manager controllability. Create a mapping showing which accounts should appear
+    in manager reports and which should be hidden.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.account.list
+    - qb.chart_of_accounts.get
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - analysis
+  skip: false
+- id: peer_comparison_with_per_unit_benchmarks
+  description: Verifies agent can calculate per-unit expense metrics and generate
+    peer comparisons across similar properties with seasonal adjustments
+  input: Create a peer comparison for Pacifica Storage's repairs and maintenance expenses
+    for October. Compare against other large California properties on a per-unit basis
+    and show ranking. Include seasonal adjustment factors.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.report.get
+    - qb.expense.query
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - benchmarking
+  skip: false
+- id: variance_analysis_with_action_flags
+  description: Verifies agent can identify budget variances in controllable categories,
+    flag items needing attention, and suggest specific action questions for managers
+  input: Analyze Roberto's October expenses at Pacifica Storage and flag any variances
+    over $300 or 20%. For each flagged item, provide specific action questions he
+    needs to answer.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.budget.get
+    - qb.expense.query
+    - qb.report.get
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - variance_analysis
+  skip: false
+- id: mobile_friendly_report_generation
+  description: Verifies agent can generate mobile-optimized expense reports with single-column
+    layout, large fonts, and offline PDF capability
+  input: Generate a mobile-friendly version of the October expense report for Pacifica
+    Storage. Format for phone screens with single column layout, large fonts, and
+    create a downloadable PDF for offline access.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - qb.report.get
+    - document.generate
+    - document.format
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - mobile
+  - formatting
+  skip: false
+- id: manager_engagement_metrics_tracking
+  description: Verifies agent can track and report on manager engagement metrics including
+    report review time, response rate, variance explanation completion, and satisfaction
+    scores
+  input: Pull engagement metrics for all property managers for the past 3 months.
+    Show report review time, response rates, variance explanation completion rates,
+    and compare before/after filtered reporting implementation.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.query
+    - analytics.metrics.get
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - analytics
+  - engagement
+  skip: false
+- id: multi_property_filtered_report_batch
+  description: Verifies agent can generate filtered reports for multiple properties
+    simultaneously with property-specific controllable categories and peer comparisons
+  input: Generate filtered expense reports for all 8 Northern California properties
+    for October 2025. Each report should show only that manager's controllable categories
+    with peer comparisons and variance flags.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 8
+    - tool: documents
+      verb: create_record
+      min_count: 8
+    capabilities_used:
+    - qb.report.get
+    - qb.expense.query
+    - document.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - batch_processing
+  - scalability
+  skip: false
+- id: expense_education_material_creation
+  description: Verifies agent can create category-specific educational materials explaining
+    what managers control, cost drivers, optimization tips, and red flags
+  input: Create an educational guide for property managers on the Repairs & Maintenance
+    expense category. Include what they control, cost drivers, optimization tips,
+    and red flags to watch for.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.expense.query
+    - document.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - training
+  - documentation
+  skip: false
+source_file: docs/scenarios/close/samantha_lee_property_coordinator.md

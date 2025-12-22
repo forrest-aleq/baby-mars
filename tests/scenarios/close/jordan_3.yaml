@@ -1,0 +1,257 @@
+persona:
+  name: Jordan Reeves
+  role: Billing Analyst
+  company: GGHC Investment Management
+  industry: investment_management
+metadata:
+  difficulty: 3
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_client_fee_allocation_standard
+  description: Verifies the complete monthly fee allocation process with standard
+    client accounts, including data extraction from Power BI, fee calculation, and
+    NetSuite posting
+  input: Run the September 2025 monthly fee allocation for all active client accounts
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: netsuite
+      verb: process_invoice
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - browser.powerbi.extract
+    - excel.vlookup
+    - netsuite.billing.import
+    - netsuite.invoice.generate
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly
+  - billing
+  skip: false
+- id: account_number_mismatch_resolution
+  description: Verifies agent can identify and resolve account number mismatches between
+    Power BI valuation data and fee schedule, including checking recent communications
+  input: I'm getting VLOOKUP errors for accounts GGHC-4729, GGHC-8847, and GGHC-2938
+    in my fee allocation. Can you figure out what's wrong?
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - email.search
+    - excel.reconcile
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - exception
+  - data_quality
+  skip: false
+- id: proration_calculation_closed_account
+  description: Verifies agent can calculate prorated fees for accounts closed mid-month,
+    including identifying closure date and performing daily proration
+  input: Calculate the prorated September fee for Riverside Holdings who closed their
+    account on September 15th. Their average balance was $2.4M and annual fee rate
+    is 1.0%
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - calculation.prorate
+    - email.search
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - calculation
+  - proration
+  skip: false
+- id: performance_fee_calculation_with_hurdle
+  description: Verifies agent can calculate performance bonus fees with hurdle rates,
+    requiring cross-team data gathering and complex multi-step calculations
+  input: Calculate Coastal Pension Fund's Q3 performance bonus. They have a 10% performance
+    fee on returns exceeding 8% annually. I need to get their performance data from
+    the investment ops team.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: slack
+      verb: send
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - slack.message.send
+    - calculation.performance_fee
+    - email.send
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - complex_calculation
+  - cross_team
+  skip: false
+- id: minimum_fee_adjustment_identification
+  description: Verifies agent can identify accounts where calculated fees fall below
+    contractual minimums and apply appropriate adjustments
+  input: Review my September fee calculations and flag any accounts where the calculated
+    fee is below the contractual minimum. Apply minimum fee adjustments where needed.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - excel.conditional_logic
+    - excel.flag_exceptions
+    - documents.annotation
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - validation
+  - contract_compliance
+  skip: false
+- id: fee_variance_reconciliation_investigation
+  description: Verifies agent can identify and investigate variances between calculated
+    fees and expected revenue, including market analysis and cross-department inquiry
+  input: My total calculated fees are $344,750 but accounting expects $347,000. Help
+    me figure out where the $2,250 variance is coming from.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: slack
+      verb: send
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - excel.variance_analysis
+    - slack.message.send
+    - netsuite.query
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reconciliation
+  - variance_analysis
+  - critical
+  skip: false
+- id: double_counting_error_correction
+  description: Verifies agent can detect and correct formula errors that cause double-counting
+    in fee calculations, specifically for minimum fee adjustments
+  input: My total fees are now $352,900 but should be $347,000. I think I might be
+    double-counting minimum fee adjustments. Can you check my formulas and fix them?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - excel.formula_audit
+    - excel.formula_correction
+    - calculation.validate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - error_correction
+  - validation
+  - critical
+  skip: false
+- id: complete_billing_distribution_workflow
+  description: Verifies agent can execute the complete post-allocation workflow including
+    NetSuite import, invoice generation, quality control, and multi-channel distribution
+  input: My fee allocations are reconciled at $347,000. Import them to NetSuite, generate
+    client invoices, and distribute them according to each client's preference (email,
+    portal, or mail).
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: netsuite
+      verb: process_invoice
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 2
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - netsuite.billing.import
+    - netsuite.invoice.generate
+    - netsuite.invoice.distribute
+    - email.bulk_send
+    - documents.portal_upload
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - end_to_end
+  - distribution
+  skip: false
+source_file: docs/scenarios/close/jordan-3.md

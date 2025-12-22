@@ -1,0 +1,269 @@
+persona:
+  name: Carlos Martinez
+  role: Scenario Analyst
+  company: StorageCorner
+  industry: real_estate_storage
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: quarterly_base_model_validation
+  description: Validates the base financial model against Q4 2025 actuals and updates
+    assumptions for the upcoming quarter
+  input: Pull Q4 2025 actual performance data and validate our base model assumptions.
+    I need to verify revenue, expenses, NOI, occupancy, and rent per sq ft against
+    our projections for the StorageCorner_Base_Model_Q1_2026 file.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.financial.query
+    - documents.extract
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - quarterly
+  skip: false
+- id: recession_scenario_modeling
+  description: Creates a recession scenario model with adjusted economic assumptions
+    and property-level impacts
+  input: Build me a recession scenario model for Q1 2026 through Q4 2027. Use GDP
+    growth of -1.8%, unemployment at 7.8%, interest rates at 3.75%, and model the
+    impacts on occupancy and rent across our property segments - business storage,
+    consumer storage, climate-controlled, vehicle storage, and premium locations.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.financial.query
+    - documents.extract
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - scenario_planning
+  skip: false
+- id: interest_rate_spike_financing_impact
+  description: Models the impact of rapid interest rate increases on debt facilities
+    and calculates annual cost impacts
+  input: Model an interest rate spike scenario where Fed funds rate goes to 8.75%
+    and 10-year Treasury hits 7.25%. Calculate the impact on our Heritage Bank LOC,
+    Glacier FCB term loan, development financing, and refinancing pipeline. I need
+    to see the annual cost impact for each facility.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.debt.query
+    - erp.financial.query
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - financing
+  skip: false
+- id: new_competition_market_share_analysis
+  description: Analyzes impact of new supply entering markets on individual property
+    market share and revenue
+  input: Run a market saturation scenario for new competition. Model Phoenix Metro
+    with 2.1M sq ft new supply in 12-18 months, Denver Region 1.8M sq ft in 18-24
+    months, and Bay Area 900K sq ft in 6-12 months. Calculate the market share and
+    revenue impact for Pacifica Storage, Marina Storage, Phoenix Storage Hub, Denver
+    Storage Center, and Redwood City Storage.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.property.query
+    - erp.financial.query
+    - browser.research
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - competitive_analysis
+  skip: false
+- id: natural_disaster_stress_test
+  description: Models force majeure scenarios with property damage, insurance coverage
+    gaps, and business interruption impacts
+  input: Create a natural disaster stress test scenario. Model a major California
+    earthquake affecting 6 properties with 15-25% damage, wildfire in Mountain West
+    hitting 4 properties with 5-35% damage. Calculate insurance coverage gaps, deductible
+    exposure, and business interruption revenue loss for 3-6 months at 45% revenue
+    reduction.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.property.query
+    - erp.insurance.query
+    - erp.financial.query
+    - documents.create
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - risk_management
+  - crisis
+  skip: false
+- id: aggressive_expansion_scenario
+  description: Models accelerated growth strategy with increased development projects,
+    acquisitions, and capital requirements
+  input: Build an aggressive expansion scenario. Change the base plan from 3 to 7
+    development projects, 2 to 5 acquisitions, increase capital from $34M to $87M,
+    compress timeline from 24 to 18 months, and add 3 new market entries. Calculate
+    IRR, financing requirements across existing credit lines, new debt, and equity
+    partners.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.financial.query
+    - erp.project.query
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - strategic
+  - growth_planning
+  skip: false
+- id: portfolio_optimization_recommendations
+  description: Generates scenario-weighted capital allocation strategy across multiple
+    scenarios with probability weighting
+  input: 'Run a Monte Carlo portfolio optimization analysis using these probability
+    weights: Base Case 35%, Mild Economic Stress 25%, Moderate Competition 20%, Severe
+    Market Disruption 15%, Crisis Events 5%. Generate capital allocation recommendations
+    across property acquisitions, new development, property improvements, debt reduction,
+    cash reserves, and technology investment. Include risk scores and return potential
+    for each property segment.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.financial.query
+    - erp.property.query
+    - documents.extract
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - strategic
+  - executive_summary
+  skip: false
+- id: key_personnel_loss_scenario
+  description: Models talent risk scenario with operational impact, replacement costs,
+    and retention strategy ROI analysis
+  input: 'Model a key personnel loss scenario. Calculate the impact of losing a high-performing
+    property manager (5% NOI loss per property, 3-4 month replacement, $89K cost),
+    regional manager (8% portfolio performance loss, 6-8 months, $1.2M cost), and
+    development manager (project delays, 6-12 months, $2.1M cost). Then analyze retention
+    strategies: compensation increase $234K for 15% better retention, professional
+    development $89K for 8% improvement, equity participation $156K for 12% improvement.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - erp.hr.query
+    - erp.financial.query
+    - documents.create
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - operational
+  - talent_risk
+  - hr_planning
+  skip: false
+source_file: docs/scenarios/close/carlos_martinez_scenario_analyst.md

@@ -1,0 +1,276 @@
+persona:
+  name: Jordan Blake
+  role: Senior Financial Analyst
+  company: Dockwa
+  industry: SaaS - Marina Management
+metadata:
+  difficulty: 1
+  workflow_steps: 47
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: competitive_funding_analysis
+  description: Verifies agent can analyze competitor funding rounds and generate comparative
+    intelligence
+  input: 'I need to analyze two recent Series B funding rounds in marina management
+    software: HarborTech Solutions raised $12M led by Foundry Group, and AquaMarina
+    Systems raised $18M led by Bessemer Venture Partners. Please analyze valuation
+    implications, competitive positioning vs. Dockwa''s capabilities, market size
+    assumptions, and potential impact on pricing and customer acquisition.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: search_web
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.search
+    - browser.extract
+    - documents.create
+    - analysis.financial
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - competitive_intelligence
+  - strategic
+  skip: false
+- id: market_sizing_tam_analysis
+  description: Verifies agent can estimate total addressable market with segmentation
+    and validation
+  input: Help me estimate the total addressable market for yacht club management software
+    in North America. Break this down by number of yacht clubs (private vs. public),
+    average annual software spending per club, current solution categories, and price
+    sensitivity by club size. I need a comprehensive market sizing model.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: search_web
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - browser.search
+    - browser.extract
+    - analysis.market_research
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - market_research
+  - strategic
+  skip: false
+- id: acquisition_due_diligence
+  description: Verifies agent can perform confidential due diligence on acquisition
+    target with financial analysis
+  input: I need to analyze a potential acquisition target (confidential - codename
+    Project Neptune) in the dock management space. They have 23 marina customers and
+    $1.8M ARR. Analyze their revenue quality, unit economics, customer acquisition
+    costs, growth trajectory, and potential synergies with our existing platform.
+    Also estimate a valuation range.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: browser
+      verb: search_web
+      min_count: 1
+    capabilities_used:
+    - documents.extract
+    - documents.create
+    - analysis.financial
+    - analysis.valuation
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - confidential
+  - m&a
+  - strategic
+  skip: false
+- id: competitive_intelligence_realtime
+  description: Verifies agent can gather real-time competitive intelligence on product
+    announcements and customer wins
+  input: Find recent product announcements, customer wins, and feature releases from
+    HarborTech Solutions and AquaMarina Systems in 2025. Focus on marina management
+    software capabilities and any AI/automation features they've launched.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: search_web
+      min_count: 4
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - browser.search
+    - browser.extract
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - competitive_intelligence
+  skip: false
+- id: european_expansion_analysis
+  description: Verifies agent can analyze international market expansion with regulatory
+    and financial considerations
+  input: Analyze the business case for European expansion, specifically UK and Netherlands
+    marina markets. I need market size and growth rates, regulatory requirements for
+    marina operations, existing competitors and market share, customer preferences,
+    and a financial model with initial investment requirements, revenue ramp scenarios,
+    and break-even timeline.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: search_web
+      min_count: 5
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - browser.search
+    - browser.extract
+    - analysis.market_research
+    - analysis.financial
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - international
+  - strategic
+  skip: false
+- id: validate_ai_market_assumptions
+  description: Verifies agent can cross-validate market sizing assumptions and identify
+    missing factors
+  input: 'Review this yacht club market sizing analysis and validate the assumptions.
+    My TAM estimate is $58.3M based on: 2,800 small clubs at $3,600/year, 1,600 medium
+    clubs at $12,000/year, 400 large clubs at $35,000/year, and 200 enterprise at
+    $75,000/year. Are these assumptions reasonable? What factors might I be missing
+    that could increase or decrease this TAM estimate?'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: search_web
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.search
+    - analysis.validation
+    - analysis.market_research
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - validation
+  - market_research
+  skip: false
+- id: executive_summary_synthesis
+  description: Verifies agent can synthesize multiple research streams into executive-ready
+    presentations
+  input: 'Create executive summaries for four research projects: 1) Competitive landscape
+    analysis on HarborTech and AquaMarina funding rounds, 2) Yacht club market opportunity
+    with $58M TAM, 3) Project Neptune acquisition recommendation with $8-10M valuation
+    range, 4) European expansion analysis for UK and Netherlands markets. Each summary
+    should include key findings, strategic implications, and recommendations.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 4
+    - tool: documents
+      verb: extract_data
+      min_count: 4
+    capabilities_used:
+    - documents.create
+    - documents.extract
+    - analysis.synthesis
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - executive_reporting
+  - synthesis
+  skip: false
+- id: customer_concentration_risk_analysis
+  description: Verifies agent can identify and analyze risk factors in acquisition
+    due diligence
+  input: For Project Neptune acquisition target, analyze the customer concentration
+    risk. Their top 5 customers represent 60% of revenue with $1.8M ARR total. What
+    are the implications for valuation and what mitigation strategies should we consider?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: browser
+      verb: search_web
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - documents.extract
+    - browser.search
+    - analysis.risk_assessment
+    - analysis.financial
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - risk_analysis
+  - m&a
+  skip: false
+source_file: docs/scenarios/close/jordan_blake_financial_analyst.md

@@ -1,0 +1,279 @@
+persona:
+  name: CFO
+  role: Chief Financial Officer
+  company: Dockwa
+  industry: vertical_saas_marina_management
+metadata:
+  difficulty: 5
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 5
+test_cases:
+- id: lockbox_pdf_to_recurly_netsuite
+  description: Verifies agent can process bank lockbox PDF, extract check details,
+    apply payments in Recurly, and create journal entries in NetSuite
+  input: I just received today's lockbox PDF from the bank with 15 checks. Can you
+    process these and apply the payments to Recurly subscriptions, then create the
+    journal entries in NetSuite?
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: stripe
+      verb: query_records
+      min_count: 15
+    - tool: netsuite
+      verb: create_record
+      min_count: 15
+    capabilities_used:
+    - email.attachment.get
+    - pdf.extract
+    - recurly.payment.apply
+    - netsuite.journal_entry.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - accounts_receivable
+  - lockbox
+  skip: false
+- id: lockbox_pdf_parsing_error_handling
+  description: Verifies agent handles inconsistent PDF formatting and flags unmatched
+    invoices
+  input: Process the lockbox PDF from this morning. Some of the invoice numbers might
+    be missing or hard to read.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - email.attachment.get
+    - pdf.extract
+    - ocr.parse
+    - recurly.invoice.search
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - edge_case
+  - accounts_receivable
+  - pdf_parsing
+  skip: false
+- id: weekly_bank_balance_collection
+  description: Verifies agent can collect balances from 68 accounts across Chase,
+    Glacier/FCB, and Heritage banks
+  input: Pull this week's bank balances from all 68 accounts across Chase, Glacier,
+    and Heritage and consolidate them into our master liquidity spreadsheet.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 68
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - bank.account.list
+    - sheets.write
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - treasury
+  - weekly_recurring
+  skip: false
+- id: monthly_bank_reconciliation
+  description: Verifies agent can reconcile monthly bank statements against NetSuite
+    GL and flag discrepancies
+  input: Run the monthly bank reconciliation for all our accounts. Match deposits
+    against Stripe and lockbox records, match withdrawals against vendor payments,
+    and flag any unmatched transactions or potential fraud.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 68
+    - tool: netsuite
+      verb: query_records
+      min_count: 68
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.transactions.get
+    - netsuite.gl.query
+    - stripe.balance_transactions.list
+    - reconciliation.match
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - accounting
+  - monthly_close
+  - fraud_detection
+  skip: false
+- id: budget_to_actual_manager_reports
+  description: Verifies agent can generate personalized budget vs actual reports for
+    property managers with variance highlighting
+  input: Generate this month's budget-to-actual reports for all property managers.
+    Filter each report to show only their controllable expenses (travel, repairs,
+    utilities, auctions) and highlight any variances over 10% or $500. Send them via
+    email with a summary.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 8
+    - tool: email
+      verb: send
+      min_count: 8
+    capabilities_used:
+    - qb.report.pnl
+    - qb.class.filter
+    - excel.transform
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - fpa
+  - manager_reporting
+  - monthly_recurring
+  skip: false
+- id: expense_variance_investigation
+  description: Verifies agent can drill into variance details, categorize transactions,
+    and request manager explanations
+  input: The marina manager at Newport property has a 15% variance in repairs this
+    month. Pull the transaction details for that category, flag any that look miscoded,
+    and send him a request for explanations on the flagged items.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.transaction.query
+    - qb.class.filter
+    - variance.analyze
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - fpa
+  - variance_analysis
+  - manager_accountability
+  skip: false
+- id: vendor_payment_processing_stripe_reconciliation
+  description: Verifies agent can process vendor invoices after Stripe settlement
+    and reconcile payments back to NetSuite
+  input: Stripe just disbursed $125K to our operating account. I have 12 vendor invoices
+    ready to pay. Code them in NetSuite, schedule the ACH payments, and make sure
+    everything reconciles back correctly.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stripe
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 12
+    - tool: bank
+      verb: approve_transaction
+      min_count: 12
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - stripe.payout.get
+    - netsuite.bill.create
+    - netsuite.payment.schedule
+    - bank.ach.initiate
+    - netsuite.ap_aging.query
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - accounts_payable
+  - vendor_payments
+  skip: false
+- id: cash_forecast_with_interbank_transfers
+  description: Verifies agent can prepare cash forecast, identify shortfalls, and
+    recommend interbank transfers
+  input: Update the weekly cash forecast with current balances and upcoming obligations.
+    Let me know if any accounts are short of minimums and recommend which transfers
+    we should make between banks.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 68
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - forecast.compare
+    - forecast.update
+    - liquidity.analyze
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - treasury
+  - cash_management
+  - weekly_recurring
+  - decision_support
+  skip: false
+source_file: docs/scenarios/dockwa/dockwa.md

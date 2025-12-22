@@ -1,0 +1,321 @@
+persona:
+  name: Marco Thompson
+  role: Payment Processor
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 1
+  workflow_steps: 67
+  decision_points: 11
+  automation_susceptibility: 4
+test_cases:
+- id: emergency_generator_repair_payment
+  description: Verifies urgent same-day payment processing for emergency repairs with
+    proper entity matching, approval verification, and ACH execution
+  input: Process urgent payment for Rocky Mountain Power Solutions invoice RMPS-2025-4847
+    for $23,700. This is for emergency generator repair at Denver Storage Center.
+    Mike Rodriguez and Jennifer Walsh have approved. Use StorageCorner Mountain LLC
+    and process as ACH.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: billcom
+      verb: approve_transaction
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - roam.payment.create
+    - roam.vendor.query
+    - roam.entity.select
+    - qb.bank_account.query
+    - qb.expense.code
+    - bank.balance.check
+    - roam.payment.execute
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - urgent
+  - dual_approval
+  skip: false
+- id: utility_shutoff_prevention_wire
+  description: Verifies emergency wire transfer processing to prevent service interruption
+    with same-day execution and expedited approval workflow
+  input: 'URGENT: Process wire transfer payment to City of Phoenix Utilities for $18,400
+    to prevent shutoff at Phoenix Storage Hub. Carlos Martinez gave emergency approval.
+    Use StorageCorner Desert LLC and Desert Bank account. Shutoff scheduled for 3
+    PM today.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: bank
+      verb: create_record
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - roam.payment.create
+    - bank.wire.execute
+    - qb.entity.verify
+    - bank.balance.check
+    - roam.approval.expedite
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - emergency
+  - wire_transfer
+  - service_interruption
+  skip: false
+- id: multi_entity_management_fee_batch
+  description: Verifies batch payment processing across multiple entities with proper
+    allocation, bank account routing, and scheduled ACH execution
+  input: 'Process December 2025 property management fees to Professional Property
+    Management LLC. Total is $47,388 split across 4 entities: Pacific LLC $14,082,
+    Mountain LLC $17,364, Desert LLC $9,372, Northwest LLC $6,570. Schedule for December
+    10th ACH.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 5
+    - tool: billcom
+      verb: create_record
+      min_count: 4
+    - tool: bank
+      verb: query_records
+      min_count: 4
+    - tool: billcom
+      verb: approve_transaction
+      min_count: 1
+    capabilities_used:
+    - roam.payment.batch_create
+    - roam.entity.allocate
+    - qb.bank_account.match
+    - qb.expense.code
+    - roam.payment.schedule
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - batch_processing
+  - multi_entity
+  - recurring
+  skip: false
+- id: early_pay_discount_capture
+  description: Verifies early payment discount calculation, approval, and accelerated
+    processing to capture 2% savings
+  input: Process early payment for Desert Air Solutions invoice $12,400 with 2% discount
+    for payment within 10 days. Calculate discount, process $12,152 payment for StorageCorner
+    Desert LLC to capture the $248 savings.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: billcom
+      verb: approve_transaction
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - roam.payment.create
+    - roam.discount.calculate
+    - qb.discount_income.record
+    - roam.payment.execute
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - discount_optimization
+  - cost_savings
+  skip: false
+- id: complex_utility_allocation
+  description: Verifies multi-property utility bill allocation across single entity
+    with proper usage-based distribution and documentation
+  input: 'Process Xcel Energy utility bill for $23,704 covering 4 Colorado properties
+    under StorageCorner Mountain LLC. Allocate based on usage: Denver 35.2% ($8,346),
+    Colorado Springs 25.3% ($5,996), Boulder 19.0% ($4,503), Fort Collins 20.5% ($4,859).
+    Use Glacier FCB account.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 5
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - roam.payment.create
+    - qb.expense.allocate
+    - qb.property.assign
+    - bank.balance.check
+    - roam.documentation.attach
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - complex_allocation
+  - multi_property
+  - documentation
+  skip: false
+- id: capital_expenditure_approval_workflow
+  description: Verifies capital expenditure payment processing with extended approval
+    chain, asset classification, and depreciation setup
+  input: Process capital expenditure payment to Mountain West Construction for $34,500
+    for Bozeman facility HVAC upgrade. This is a capital asset requiring approval
+    from Jennifer Walsh, Rachel Torres, and Jonathan Walsh. Set up 10-year straight-line
+    depreciation.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: billcom
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 3
+    - tool: erp
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - roam.payment.create
+    - roam.approval.route
+    - qb.fixed_asset.create
+    - qb.depreciation.schedule
+    - roam.approval.track
+    should_escalate: true
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - capital_expenditure
+  - multi_level_approval
+  - asset_management
+  skip: false
+- id: duplicate_payment_detection
+  description: Verifies duplicate payment prevention logic by comparing vendor, amount,
+    invoice number, and date range to flag potential duplicates
+  input: Process Mountain West Electric invoice MWE-2025-1247 for $8,700 for December
+    service. Check for duplicates - we paid them $8,700 on November 28th for invoice
+    MWE-2025-1134.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: billcom
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - roam.payment.query
+    - roam.duplicate.check
+    - qb.invoice.compare
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - fraud_prevention
+  - duplicate_detection
+  - quality_control
+  skip: false
+- id: daily_payment_summary_report
+  description: Verifies end-of-day reporting generation with payment statistics, efficiency
+    metrics, pending items, and management summary
+  input: Generate daily payment processing summary for December 5, 2025. Include all
+    executed payments, pending approvals, early pay discounts captured, efficiency
+    metrics, and send report to Jennifer Walsh.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: billcom
+      verb: query_records
+      min_count: 3
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - roam.reporting.generate
+    - roam.payment.summarize
+    - qb.metrics.calculate
+    - roam.approval.status
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reporting
+  - management_summary
+  - metrics
+  skip: false
+source_file: docs/scenarios/close/marco_thompson_payment_processor.md

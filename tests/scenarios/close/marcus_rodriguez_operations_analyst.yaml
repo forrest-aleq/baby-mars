@@ -1,0 +1,299 @@
+persona:
+  name: Marcus Rodriguez
+  role: Operations Analyst
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_automated_report_distribution
+  description: Verifies the complete automated workflow for generating and distributing
+    personalized monthly budget reports to all 23 property managers on the first business
+    day at 8:00 AM
+  input: Generate and distribute the October 2025 monthly budget reports to all property
+    managers. Schedule for first business day at 8:00 AM and track all deliveries
+    in the master tracking sheet.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 23
+    - tool: email
+      verb: send
+      min_count: 23
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: notion
+      verb: create_record
+      min_count: 23
+    capabilities_used:
+    - netsuite.report.generate
+    - netsuite.class.query
+    - email.send
+    - sheets.write
+    - zapier.trigger
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly
+  - automation
+  skip: false
+- id: personalized_manager_report_generation
+  description: Tests the personalization engine for creating a customized report based
+    on manager preferences, property characteristics, and responsibility matrix filters
+  input: Create Roberto Martinez's monthly report for Pacifica Storage. Filter to
+    show only his responsible categories (Repairs_Maintenance, Utilities, Marketing,
+    Office_Supplies, Travel) with 10% variance threshold. Use casual communication
+    style and include peer comparison to similar properties.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: notion
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - netsuite.report.filter
+    - netsuite.class.query
+    - email.template.render
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - personalization
+  - routine
+  skip: false
+- id: variance_tracking_and_response_monitoring
+  description: Verifies the system's ability to track manager responses to variance
+    questions and update the Google Sheets tracking system with response times and
+    resolution status
+  input: Track all manager responses to the October budget reports. Log response times,
+    flag David Park and Michael Torres who are past the 3-day target, and update the
+    variance resolution status in the master tracking sheet.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: email
+      verb: query_records
+      min_count: 1
+    - tool: notion
+      verb: create_record
+      min_count: 25
+    - tool: workflow
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - gmail.message.search
+    - sheets.write
+    - sheets.query
+    - analytics.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - tracking
+  - monitoring
+  - escalation
+  skip: false
+- id: ab_testing_email_optimization
+  description: Tests the A/B testing setup for optimizing email engagement by tracking
+    open rates, click-through rates, and response rates across different subject lines,
+    timing, and content formats
+  input: 'Set up A/B testing for next month''s budget report distribution. Test three
+    subject line variations: ''November Budget Report - Pacifica Storage'', ''🚨 4
+    Budget Items Need Your Review'', and ''Great Month at Pacifica - Quick Review
+    Needed''. Split the 23 managers into equal groups and track open rates, click-through
+    rates, and response times for 30 days.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: notion
+      verb: create_record
+      min_count: 3
+    - tool: email
+      verb: send
+      min_count: 23
+    capabilities_used:
+    - zapier.workflow.create
+    - email.template.create
+    - analytics.experiment.setup
+    - sheets.write
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - optimization
+  - testing
+  - analytics
+  skip: false
+- id: quickbooks_connection_failure_handling
+  description: Verifies error handling when QuickBooks connection fails during scheduled
+    report generation, including alert notification and automatic retry logic
+  input: The QuickBooks connection failed during the monthly report generation scheduled
+    for 8:00 AM. Send me an alert, log the error in the tracking sheet, and queue
+    an automatic retry in 30 minutes.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: slack
+      verb: send
+      min_count: 1
+    - tool: notion
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - slack.message.send
+    - sheets.write
+    - zapier.retry.queue
+    - error.log
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - error_handling
+  - critical
+  - escalation
+  skip: false
+- id: manager_onboarding_new_property
+  description: Tests the complete onboarding workflow for adding a new property manager
+    to the automated reporting system, including preference setup, training material
+    delivery, and test report generation
+  input: 'Onboard Sarah Johnson as the new manager for Boise Storage. Set up her manager
+    profile with these preferences: detail level = summary, communication style =
+    formal, variance threshold = 12%, responsible categories = Repairs_Maintenance,
+    Utilities, Marketing, Insurance_Claims. Send her the training module videos and
+    generate a test report using last month''s data.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: notion
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 2
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - sheets.write
+    - email.send
+    - email.template.render
+    - netsuite.report.generate
+    - zapier.workflow.update
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - onboarding
+  - setup
+  - training
+  skip: false
+- id: roi_performance_dashboard_update
+  description: Verifies the automated calculation and updating of ROI metrics and
+    performance dashboard including response rates, system uptime, cost per report,
+    and savings analysis
+  input: Update the performance dashboard with this month's metrics. Calculate current
+    response rate, average response time, email open rate, system uptime, and cost
+    per report. Compare against targets and flag any metrics that are yellow or red
+    status. Include the month-over-month trend analysis.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: notion
+      verb: query_records
+      min_count: 5
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - sheets.query
+    - sheets.write
+    - analytics.calculate
+    - charts.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - analytics
+  - reporting
+  - metrics
+  skip: false
+- id: non_responsive_manager_escalation
+  description: Tests the automated reminder and escalation logic for managers who
+    haven't responded within the 3-day target, including personalized follow-up emails
+    and supervisor notification
+  input: 'David Park hasn''t responded to his October budget report and it''s been
+    5 days (past the 3-day target). Send him a personalized reminder email highlighting
+    the 2 critical variances that need his attention: Repairs & Maintenance (+51%)
+    and Security System Upgrade (+$8,200). If no response in 24 hours, escalate to
+    his regional supervisor Jennifer.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: notion
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - sheets.query
+    - email.send
+    - email.template.render
+    - workflow.reminder.schedule
+    - slack.message.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - escalation
+  - reminders
+  - accountability
+  skip: false
+source_file: docs/scenarios/close/marcus_rodriguez_operations_analyst.md

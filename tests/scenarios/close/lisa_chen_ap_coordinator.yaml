@@ -1,0 +1,285 @@
+persona:
+  name: Lisa Chen
+  role: AP Coordinator
+  company: GGHC Investment Management
+  industry: financial_services
+metadata:
+  difficulty: 1
+  workflow_steps: 47
+  decision_points: 18
+  automation_susceptibility: 3
+test_cases:
+- id: overnight_stampley_dashboard_review
+  description: Verifies agent can retrieve and summarize overnight AI invoice processing
+    results from Stampley dashboard
+  input: Show me the overnight Stampley processing summary and tell me which invoices
+    need my attention this morning
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: navigate_to
+      min_count: 1
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: stampley
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - stampley.dashboard.get
+    - stampley.invoices.list
+    - stampley.confidence_scores.get
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - daily_routine
+  skip: false
+- id: high_confidence_invoice_batch_approval
+  description: Verifies agent can rapidly review and approve high-confidence AI-processed
+    invoices with minimal intervention
+  input: Review and approve all high-confidence invoices over 95% that Stampley processed
+    overnight - confirm the Schwab and Northern Trust invoices look correct
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: stampley
+      verb: approve_transaction
+      min_count: 2
+    capabilities_used:
+    - stampley.invoices.get
+    - stampley.confidence_score.check
+    - netsuite.vendor.verify
+    - stampley.invoice.approve
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - approval_workflow
+  skip: false
+- id: medium_confidence_bloomberg_variance_investigation
+  description: Verifies agent can investigate medium-confidence invoice with amount
+    variance and flag for departmental confirmation
+  input: The Bloomberg invoice for $3,450 is flagged by Stampley as different from
+    our usual $2,950 monthly charge. Investigate why and determine if we should approve
+    it.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - stampley.invoice.get
+    - netsuite.payments.history
+    - slack.message.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - exception_handling
+  - variance_investigation
+  skip: false
+- id: legal_invoice_gl_split_and_ai_training
+  description: Verifies agent can handle complex multi-line legal invoice with GL
+    code splits and provide training feedback to Stampley AI
+  input: Process the Wilson & Associates legal invoice for $8,750 that Stampley flagged.
+    Split the GL codes appropriately for SEC compliance, employment law, and contract
+    work, then train the AI on these categories.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: stampley
+      verb: create_record
+      min_count: 3
+    - tool: stampley
+      verb: train_model
+      min_count: 1
+    capabilities_used:
+    - stampley.invoice.get
+    - netsuite.gl_codes.query
+    - stampley.invoice.split_allocation
+    - stampley.vendor.update
+    - stampley.ai.train
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - complex_processing
+  - ai_training
+  - gl_allocation
+  skip: false
+- id: new_vendor_setup_foreign_currency
+  description: Verifies agent can handle new vendor setup for foreign vendor with
+    currency conversion and poor OCR quality
+  input: Stampley couldn't process the Marina Technology Solutions invoice - it's
+    a new Canadian vendor with a poor quality scan showing $15,247.83 USD. Set up
+    the vendor and process this invoice.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: netsuite
+      verb: create_record
+      min_count: 1
+    - tool: stampley
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - stampley.invoice.get
+    - netsuite.vendor.create
+    - stampley.vendor.create
+    - fx.conversion.calculate
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - new_vendor
+  - foreign_currency
+  - low_confidence
+  - manual_processing
+  skip: false
+- id: three_way_match_variance_resolution
+  description: Verifies agent can perform three-way matching between PO, invoice,
+    and receiving report with variance analysis
+  input: Run three-way matching on the Office Supplies Express invoice for $234.76
+    against PO-2025-3849 for $250 and tell me if we should approve it
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 2
+    - tool: stampley
+      verb: approve_transaction
+      min_count: 1
+    capabilities_used:
+    - stampley.invoice.get
+    - netsuite.po.get
+    - netsuite.receiving.get
+    - stampley.three_way_match.execute
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - three_way_match
+  - variance_analysis
+  skip: false
+- id: payment_optimization_early_discount
+  description: Verifies agent can identify early payment discount opportunities and
+    coordinate with treasury for cash flow optimization
+  input: Review the approved invoices and identify any early payment discount opportunities.
+    Coordinate with treasury to schedule payments optimally this week.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: netsuite
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - stampley.invoices.query
+    - stampley.discount.calculate
+    - netsuite.cash_forecast.get
+    - stampley.payment.schedule
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - payment_optimization
+  - cash_flow
+  - discounts
+  skip: false
+- id: vendor_dispute_late_payment_resolution
+  description: Verifies agent can handle vendor dispute about late payment fees and
+    coordinate resolution with appropriate departments
+  input: Pacific Coast Legal is asking about a late payment fee on their invoice that
+    was paid 3 days after the due date. Look into what happened and draft a response.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: netsuite
+      verb: query_records
+      min_count: 2
+    - tool: stampley
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - netsuite.payments.history
+    - stampley.approval.history
+    - netsuite.invoice.get
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - vendor_relations
+  - dispute_resolution
+  - exception_handling
+  skip: false
+source_file: docs/scenarios/close/lisa_chen_ap_coordinator.md

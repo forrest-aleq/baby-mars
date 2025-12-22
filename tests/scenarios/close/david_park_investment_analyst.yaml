@@ -1,0 +1,275 @@
+persona:
+  name: David Park
+  role: Senior Investment Analyst
+  company: GGHC Investment Management
+  industry: investment_management
+metadata:
+  difficulty: 1
+  workflow_steps: 47
+  decision_points: 12
+  automation_susceptibility: 3
+test_cases:
+- id: nvidia_amd_competitive_analysis
+  description: Verifies agent can conduct comprehensive competitive analysis using
+    AI research, validate with financial data sources, and synthesize investment recommendation
+  input: I need to analyze NVIDIA vs. AMD competitive positioning in the AI chip market
+    for a potential $12M investment. Please provide market share breakdown, recent
+    product developments, financial performance comparison, competitive advantages,
+    and market threats.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: query_data
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - web.search
+    - web.extract
+    - document.analyze
+    - email.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - research
+  - competitive_analysis
+  skip: false
+- id: dcf_model_scenario_analysis
+  description: Verifies agent can build DCF models with multiple scenarios (bull/base/bear
+    cases) incorporating market assumptions and competitive dynamics
+  input: Help me build a 3-year DCF model for NVIDIA with base case (35% AI market
+    growth), bull case (50% growth), and bear case (20% growth). Include assumptions
+    for gross margin evolution, R&D spending, CAPEX, and working capital changes.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: browser
+      verb: query_data
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - document.create
+    - web.search
+    - calculation.financial_model
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - financial_modeling
+  - valuation
+  skip: false
+- id: cloud_infrastructure_market_analysis
+  description: Verifies agent can analyze multi-provider competitive landscape with
+    market share trends, revenue growth, and strategic positioning
+  input: Analyze the competitive dynamics between Microsoft Azure, Amazon AWS, and
+    Google Cloud Platform. Focus on market share trends 2023-2025, revenue growth
+    rates, profitability, technological differentiators, enterprise customer wins,
+    and AI/ML capabilities comparison.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: query_data
+      min_count: 4
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - web.search
+    - web.extract
+    - document.create
+    - document.analyze
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - research
+  - market_analysis
+  skip: false
+- id: ai_risk_assessment_scenario_modeling
+  description: Verifies agent can identify and quantify investment risks across multiple
+    dimensions with probability assessments
+  input: Identify and quantify potential risks to cloud infrastructure providers over
+    the next 3 years including regulatory risks (antitrust, data privacy), technology
+    disruption (edge computing, quantum), competitive risks (new entrants, price wars),
+    macroeconomic risks (recession impact), and geopolitical risks (trade wars, data
+    sovereignty).
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: query_data
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - web.search
+    - document.create
+    - risk.assessment
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - risk_management
+  - scenario_analysis
+  skip: false
+- id: competitive_intelligence_patent_hiring
+  description: Verifies agent can gather real-time competitive intelligence including
+    patent filings, strategic hires, and partnerships
+  input: Find recent patent filings, hiring announcements, and strategic partnerships
+    for NVIDIA and AMD in 2025. Focus on AI/ML chip development and manufacturing
+    partnerships.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: query_data
+      min_count: 4
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - web.search
+    - web.extract
+    - document.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - research
+  - competitive_intelligence
+  skip: false
+- id: earnings_preview_preparation
+  description: Verifies agent can prepare comprehensive earnings preview with key
+    metrics, management guidance patterns, and earnings call questions
+  input: Prepare an earnings preview for NVIDIA's upcoming quarterly earnings. Generate
+    key metrics to watch, analyze historical management guidance patterns, identify
+    recent developments that could impact results, and provide questions for the earnings
+    call.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: query_data
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - web.search
+    - document.analyze
+    - document.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - earnings
+  - research_preparation
+  skip: false
+- id: portfolio_risk_correlation_analysis
+  description: Verifies agent can analyze portfolio holdings for concentration risks,
+    correlations, and rebalancing recommendations
+  input: Analyze our current technology portfolio for risk concentrations. We're overweight
+    NVIDIA at 5.2% vs 3.8% benchmark and underweight Intel at 1.1% vs 2.4% benchmark.
+    Identify correlation patterns, stress test scenarios, and provide rebalancing
+    recommendations based on recent competitive analysis.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - document.query
+    - document.analyze
+    - risk.assessment
+    - email.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - portfolio_management
+  - risk_management
+  skip: false
+- id: client_research_report_generation
+  description: Verifies agent can compile comprehensive client-facing research report
+    with executive summary, market analysis, financial modeling, and investment recommendations
+  input: Prepare a client-facing research report on NVIDIA with our Strong Buy recommendation
+    and $1,198 target price. Include executive summary of investment thesis, market
+    analysis with competitive positioning, DCF valuation model results (base/bull/bear
+    cases), risk assessment with quantified probabilities, and position sizing recommendation
+    of 2.5% of technology portfolio.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - document.query
+    - document.create
+    - document.analyze
+    - email.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - client_communication
+  - report_generation
+  skip: false
+source_file: docs/scenarios/close/david_park_investment_analyst.md

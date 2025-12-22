@@ -1,0 +1,289 @@
+persona:
+  name: David Kim
+  role: Reconciliation Specialist
+  company: StorageCorner Real Estate Investment
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: weekly_cash_reconciliation_baseline
+  description: Verifies agent can perform comprehensive weekly cash flow reconciliation
+    comparing forecast vs actual across all categories
+  input: Run the weekly cash reconciliation for November 20-26, 2025. Compare Lisa's
+    forecast against actual bank balances and property collections.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: bank
+      verb: query_records
+      min_count: 5
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - qb.query
+    - excel.read
+    - excel.write
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - weekly_routine
+  skip: false
+- id: property_level_collection_variance
+  description: Verifies agent can drill down into property-level collection variances
+    and identify root causes
+  input: Investigate why property collections are $23,600 above forecast. Break down
+    by individual property and identify the root causes for each variance.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 8
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - sitelink.collections.query
+    - qb.query
+    - excel.write
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - property_analysis
+  - variance_investigation
+  skip: false
+- id: unexpected_debt_service_timing
+  description: Verifies agent can identify and investigate unexpected debt service
+    payments caused by banking holiday acceleration
+  input: There's a $23,750 debt service payment that wasn't in the forecast. Find
+    out why this payment occurred this week when it wasn't scheduled.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: query_records
+      min_count: 1
+    capabilities_used:
+    - plaid.transactions.get
+    - gmail.search
+    - excel.read
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - debt_service
+  - timing_variance
+  - edge_case
+  skip: false
+- id: capital_projects_overspend_investigation
+  description: Verifies agent can investigate significant capital project spending
+    variances and contact project managers
+  input: Capital projects spent $45,500 more than forecasted (51% over budget). Investigate
+    the Missoula Expansion and Bozeman Development variances and determine if this
+    is a problem.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.query
+    - gmail.send
+    - slack.send
+    - excel.write
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - capital_projects
+  - significant_variance
+  - stakeholder_communication
+  skip: false
+- id: treasury_bill_early_redemption
+  description: Verifies agent can investigate unexpected investment activity and research
+    rare Treasury call provisions
+  input: We received $247,000 from investment activities that wasn't forecasted. Investigate
+    what happened with our Treasury Bills and determine if this is legitimate.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: browser
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - plaid.transactions.get
+    - web.search
+    - treasurydirect.query
+    - gmail.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - investments
+  - unusual_event
+  - research_required
+  skip: false
+- id: expense_variance_root_cause_analysis
+  description: Verifies agent can categorize expense variances by controllability
+    and identify uncontrollable events
+  input: Property expenses are $5,650 over forecast. Analyze the expense categories
+    and classify each variance as controllable, uncontrollable, or timing-related.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.query
+    - qb.vendor.query
+    - excel.write
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - expense_analysis
+  - categorization
+  skip: false
+- id: variance_summary_report_generation
+  description: Verifies agent can compile comprehensive variance analysis into stakeholder
+    report with action items
+  input: Generate the weekly cash reconciliation report for the treasury team. Include
+    key findings, forecast accuracy metrics, action items, and process improvement
+    recommendations.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - excel.read
+    - excel.write
+    - gmail.send
+    - report.generate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reporting
+  - stakeholder_communication
+  - critical
+  skip: false
+- id: forecast_accuracy_calculation
+  description: Verifies agent can calculate forecast accuracy metrics across different
+    categories and identify improvement areas
+  input: Calculate the forecast accuracy for this week across all categories. Identify
+    which areas need improvement and are below our 85% accuracy target.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - excel.read
+    - excel.calculate
+    - excel.write
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - metrics
+  - quality_assurance
+  skip: false
+- id: process_improvement_recommendations
+  description: Verifies agent can generate process improvement recommendations based
+    on variance patterns and root causes
+  input: Based on this week's variances, create process improvement recommendations.
+    Focus on the debt service timing issue and capital project forecasting gaps.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 2
+    capabilities_used:
+    - excel.read
+    - excel.write
+    - asana.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - continuous_improvement
+  - process_optimization
+  skip: false
+source_file: docs/scenarios/close/david_kim_reconciliation_specialist.md

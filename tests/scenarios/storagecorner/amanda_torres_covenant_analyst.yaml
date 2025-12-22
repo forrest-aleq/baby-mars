@@ -1,0 +1,282 @@
+persona:
+  name: Amanda Torres
+  role: Covenant Analyst
+  company: StorageCorner
+  industry: real_estate_investment
+metadata:
+  difficulty: 3
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: monthly_covenant_compliance_analysis
+  description: Verifies agent can execute comprehensive monthly covenant compliance
+    analysis across all loan facilities, calculate DSCR and LTV ratios, and identify
+    violations
+  input: Run the monthly covenant compliance analysis for November 2025. I need DSCR
+    and LTV calculations for all 17 loan facilities, and flag any covenant violations.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: bank
+      verb: query_records
+      min_count: 5
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: browser
+      verb: navigate
+      min_count: 4
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.balance_sheet.get
+    - qb.report.generate
+    - bank.loan_balance.query
+    - browser.portal.login
+    - documents.covenant.extract
+    - email.alert.send
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - monthly
+  - compliance
+  skip: false
+- id: dscr_calculation_single_property
+  description: Verifies agent can calculate Debt Service Coverage Ratio for a specific
+    property including NOI and debt service calculations
+  input: Calculate the DSCR for Pacifica Storage for November 2025. I need the full
+    breakdown including rental income, operating expenses, NOI, and debt service payments
+    against the Heritage Bank mortgage.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.property_financials.get
+    - qb.income_statement.generate
+    - bank.payment_history.query
+    - calculator.ratio.compute
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - dscr
+  - property_analysis
+  skip: false
+- id: ltv_violation_detection_and_response
+  description: Verifies agent can detect LTV covenant violations, calculate required
+    principal paydown, and initiate emergency response protocol
+  input: The Denver Storage Center property was just reappraised at $24.2M and we
+    have $19.8M outstanding on the Glacier FCB mortgage. Check if we're in LTV covenant
+    compliance - the requirement is 80% max. If we're violating, tell me how much
+    we need to pay down and draft an urgent notification to Jennifer Walsh.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - bank.loan_balance.query
+    - calculator.ltv.compute
+    - documents.covenant.check
+    - email.urgent_alert.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - violation
+  - ltv
+  - emergency
+  skip: false
+- id: net_worth_covenant_violation_crisis
+  description: Verifies agent can identify major corporate net worth covenant violation,
+    analyze root causes, and escalate appropriately
+  input: Pull the consolidated balance sheet as of November 30, 2025 and check our
+    net worth against the Glacier FCB covenant requirement of $45M minimum. I'm concerned
+    we might have an issue.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 2
+    capabilities_used:
+    - qb.balance_sheet.get
+    - qb.consolidated_report.generate
+    - calculator.net_worth.compute
+    - email.critical_alert.send
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - violation
+  - net_worth
+  - corporate
+  skip: false
+- id: occupancy_covenant_monitoring
+  description: Verifies agent can check occupancy covenant compliance, identify violations,
+    and analyze trends
+  input: Check the occupancy rate for Denver Storage Center as of November 30, 2025.
+    The Glacier FCB loan requires minimum 80% occupancy. Also show me the 3-month
+    and 6-month occupancy trends.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.property_metrics.get
+    - documents.covenant.check
+    - analytics.trend.calculate
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - occupancy
+  - violation
+  - trending
+  skip: false
+- id: covenant_violation_lender_notification
+  description: Verifies agent can draft formal covenant violation notification to
+    lender with cure strategy
+  input: 'Draft a covenant violation notification email to Sarah Johnson at Heritage
+    Bank for the Denver Storage Center LTV violation. We''re at 82% vs 80% max. Include
+    the proposed cure actions: formal appraisal by December 15, principal paydown
+    of $485K ready if needed, and property improvement plan. Request a 60-day cure
+    period.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: email
+      verb: send
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - email.formal_notice.draft
+    - documents.violation_notice.create
+    - compliance.cure_strategy.format
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - compliance
+  - lender_communication
+  - violation_cure
+  skip: false
+- id: forward_covenant_stress_testing
+  description: Verifies agent can perform forward-looking covenant stress testing
+    under multiple scenarios
+  input: 'Run a covenant stress test projection for Q1-Q4 2026. Model three scenarios:
+    base case with stable property values, stress case with 5-10% value decline, and
+    severe stress with 15-20% decline. Show me projected DSCR, LTV, and net worth
+    for each quarter under each scenario.'
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: browser
+      verb: navigate
+      min_count: 1
+    capabilities_used:
+    - qb.financial_projection.generate
+    - analytics.scenario_modeling.run
+    - calculator.covenant_projection.compute
+    - documents.stress_test_report.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - strategic
+  - forecasting
+  - risk_analysis
+  skip: false
+- id: multi_portal_loan_balance_aggregation
+  description: Verifies agent can navigate multiple bank portals, retrieve current
+    loan balances, and aggregate across 17 facilities
+  input: Log into all our bank portals (Heritage Bank, Glacier FCB, Desert Bank, Bay
+    Area Bank, Wells Fargo, Mountain West Bank) and pull current outstanding loan
+    balances as of November 30, 2025 for all 17 facilities. Give me a summary table
+    with lender, property, and outstanding balance.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: browser
+      verb: navigate
+      min_count: 6
+    - tool: bank
+      verb: query_records
+      min_count: 17
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.portal.login
+    - browser.2fa.authenticate
+    - bank.balance.query
+    - documents.summary_table.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - routine
+  - data_aggregation
+  - multi_system
+  skip: false
+source_file: docs/scenarios/storagecorner/amanda_torres_covenant_analyst.md

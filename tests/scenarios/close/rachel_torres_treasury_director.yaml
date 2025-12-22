@@ -1,0 +1,270 @@
+persona:
+  name: Rachel Torres
+  role: Treasury Director
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: vendor_comparison_analysis
+  description: Verifies agent can compile comprehensive treasury management system
+    vendor comparison including pricing, features, and deal-breakers
+  input: I need a complete analysis of treasury management systems for our $29M cash
+    across 68 bank accounts at Chase, Glacier FCB, and Heritage Bank. Budget is $30K
+    annually. Compare Kyriba, GTreasury, and Trovata with pricing, implementation
+    timeline, bank connectivity, and ROI analysis.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: research
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    capabilities_used:
+    - browser.search
+    - documents.create
+    - documents.analyze
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - research
+  - vendor_evaluation
+  skip: false
+- id: bank_api_availability_research
+  description: Verifies agent can research and document bank API capabilities and
+    limitations for direct integration
+  input: 'Research API availability and requirements for Chase Bank, Glacier FCB,
+    and Heritage Bank commercial accounts. I need to know: API costs, minimum balance
+    requirements, technical capabilities, implementation timeline, and any limitations
+    for real-time balance aggregation.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: research
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 0
+    capabilities_used:
+    - browser.search
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - research
+  - technical_assessment
+  skip: false
+- id: cost_benefit_roi_analysis
+  description: Verifies agent can calculate detailed ROI analysis comparing manual
+    process costs vs automated solution costs
+  input: 'Calculate ROI analysis for implementing Finicity + Google Workspace solution.
+    Current state: Angela spends 4 hours weekly on manual balance collection across
+    68 accounts, approximately $25K annual cost. Proposed solution: Finicity at $454/month
+    plus $15K development. Include first-year costs, ongoing costs, time savings,
+    and payback period.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - documents.create
+    - documents.analyze
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - financial_analysis
+  skip: false
+- id: aggregation_platform_evaluation
+  description: Verifies agent can evaluate financial data aggregation platforms (Plaid,
+    Yodlee, Finicity) for business banking use case
+  input: Evaluate Plaid for Business, Yodlee Business Solutions, and Finicity for
+    aggregating balances from 68 commercial bank accounts. I need bank coverage assessment,
+    business account support, pricing structure, implementation requirements, and
+    suitability for mid-market real estate company.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: research
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - browser.search
+    - documents.create
+    - documents.analyze
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - research
+  - vendor_evaluation
+  skip: false
+- id: custom_solution_technology_stack
+  description: Verifies agent can design and cost custom development solutions with
+    multiple technology stack options
+  input: 'Design three custom development options for automated balance aggregation
+    dashboard: 1) Python + Finicity + PostgreSQL, 2) Microsoft Power Platform, 3)
+    Google Workspace + Apps Script. For each option include: technology components,
+    development hours estimate, annual costs, implementation timeline, and pros/cons
+    for a treasury team with limited technical resources.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: research
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.search
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - technical_design
+  - cost_estimation
+  skip: false
+- id: vendor_rejection_documentation
+  description: Verifies agent can create formal vendor rejection documentation with
+    specific rationale and future reconsideration criteria
+  input: 'Document rejection rationale for Kyriba ($85K/year), GTreasury ($60K/year),
+    and Trovata. For each vendor specify: primary rejection reason, secondary issues,
+    budget variance analysis, and specific criteria that would make us reconsider
+    in the future (portfolio size, cash levels, account count).'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - documents.create
+    - documents.analyze
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - documentation
+  - vendor_management
+  skip: false
+- id: executive_presentation_recommendation
+  description: Verifies agent can compile comprehensive executive recommendation with
+    business case, technical architecture, implementation plan, and success metrics
+  input: 'Create executive presentation recommending Finicity + Google Workspace hybrid
+    solution for treasury automation. Include: problem statement, solution overview,
+    technical architecture, cost breakdown ($13,992 first year), 30-day implementation
+    plan, key benefits (208 hours annual savings), risk mitigation, and success metrics.
+    Target audience is CFO and executive team.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    capabilities_used:
+    - documents.create
+    - documents.analyze
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - executive_communication
+  skip: false
+- id: mid_market_technology_gap_analysis
+  description: Verifies agent can analyze market gaps and provide strategic insights
+    on treasury technology for mid-market companies
+  input: Analyze the treasury technology gap for mid-market companies ($20M-75M in
+    cash). Document why enterprise solutions ($50K-100K) are too expensive and small
+    business solutions lack commercial banking integration. Include regional bank
+    API challenges, real estate industry-specific requirements, and recommendations
+    for hybrid approaches that mid-market firms should consider.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: browser
+      verb: research
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - browser.search
+    - documents.create
+    - documents.analyze
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - strategic_analysis
+  - market_research
+  skip: false
+- id: three_year_technology_roadmap
+  description: Verifies agent can create phased technology evolution plan with growth
+    trigger points and solution migration strategy
+  input: 'Create a 3-year treasury technology roadmap for StorageCorner starting with
+    Finicity + Google Workspace. Year 1: foundation and automation. Year 2: enhanced
+    analytics and direct bank APIs. Year 3: potential TMS upgrade. Include specific
+    growth trigger points: when to implement mid-market TMS (40+ properties), when
+    enterprise solutions become cost-effective ($75M+ cash), and criteria for solution
+    upgrades at 100+ accounts.'
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - documents.create
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - strategic_planning
+  - roadmap
+  skip: false
+source_file: docs/scenarios/close/rachel_torres_treasury_director.md

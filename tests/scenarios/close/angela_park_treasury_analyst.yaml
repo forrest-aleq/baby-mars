@@ -1,0 +1,262 @@
+persona:
+  name: Angela Park
+  role: Treasury Analyst
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 3
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: weekly_bank_balance_collection_all_banks
+  description: Verifies agent can collect balances from all 68 accounts across three
+    banks (Chase, Glacier FCB, Heritage) and consolidate into master tracking spreadsheet
+  input: Collect this week's bank balances from all our accounts - Chase (31 accounts),
+    Glacier (24 accounts), and Heritage (13 accounts). Create the consolidated balance
+    sheet for November 13, 2025.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 68
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    capabilities_used:
+    - plaid.balance.get
+    - plaid.accounts.list
+    - sheets.create
+    - sheets.write
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - weekly
+  - multi_bank
+  skip: false
+- id: variance_analysis_with_prior_week
+  description: Verifies agent can compare current week balances to prior week, calculate
+    variances, and flag accounts with significant changes (>$50K)
+  input: Compare this week's bank balances to last week's (November 6th). Calculate
+    the total portfolio change and flag any accounts with variances over $50,000.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: workflow
+      verb: calculate
+      min_count: 68
+    capabilities_used:
+    - sheets.read
+    - sheets.calculate
+    - sheets.write
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - analysis
+  - variance
+  - weekly
+  skip: false
+- id: liquidity_assessment_low_balance_properties
+  description: Verifies agent can identify properties below optimal cash levels (<$50K)
+    and calculate transfer amounts needed
+  input: Analyze our property operating accounts and identify any properties with
+    balances under $50,000. Calculate how much each needs to reach optimal levels
+    and total transfer requirements.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: workflow
+      verb: calculate
+      min_count: 3
+    capabilities_used:
+    - sheets.read
+    - sheets.filter
+    - sheets.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - liquidity
+  - transfers
+  - analysis
+  skip: false
+- id: excess_cash_investment_opportunities
+  description: Verifies agent can identify high-balance accounts (>$300K) with excess
+    cash and calculate total investment opportunities
+  input: Find all property accounts with balances over $300,000. Calculate the excess
+    cash above the $150,000 optimal level and total amount available for investment.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: workflow
+      verb: calculate
+      min_count: 1
+    capabilities_used:
+    - sheets.read
+    - sheets.filter
+    - sheets.calculate
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - optimization
+  - investment
+  - analysis
+  skip: false
+- id: significant_variance_investigation
+  description: Verifies agent can investigate specific account variances by checking
+    transaction history and cross-referencing with accounting records
+  input: The Capital Projects Account at Chase (****1247) dropped by $400,099.66 from
+    last week. Pull the recent transaction history and check if this matches any entries
+    in QuickBooks.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: erp
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.transactions.get
+    - qb.query
+    - qb.transaction.get
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - investigation
+  - variance
+  - reconciliation
+  skip: false
+- id: weekly_cash_position_report_generation
+  description: Verifies agent can compile comprehensive weekly cash position report
+    with executive summary, bank breakdowns, and action items
+  input: Generate the weekly cash position report for November 13, 2025. Include executive
+    summary, breakdown by bank, cash flow analysis, and action items for transfers
+    and investments.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - sheets.read
+    - sheets.calculate
+    - docs.create
+    - gmail.send
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - reporting
+  - weekly
+  - executive
+  skip: false
+- id: minimum_balance_compliance_check
+  description: Verifies agent can check all accounts against regulatory and operational
+    minimum requirements and flag any compliance issues
+  input: Check all 68 accounts against their minimum balance requirements. Chase needs
+    $250K regulatory + $500K operational, Glacier needs $150K + $300K, Heritage needs
+    $100K + $200K. Flag any accounts below minimums.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: documents
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: workflow
+      verb: calculate
+      min_count: 68
+    capabilities_used:
+    - sheets.read
+    - sheets.filter
+    - sheets.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - compliance
+  - risk
+  - monitoring
+  skip: false
+- id: bank_authentication_failure_handling
+  description: Verifies agent properly handles authentication failures during multi-bank
+    balance collection and escalates appropriately
+  input: 'Collect balances from all banks. Note: Glacier FCB login is showing an error
+    with the RSA SecurID token and Heritage Bank''s push notification isn''t coming
+    through.'
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 31
+    - tool: workflow
+      verb: log_error
+      min_count: 2
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - plaid.accounts.list
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - error_handling
+  - authentication
+  - edge_case
+  skip: false
+source_file: docs/scenarios/close/angela_park_treasury_analyst.md

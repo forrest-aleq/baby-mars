@@ -1,0 +1,271 @@
+persona:
+  name: Lisa Rodriguez
+  role: Cash Manager
+  company: StorageCorner
+  industry: real_estate
+metadata:
+  difficulty: 2
+  workflow_steps: 89
+  decision_points: 23
+  automation_susceptibility: 2
+test_cases:
+- id: weekly_thirteen_week_cash_forecast
+  description: Verifies agent can generate comprehensive 13-week rolling cash forecast
+    incorporating property-level performance, corporate activities, debt service,
+    and capital projects
+  input: Generate my weekly 13-week cash flow forecast for the week of November 27,
+    2025. Include property cash flows, corporate overhead, debt service schedule,
+    and capital project funding requirements.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 4
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 3
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.cashflow.forecast
+    - qb.reports.generate
+    - plaid.balance.get
+    - excel.model.calculate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - weekly_routine
+  skip: false
+- id: seasonal_adjustment_analysis
+  description: Verifies agent applies historical seasonal patterns and holiday impacts
+    to cash flow forecasts
+  input: Analyze the December holiday season impact on our cash forecast. Apply seasonal
+    adjustment factors based on 36 months of historical data and flag the expected
+    cash flow dip during the December 25th and January 1st weeks.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.reports.historical
+    - excel.analysis.seasonal
+    - qb.cashflow.forecast
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - seasonal
+  - analytics
+  skip: false
+- id: investment_maturity_rollover_planning
+  description: Verifies agent tracks investment maturities and plans reinvestment
+    strategies for CDs and Treasury Bills
+  input: Show me all investment maturities for February 2026. We have $8M in CDs maturing
+    on February 13th and $5.72M in Treasury Bills maturing February 15th. Prepare
+    rollover recommendations with current rate analysis.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 3
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: browser
+      verb: query_records
+      min_count: 1
+    - tool: email
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - plaid.investments.list
+    - plaid.balance.get
+    - market_data.rates.query
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - investment
+  - planning
+  skip: false
+- id: stress_scenario_testing
+  description: Verifies agent can perform stress testing with multiple scenarios including
+    conservative and economic downturn cases
+  input: Run a stress test scenario on our 13-week forecast assuming a 25% occupancy
+    decline, 15% rent reduction, and capital project delays. Calculate the impact
+    on liquidity and determine our runway under these conditions.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 2
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - qb.cashflow.forecast
+    - qb.reports.generate
+    - excel.scenario.analysis
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - risk_management
+  - stress_test
+  skip: false
+- id: liquidity_ladder_analysis
+  description: Verifies agent calculates liquidity availability across different time
+    horizons and validates covenant compliance
+  input: Calculate our liquidity ladder showing available cash at immediate, 1-week,
+    1-month, 3-month, and 6-month horizons. Verify we meet the minimum $10.45M liquidity
+    requirements including operating expenses, debt service reserves, and loan covenant
+    buffers.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    capabilities_used:
+    - plaid.balance.get
+    - plaid.investments.list
+    - qb.reports.generate
+    - covenant.compliance.check
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - compliance
+  - liquidity
+  skip: false
+- id: capital_projects_funding_schedule
+  description: Verifies agent coordinates capital project funding requirements with
+    cash flow availability across multiple developments
+  input: Create the capital projects funding schedule for the next 4 weeks covering
+    Missoula Expansion ($140.7K), Bozeman Development ($184.8K), Salt Lake Acquisition
+    ($234.7K), and Colorado Springs ($98.4K). Flag any weeks where total capital draws
+    exceed $300K.
+  expected:
+    supervision_mode: action_proposal
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    - tool: workflow
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.projects.query
+    - qb.cashflow.forecast
+    - qb.reports.generate
+    should_escalate: false
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - capital_projects
+  - funding
+  skip: false
+- id: debt_service_schedule_tracking
+  description: Verifies agent tracks debt service payments across multiple loan facilities
+    with accurate principal and interest breakdown
+  input: Pull the complete debt service schedule for the next 13 weeks. Include all
+    payments for Chase Acquisition Loan, Heritage Bridge Loan, Wells Fargo LOC, and
+    Glacier Construction loan with principal and interest breakdown.
+  expected:
+    supervision_mode: autonomous
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 2
+    - tool: bank
+      verb: query_records
+      min_count: 1
+    - tool: documents
+      verb: extract_data
+      min_count: 1
+    capabilities_used:
+    - qb.loans.query
+    - qb.reports.debt_schedule
+    - plaid.liabilities.get
+    should_escalate: false
+    should_flag_exceptions: false
+    ethical_concerns: false
+  validation: []
+  tags:
+  - debt_service
+  - compliance
+  skip: false
+- id: forecast_variance_exception_handling
+  description: Verifies agent detects and escalates significant variances between
+    forecasted and actual cash flows requiring investigation
+  input: Our actual cash flow for last week came in at $198K but we forecasted $310K.
+    Investigate the 36% variance, identify which properties or expense categories
+    drove the miss, and update the forecast model assumptions.
+  expected:
+    supervision_mode: guidance_seeking
+    work_units:
+    - tool: erp
+      verb: query_records
+      min_count: 3
+    - tool: bank
+      verb: query_records
+      min_count: 2
+    - tool: documents
+      verb: create_record
+      min_count: 1
+    - tool: slack
+      verb: send
+      min_count: 1
+    capabilities_used:
+    - qb.cashflow.actual_vs_forecast
+    - qb.reports.variance_analysis
+    - plaid.transactions.get
+    should_escalate: true
+    should_flag_exceptions: true
+    ethical_concerns: false
+  validation: []
+  tags:
+  - critical
+  - exception_handling
+  - variance
+  skip: false
+source_file: docs/scenarios/close/lisa_rodriguez_cash_manager.md
