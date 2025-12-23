@@ -95,10 +95,14 @@ app = FastAPI(
 # MIDDLEWARE
 # ============================================================
 
-# CORS for frontend
-CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(
-    ","
-)
+# CORS for frontend (strip whitespace from origins)
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"
+    ).split(",")
+    if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,

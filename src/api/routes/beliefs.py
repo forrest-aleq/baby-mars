@@ -19,6 +19,7 @@ from ..schemas.beliefs import (
     BeliefChallengeResponse,
     BeliefDetailResponse,
     BeliefResponse,
+    BeliefStatus,
     BeliefVersion,
 )
 
@@ -194,9 +195,6 @@ async def challenge_belief(
         # Calculate what strength would be after challenge (reduces by ~50%)
         old_strength = belief.get("strength", 0.5)
         projected_strength = max(0.1, old_strength * 0.5)
-        # Use cast to match the BeliefStatus Literal type
-        from ..schemas.beliefs import BeliefStatus
-
         projected_status: BeliefStatus = "disputed" if projected_strength < 0.4 else "active"
 
         # TODO: Implement proper challenge flow with graph.challenge_belief()

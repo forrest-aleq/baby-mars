@@ -15,6 +15,7 @@ Birth happens ONCE at signup. The 6 things are seeded:
 Mount happens EVERY message - use mount() instead.
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, cast
@@ -38,6 +39,8 @@ from .knowledge_packs import (
     seed_industry_beliefs,
     seed_preference_beliefs,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _collect_knowledge_facts(
@@ -303,7 +306,7 @@ async def _check_existing_person(email: str, message: str) -> BabyMARSState | No
         if await check_person_exists(email):
             return await mount(email, message)
     except Exception:
-        pass
+        logger.warning("Failed to check/mount existing person, proceeding with new birth", exc_info=True)
     return None
 
 
@@ -362,7 +365,7 @@ async def birth_from_apollo(
                 cast(list[dict[str, Any]], beliefs),
             )
         except Exception as e:
-            print(f"Warning: Failed to persist birth: {e}")
+            logger.warning(f"Failed to persist birth: {e}", exc_info=True)
 
     get_belief_graph_manager()._cache[org_id] = graph
     return cast(

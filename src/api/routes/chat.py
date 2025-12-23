@@ -402,4 +402,15 @@ async def approve_action(request_data: ApprovalRequest, request: Request) -> Mes
 
     except Exception as e:
         logger.error(f"Approval processing failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": {
+                    "code": "APPROVAL_FAILED",
+                    "message": "Failed to process approval",
+                    "severity": "error",
+                    "recoverable": True,
+                    "retryable": True,
+                }
+            },
+        )

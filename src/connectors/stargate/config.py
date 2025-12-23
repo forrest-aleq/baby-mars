@@ -53,8 +53,17 @@ def get_stargate_config() -> StargateConfig:
             "Set it to your Stargate instance (e.g., http://localhost:8001)"
         )
 
+    # Validate STARGATE_TIMEOUT
+    timeout_str = os.environ.get("STARGATE_TIMEOUT", "30")
+    try:
+        timeout = float(timeout_str)
+        if timeout <= 0:
+            raise ValueError("must be positive")
+    except ValueError as e:
+        raise ValueError(f"STARGATE_TIMEOUT must be a positive number, got '{timeout_str}': {e}")
+
     return StargateConfig(
         base_url=base_url,
         api_key=api_key,
-        timeout=float(os.environ.get("STARGATE_TIMEOUT", "30")),
+        timeout=timeout,
     )

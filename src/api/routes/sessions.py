@@ -57,7 +57,9 @@ async def get_session(session_id: str, request: Request) -> dict[str, Any]:
 @router.delete("/{session_id}")
 async def delete_session(session_id: str, request: Request) -> dict[str, str]:
     """Delete a session"""
-    if session_id not in request.app.state.sessions:
+    # Use atomic pop to avoid race condition between check and delete
+    session = request.app.state.sessions.pop(session_id, None)
+    if session is None:
         raise HTTPException(
             status_code=404,
             detail={
@@ -69,7 +71,6 @@ async def delete_session(session_id: str, request: Request) -> dict[str, str]:
             },
         )
 
-    del request.app.state.sessions[session_id]
     logger.info(f"Session deleted: {session_id}")
 
     return {"status": "deleted", "session_id": session_id}

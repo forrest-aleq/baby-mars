@@ -79,42 +79,43 @@ async def get_decision(decision_id: str) -> DecisionDetail:
     Shows the beliefs AS THEY WERE when decision was created,
     per API_CONTRACT_V0.md section 4.3.
     """
-    decision = _get_decision_or_404(decision_id)
+    async with _decisions_lock:
+        decision = _get_decision_or_404(decision_id)
 
-    # Check if undo still available
-    undo_available = False
-    undo_expires_at = None
+        # Check if undo still available
+        undo_available = False
+        undo_expires_at = None
 
-    if decision["status"] == "staged":
-        expires = datetime.fromisoformat(decision["undo_expires_at"])
-        if datetime.now() < expires:
-            undo_available = True
-            undo_expires_at = decision["undo_expires_at"]
-        else:
-            # Window expired, commit the decision
-            decision["status"] = "committed"
-            decision["updated_at"] = datetime.now().isoformat()
+        if decision["status"] == "staged":
+            expires = datetime.fromisoformat(decision["undo_expires_at"])
+            if datetime.now() < expires:
+                undo_available = True
+                undo_expires_at = decision["undo_expires_at"]
+            else:
+                # Window expired, commit the decision
+                decision["status"] = "committed"
+                decision["updated_at"] = datetime.now().isoformat()
 
-    return DecisionDetail(
-        decision_id=decision["decision_id"],
-        type=decision["type"],
-        decision_type=decision["decision_type"],
-        summary=decision["summary"],
-        description=decision.get("description"),
-        status=decision["status"],
-        confidence=decision["confidence"],
-        task_id=decision.get("task_id"),
-        belief_snapshots=[BeliefSnapshot(**b) for b in decision.get("belief_snapshots", [])],
-        reasoning=decision.get("reasoning"),
-        options=decision.get("options", ["approve", "reject"]),
-        executed_at=decision.get("executed_at"),
-        executed_by=decision.get("executed_by"),
-        result=decision.get("result"),
-        undo_available=undo_available,
-        undo_expires_at=undo_expires_at,
-        created_at=decision["created_at"],
-        updated_at=decision["updated_at"],
-    )
+        return DecisionDetail(
+            decision_id=decision["decision_id"],
+            type=decision["type"],
+            decision_type=decision["decision_type"],
+            summary=decision["summary"],
+            description=decision.get("description"),
+            status=decision["status"],
+            confidence=decision["confidence"],
+            task_id=decision.get("task_id"),
+            belief_snapshots=[BeliefSnapshot(**b) for b in decision.get("belief_snapshots", [])],
+            reasoning=decision.get("reasoning"),
+            options=decision.get("options", ["approve", "reject"]),
+            executed_at=decision.get("executed_at"),
+            executed_by=decision.get("executed_by"),
+            result=decision.get("result"),
+            undo_available=undo_available,
+            undo_expires_at=undo_expires_at,
+            created_at=decision["created_at"],
+            updated_at=decision["updated_at"],
+        )
 
 
 @router.post("/{decision_id}/execute", response_model=DecisionExecuteResponse)
@@ -266,20 +267,21 @@ async def _auto_commit_decision(decision_id: str, delay_seconds: int) -> None:
     try:
         await asyncio.sleep(delay_seconds)
 
-        decision = _decisions.get(decision_id)
-        if not decision:
-            return
+        async with _decisions_lock:
+            decision = _decisions.get(decision_id)
+            if not decision:
+                return
 
-        # Only commit if still staged
-        if decision["status"] == "staged":
-            decision["status"] = "committed"
-            decision["updated_at"] = datetime.now().isoformat()
+            # Only commit if still staged
+            if decision["status"] == "staged":
+                decision["status"] = "committed"
+                decision["updated_at"] = datetime.now().isoformat()
 
-            # TODO: Actually commit to ERPNext
-            if decision.get("result") and isinstance(decision["result"], dict):
-                decision["result"]["committed"] = True
+                # TODO: Actually commit to ERPNext
+                if decision.get("result") and isinstance(decision["result"], dict):
+                    decision["result"]["committed"] = True
 
-            logger.info(f"Decision auto-committed: {decision_id}")
+                logger.info(f"Decision auto-committed: {decision_id}")
     except Exception as e:
         logger.error(f"Auto-commit failed for {decision_id}: {e}", exc_info=True)
 
@@ -294,44 +296,45 @@ async def undo_decision(decision_id: str) -> DecisionUndoResponse:
     - Must be within undo window
     - Rollback leaves no trace in books
     """
-    decision = _get_decision_or_404(decision_id)
+    async with _decisions_lock:
+        decision = _get_decision_or_404(decision_id)
 
-    # Check if undoable
-    if decision["status"] != "staged":
-        return DecisionUndoResponse(
-            decision_id=decision_id,
-            undone=False,
-            message="Cannot undo - decision is not in staged state",
-            reason=f"Current status: {decision['status']}",
-        )
+        # Check if undoable
+        if decision["status"] != "staged":
+            return DecisionUndoResponse(
+                decision_id=decision_id,
+                undone=False,
+                message="Cannot undo - decision is not in staged state",
+                reason=f"Current status: {decision['status']}",
+            )
 
-    # Check window
-    expires = datetime.fromisoformat(decision["undo_expires_at"])
-    if datetime.now() >= expires:
-        # Window expired, auto-commit happened
-        decision["status"] = "committed"
+        # Check window
+        expires = datetime.fromisoformat(decision["undo_expires_at"])
+        if datetime.now() >= expires:
+            # Window expired, auto-commit happened
+            decision["status"] = "committed"
+            decision["updated_at"] = datetime.now().isoformat()
+
+            return DecisionUndoResponse(
+                decision_id=decision_id,
+                undone=False,
+                message="Undo window expired - decision has been committed",
+                reason="WINDOW_EXPIRED",
+            )
+
+        # Undo the decision
+        decision["status"] = "undone"
         decision["updated_at"] = datetime.now().isoformat()
 
+        # TODO: Rollback any staged changes
+
+        logger.info(f"Decision undone: {decision_id}")
+
         return DecisionUndoResponse(
             decision_id=decision_id,
-            undone=False,
-            message="Undo window expired - decision has been committed",
-            reason="WINDOW_EXPIRED",
+            undone=True,
+            message="Decision undone. No changes were made.",
         )
-
-    # Undo the decision
-    decision["status"] = "undone"
-    decision["updated_at"] = datetime.now().isoformat()
-
-    # TODO: Rollback any staged changes
-
-    logger.info(f"Decision undone: {decision_id}")
-
-    return DecisionUndoResponse(
-        decision_id=decision_id,
-        undone=True,
-        message="Decision undone. No changes were made.",
-    )
 
 
 # Internal function for creating decisions (called from action_proposal node)
@@ -349,6 +352,10 @@ def create_decision(
     Create a new decision. Returns decision_id.
 
     Called from action_proposal node when supervision_mode == "action_proposal".
+
+    Note: This is synchronous. Dict key assignment is atomic in Python (GIL protected),
+    so this is safe to call from async contexts. The decision is created with a new UUID,
+    so no read-modify-write race conditions are possible.
     """
     decision_id = f"decision_{uuid.uuid4().hex[:12]}"
     now = datetime.now().isoformat()

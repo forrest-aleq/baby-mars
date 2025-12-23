@@ -67,9 +67,9 @@ class EventBus:
         if len(self._event_history) > self._max_history:
             self._event_history.pop(0)
 
-        # Publish to subscribers
+        # Publish to subscribers (iterate over copy to avoid race with unsubscribe)
         if org_id in self._subscribers:
-            for queue in self._subscribers[org_id]:
+            for queue in list(self._subscribers[org_id]):
                 try:
                     await queue.put(event)
                 except Exception as e:
