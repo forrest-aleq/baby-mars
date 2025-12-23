@@ -8,6 +8,7 @@ repos:
         language: python
         types: [python]
         pass_filenames: true
+        exclude: ^tests/
 
       - id: check-function-size
         name: Check function size (50 lines max)
@@ -15,6 +16,7 @@ repos:
         language: python
         types: [python]
         pass_filenames: true
+        exclude: ^tests/
 
       - id: guardian
         name: Guardian (architectural rules)

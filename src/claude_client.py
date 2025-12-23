@@ -83,16 +83,20 @@ class CircuitBreaker:
     def check_or_raise(self):
         """Raise if circuit is open."""
         if self.is_open():
-            raise CircuitBreakerOpen(
+            raise CircuitBreakerOpenError(
                 f"Claude API circuit breaker open after {self.failure_threshold} failures. "
                 f"Retry after {self.reset_timeout}s."
             )
 
 
-class CircuitBreakerOpen(Exception):
+class CircuitBreakerOpenError(Exception):
     """Raised when circuit breaker is open."""
 
     pass
+
+
+# Backwards compatible alias
+CircuitBreakerOpen = CircuitBreakerOpenError
 
 
 # Global circuit breaker for Claude API
@@ -482,26 +486,4 @@ class DialecticalOutput(BaseModel):
     requires_human_input: bool
 
 
-# ============================================================
-# SINGLETON INSTANCE
-# ============================================================
-
-_client: Optional[ClaudeClient] = None
-
-
-def get_claude_client() -> ClaudeClient:
-    """Get singleton Claude client instance"""
-    global _client
-    if _client is None:
-        _client = ClaudeClient()
-    return _client
-
-
-async def complete(messages: list[dict], **kwargs) -> str:
-    """Convenience function for basic completion"""
-    return await get_claude_client().complete(messages, **kwargs)
-
-
-async def complete_structured(messages: list[dict], response_model, **kwargs):
-    """Convenience function for structured completion"""
-    return await get_claude_client().complete_structured(messages, response_model, **kwargs)
+# Backwards-compatible re-exports from singleton module

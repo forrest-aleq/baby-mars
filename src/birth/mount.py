@@ -17,7 +17,6 @@ Plus computed:
 7. Temporal context - Current time situation
 """
 
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -34,47 +33,10 @@ from .knowledge import (
     load_industry_knowledge,
     resolve_knowledge,
 )
+from .mount_models import ActiveSubgraph, TemporalContext
 
-
-@dataclass
-class TemporalContext:
-    """
-    Current temporal situation (computed at mount, not stored).
-
-    This affects:
-    - Which context-specific beliefs activate
-    - Urgency multipliers for goals
-    - Style adjustments (month-end = more deliberate)
-    """
-
-    current_time: str
-    day_of_week: str
-    time_of_day: str  # morning, afternoon, evening
-    month_phase: str  # month-start, mid-month, month-end
-    quarter_phase: str  # normal, Q-close
-    is_month_end: bool
-    is_quarter_end: bool
-    is_year_end: bool
-    fiscal_events: list = field(default_factory=list)
-
-
-@dataclass
-class ActiveSubgraph:
-    """
-    The mounted state for a person - all 6 things resolved.
-
-    This is what the cognitive loop receives.
-    """
-
-    person: dict
-    org: dict
-    capabilities: dict  # Binary flags
-    relationships: dict  # Org structure
-    knowledge: list[dict]  # Facts (no strength)
-    beliefs: list[dict]  # Claims (with strength)
-    goals: list[dict]  # Active goals
-    style: dict  # Resolved style
-    temporal: TemporalContext  # Current situation
+# Re-export for backwards compatibility
+__all__ = ["ActiveSubgraph", "TemporalContext", "mount", "compute_temporal_context"]
 
 
 def compute_temporal_context(org_timezone: Optional[str] = None) -> TemporalContext:
