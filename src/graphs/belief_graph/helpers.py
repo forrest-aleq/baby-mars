@@ -35,6 +35,10 @@ def create_belief_hierarchy(
 
     if weights is None:
         weights = [0.8] * len(derived)
+    elif len(weights) != len(derived):
+        raise ValueError(
+            f"weights length ({len(weights)}) must match derived length ({len(derived)})"
+        )
 
     graph = BeliefGraph()
     graph.add_belief(cast(dict[str, Any], foundation))

@@ -137,7 +137,9 @@ async def execute_capability(
 ) -> dict[str, Any]:
     """Execute a Stargate capability directly."""
     client = get_stargate_client()
-    return cast(dict[str, Any], await client.execute(capability_key, org_id, user_id, args, turn_id))
+    return cast(
+        dict[str, Any], await client.execute(capability_key, org_id, user_id, args, turn_id)
+    )
 
 
 async def is_stargate_available() -> bool:

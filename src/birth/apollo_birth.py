@@ -368,6 +368,16 @@ async def birth_from_apollo(
     return cast(
         BabyMARSState,
         _build_initial_state(
-            message, org_id, person, caps, rels, knowledge, cast(list[dict[str, Any]], beliefs), goals, style, birth_mode, salience
+            message,
+            org_id,
+            person,
+            caps,
+            rels,
+            knowledge,
+            cast(list[dict[str, Any]], beliefs),
+            goals,
+            style,
+            birth_mode,
+            salience,
         ),
     )

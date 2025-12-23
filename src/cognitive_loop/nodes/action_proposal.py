@@ -110,7 +110,9 @@ This requires your approval before I can proceed.
 # ============================================================
 
 
-def build_interrupt_payload(state: BabyMARSState, action: SelectedAction, summary: str) -> dict[str, Any]:
+def build_interrupt_payload(
+    state: BabyMARSState, action: SelectedAction, summary: str
+) -> dict[str, Any]:
     """
     Build the payload that will be sent to the frontend
     when the graph pauses for approval.

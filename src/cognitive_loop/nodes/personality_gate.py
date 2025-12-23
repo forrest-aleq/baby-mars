@@ -91,7 +91,9 @@ def quick_violation_check(response: str) -> Optional[str]:
 # ============================================================
 
 
-async def claude_violation_check(response: str, immutable_beliefs: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+async def claude_violation_check(
+    response: str, immutable_beliefs: list[dict[str, Any]]
+) -> Optional[dict[str, Any]]:
     """
     Use Claude to check for subtle violations.
 

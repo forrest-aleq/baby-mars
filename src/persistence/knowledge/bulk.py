@@ -81,19 +81,21 @@ async def seed_industry_facts(industry: str, facts: list[dict[str, Any]]) -> int
 async def set_org_industries(org_id: str, industries: list[str], source: str = "apollo") -> None:
     """Set the industries for an org (used for industry fact resolution)."""
     async with get_connection() as conn:
-        await conn.execute("DELETE FROM org_industries WHERE org_id = $1", org_id)
+        # Use transaction to ensure atomicity of DELETE + INSERTs
+        async with conn.transaction():
+            await conn.execute("DELETE FROM org_industries WHERE org_id = $1", org_id)
 
-        for i, industry in enumerate(industries):
-            await conn.execute(
-                """
-                INSERT INTO org_industries (org_id, industry, is_primary, source)
-                VALUES ($1, $2, $3, $4)
-            """,
-                org_id,
-                industry,
-                i == 0,
-                source,
-            )
+            for i, industry in enumerate(industries):
+                await conn.execute(
+                    """
+                    INSERT INTO org_industries (org_id, industry, is_primary, source)
+                    VALUES ($1, $2, $3, $4)
+                """,
+                    org_id,
+                    industry,
+                    i == 0,
+                    source,
+                )
 
 
 async def bulk_import_facts(
@@ -177,7 +179,9 @@ async def _import_single_fact(
             # Cast source_type to the corrected_by_type Literal (user/admin/system/integration)
             corrected_by = cast(
                 Literal["user", "admin", "system", "integration"],
-                source_type if source_type in ("user", "admin", "system", "integration") else "system",
+                source_type
+                if source_type in ("user", "admin", "system", "integration")
+                else "system",
             )
             await replace_fact(
                 old_fact_id=str(existing["id"]),

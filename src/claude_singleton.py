@@ -35,6 +35,8 @@ async def complete(messages: list[dict[str, Any]], **kwargs: Any) -> str:
     return await get_claude_client().complete(messages, **kwargs)
 
 
-async def complete_structured(messages: list[dict[str, Any]], response_model: type[T], **kwargs: Any) -> T:
+async def complete_structured(
+    messages: list[dict[str, Any]], response_model: type[T], **kwargs: Any
+) -> T:
     """Convenience function for structured completion."""
     return await get_claude_client().complete_structured(messages, response_model, **kwargs)

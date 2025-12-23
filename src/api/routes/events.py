@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import Any, AsyncIterator, Optional
 
 from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse

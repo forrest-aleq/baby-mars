@@ -6,7 +6,7 @@ HTTP client for Stargate Lite.
 Implements Stargate Integration Contract v1.1.
 """
 
-import time
+import asyncio
 import uuid
 from typing import Any, Optional
 
@@ -113,17 +113,17 @@ class StargateClient:
                     self._log_success(capability_key, attempt)
                     return result
 
-                should_continue = self._handle_error(result, capability_key, attempt, backoff)
+                should_continue = await self._handle_error(result, capability_key, attempt, backoff)
                 if not should_continue:
                     return result
 
             except httpx.HTTPStatusError as e:
-                error_result = self._handle_http_error(e, capability_key, attempt, backoff)
+                error_result = await self._handle_http_error(e, capability_key, attempt, backoff)
                 if error_result:
                     return error_result
 
             except httpx.RequestError as e:
-                error_result = self._handle_request_error(e, capability_key, attempt, backoff)
+                error_result = await self._handle_request_error(e, capability_key, attempt, backoff)
                 if error_result:
                     return error_result
 
@@ -133,6 +133,7 @@ class StargateClient:
         """Attempt a single execution."""
         client = await self._get_client()
         response = await client.post("/api/v1/execute", json=request_body)
+        response.raise_for_status()  # Ensure HTTP errors are raised
         result: dict[str, Any] = response.json()
         return result
 
@@ -145,7 +146,7 @@ class StargateClient:
             attempt=attempt + 1,
         )
 
-    def _handle_error(
+    async def _handle_error(
         self, result: dict[str, Any], capability_key: str, attempt: int, backoff: float
     ) -> bool:
         """Handle error response. Returns True if should continue retrying."""
@@ -169,7 +170,7 @@ class StargateClient:
             retry_after = error.get("details", {}).get("retry_after", 60)
             if attempt < self.config.max_retries - 1:
                 logger.info(f"Rate limited, waiting {retry_after}s")
-                time.sleep(retry_after)
+                await asyncio.sleep(retry_after)
                 return True
             return False
 
@@ -177,13 +178,13 @@ class StargateClient:
             if attempt < self.config.max_retries - 1:
                 wait_time = backoff**attempt
                 logger.info(f"Retrying with backoff: {wait_time}s")
-                time.sleep(wait_time)
+                await asyncio.sleep(wait_time)
                 return True
             return False
 
         return False
 
-    def _handle_http_error(
+    async def _handle_http_error(
         self, e: httpx.HTTPStatusError, capability_key: str, attempt: int, backoff: float
     ) -> Optional[dict[str, Any]]:
         """Handle HTTP errors. Returns error dict if should stop, None to continue."""
@@ -195,7 +196,7 @@ class StargateClient:
         metrics.increment("stargate_errors", type="http")
 
         if attempt < self.config.max_retries - 1:
-            time.sleep(backoff**attempt)
+            await asyncio.sleep(backoff**attempt)
             return None
 
         return {
@@ -209,7 +210,7 @@ class StargateClient:
             },
         }
 
-    def _handle_request_error(
+    async def _handle_request_error(
         self, e: httpx.RequestError, capability_key: str, attempt: int, backoff: float
     ) -> Optional[dict[str, Any]]:
         """Handle request errors. Returns error dict if should stop, None to continue."""
@@ -217,7 +218,7 @@ class StargateClient:
         metrics.increment("stargate_errors", type="connection")
 
         if attempt < self.config.max_retries - 1:
-            time.sleep(backoff**attempt)
+            await asyncio.sleep(backoff**attempt)
             return None
 
         return {

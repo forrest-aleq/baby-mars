@@ -6,7 +6,6 @@ Session management endpoints.
 """
 
 import logging
-
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request

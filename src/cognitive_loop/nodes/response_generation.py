@@ -276,5 +276,7 @@ def _generate_fallback_response(state: BabyMARSState, supervision_mode: str) -> 
             else:
                 failures = outcome.get("failures", [])
                 if failures and isinstance(failures, list) and len(failures) > 0:
-                    return f"I encountered an issue: {failures[0]}. How would you like me to proceed?"
+                    return (
+                        f"I encountered an issue: {failures[0]}. How would you like me to proceed?"
+                    )
         return "I've processed your request. Please let me know if you need any adjustments."

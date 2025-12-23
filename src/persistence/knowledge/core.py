@@ -7,7 +7,7 @@ CRUD operations for knowledge facts.
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from ..database import get_connection
 from .exceptions import (
@@ -218,7 +218,10 @@ async def replace_fact(
                 raise FactAlreadySupersededError(old_fact_id, old_fact["status"])
 
             if not force_source_downgrade:
-                if not can_replace_source(old_fact["source_type"], corrected_by_type):
+                # CorrectorType is a subset of SourceType, safe to cast
+                if not can_replace_source(
+                    old_fact["source_type"], cast(SourceType, corrected_by_type)
+                ):
                     raise SourcePriorityError(old_fact["source_type"], corrected_by_type)
 
             new_fact_id = await conn.fetchval(
@@ -235,7 +238,7 @@ async def replace_fact(
                 old_fact["scope_id"],
                 new_statement,
                 old_fact["category"],
-                corrected_by_type,
+                cast(SourceType, corrected_by_type),  # CorrectorType is subset of SourceType
                 json.dumps({"correction_of": old_fact_id, "corrected_by": corrected_by_ref}),
                 old_fact_id,
                 old_fact["tags"],

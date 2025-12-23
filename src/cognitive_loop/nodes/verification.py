@@ -61,7 +61,9 @@ class Validators:
         }
 
     @staticmethod
-    def required_fields_validator(result: dict[str, Any], constraint: dict[str, Any]) -> ValidationResult:
+    def required_fields_validator(
+        result: dict[str, Any], constraint: dict[str, Any]
+    ) -> ValidationResult:
         """Validate all required fields are present"""
         params = constraint.get("params", {})
         required_fields = params.get("fields", [])
@@ -156,7 +158,9 @@ VALIDATORS = {
 # ============================================================
 
 
-def run_validators(execution_results: list[dict[str, Any]], work_units: list[dict[str, Any]]) -> list[ValidationResult]:
+def run_validators(
+    execution_results: list[dict[str, Any]], work_units: list[dict[str, Any]]
+) -> list[ValidationResult]:
     """
     Run validators on execution results.
 
@@ -254,7 +258,9 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
     selected_action = state.get("selected_action")
     work_units = cast(
         list[dict[str, Any]],
-        selected_action.get("work_units", []) if selected_action and isinstance(selected_action, dict) else [],
+        selected_action.get("work_units", [])
+        if selected_action and isinstance(selected_action, dict)
+        else [],
     )
 
     retry_count = int(state.get("retry_count") or 0)

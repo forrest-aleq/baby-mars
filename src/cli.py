@@ -13,7 +13,7 @@ Usage:
 
 import asyncio
 import os
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 import typer
 from langchain_core.runnables import RunnableConfig

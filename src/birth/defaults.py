@@ -5,7 +5,7 @@ Birth Defaults
 Default values for capabilities, roles, styles, goals.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 # Type 1: Capabilities (binary - can or can't)
 DEFAULT_CAPABILITIES: dict[str, bool] = {

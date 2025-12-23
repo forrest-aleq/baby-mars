@@ -9,7 +9,7 @@ Per API_CONTRACT_V0.md section 4
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -196,6 +196,7 @@ async def challenge_belief(
         projected_strength = max(0.1, old_strength * 0.5)
         # Use cast to match the BeliefStatus Literal type
         from ..schemas.beliefs import BeliefStatus
+
         projected_status: BeliefStatus = "disputed" if projected_strength < 0.4 else "active"
 
         # TODO: Implement proper challenge flow with graph.challenge_belief()

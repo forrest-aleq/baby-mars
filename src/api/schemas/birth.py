@@ -27,7 +27,9 @@ class BirthRequest(BaseModel):
     org_size: str = Field(
         "mid_market", description="Org size: startup, smb, mid_market, enterprise"
     )
-    capabilities_override: Optional[dict[str, Any]] = Field(None, description="Override default capabilities")
+    capabilities_override: Optional[dict[str, Any]] = Field(
+        None, description="Override default capabilities"
+    )
 
 
 class BirthResponse(BaseModel):

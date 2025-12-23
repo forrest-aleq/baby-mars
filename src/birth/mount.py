@@ -22,7 +22,7 @@ from typing import Any, Optional, cast
 
 from ..graphs.belief_graph_manager import get_org_belief_graph
 from ..persistence.database import get_connection
-from ..state.schema import BabyMARSState, PersonObject
+from ..state.schema import BabyMARSState
 from .defaults import DEFAULT_CAPABILITIES, DEFAULT_STYLE
 from .knowledge import (
     GLOBAL_KNOWLEDGE_FACTS,
@@ -150,7 +150,9 @@ async def load_capabilities(org_id: str) -> dict[str, Any]:
     return {**DEFAULT_CAPABILITIES}
 
 
-async def load_relationships(person_id: str, org_id: str, role: str, authority: float) -> dict[str, Any]:
+async def load_relationships(
+    person_id: str, org_id: str, role: str, authority: float
+) -> dict[str, Any]:
     """
     Load relationships for a person.
 
@@ -212,7 +214,9 @@ async def load_beliefs(org_id: str, max_beliefs: int = 20) -> list[dict[str, Any
     return cast(list[dict[str, Any]], beliefs[:max_beliefs])
 
 
-async def load_goals(person_id: str, org_id: str, role: str, authority: float) -> list[dict[str, Any]]:
+async def load_goals(
+    person_id: str, org_id: str, role: str, authority: float
+) -> list[dict[str, Any]]:
     """
     Load active goals for a person.
 
@@ -300,7 +304,9 @@ def validate_mount(
     return warnings
 
 
-def _build_person_obj(person: dict[str, Any], person_id: str, style: dict[str, Any]) -> dict[str, Any]:
+def _build_person_obj(
+    person: dict[str, Any], person_id: str, style: dict[str, Any]
+) -> dict[str, Any]:
     """Build person object for state."""
     return {
         "id": person_id,

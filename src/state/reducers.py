@@ -7,7 +7,7 @@ Custom reducers for LangGraph state management.
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .types import ActiveTask, Note
 
@@ -33,7 +33,7 @@ def note_reducer(existing: list[Note], new: list[Note]) -> list[Note]:
     Merge notes, expire TTL-exceeded ones.
     Paper #8: Notes with TTL.
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc)  # Use UTC for consistent comparison
     is_production = os.environ.get("ENVIRONMENT", "").lower() == "production"
 
     by_id = {n["note_id"]: n for n in existing}
@@ -44,6 +44,9 @@ def note_reducer(existing: list[Note], new: list[Note]) -> list[Note]:
     for note in by_id.values():
         try:
             created = datetime.fromisoformat(note["created_at"])
+            # Normalize to UTC if naive datetime
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
             ttl = timedelta(hours=note["ttl_hours"])
             if now - created < ttl:
                 valid.append(note)

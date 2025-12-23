@@ -96,7 +96,9 @@ async def send_message(request_data: MessageRequest, request: Request) -> Messag
             # TODO: Resolve pills to actual data and add to state
 
         # Run cognitive loop
-        config = cast(RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}})
+        config = cast(
+            RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}}
+        )
 
         result = await invoke_cognitive_loop(
             state=session["state"],
@@ -165,7 +167,9 @@ async def send_message(request_data: MessageRequest, request: Request) -> Messag
 
 
 @router.post("/stream")
-async def send_message_stream(request_data: MessageRequest, request: Request) -> EventSourceResponse:
+async def send_message_stream(
+    request_data: MessageRequest, request: Request
+) -> EventSourceResponse:
     """
     Send a message and stream the response via SSE.
 
@@ -198,7 +202,9 @@ async def send_message_stream(request_data: MessageRequest, request: Request) ->
 
             session["message_count"] += 1
 
-            config = cast(RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}})
+            config = cast(
+                RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}}
+            )
 
             # Stream events from cognitive loop
             async for event in stream_cognitive_loop(
@@ -272,7 +278,9 @@ async def send_message_stream(request_data: MessageRequest, request: Request) ->
 
 
 @router.post("/interrupt", response_model=ChatInterruptResponse)
-async def interrupt_stream(request_data: ChatInterruptRequest, request: Request) -> ChatInterruptResponse:
+async def interrupt_stream(
+    request_data: ChatInterruptRequest, request: Request
+) -> ChatInterruptResponse:
     """
     Interrupt current streaming response.
 

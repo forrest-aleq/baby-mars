@@ -28,12 +28,17 @@ router = APIRouter()
 
 # In-memory decision store (will be moved to persistence layer)
 # Structure: {decision_id: DecisionDetail}
+# NOTE: Protected by _decisions_lock for concurrent access in async handlers
 _decisions: dict[str, dict[str, Any]] = {}
 
 # Idempotency tracking: {idempotency_key: (decision_id, created_at)}
 # Keys are cleaned up after 24 hours
 _idempotency_keys: dict[str, tuple[str, datetime]] = {}
 IDEMPOTENCY_TTL_HOURS = 24
+
+# Lock for concurrent access protection in async handlers
+# Protects critical read-modify-write operations on _decisions and _idempotency_keys
+_decisions_lock = asyncio.Lock()
 
 # Soft commit window in seconds
 UNDO_WINDOW_SECONDS = 30
@@ -129,127 +134,131 @@ async def execute_decision(
     - Stages the change (doesn't commit immediately)
     - 30-second undo window
     - Commits automatically after window
+
+    NOTE: Uses _decisions_lock for critical sections to prevent race conditions.
     """
-    decision = _get_decision_or_404(decision_id)
+    # Acquire lock to prevent race conditions during read-modify-write
+    async with _decisions_lock:
+        decision = _get_decision_or_404(decision_id)
 
-    # Cleanup expired keys on each request
-    _cleanup_expired_idempotency_keys()
+        # Cleanup expired keys on each request
+        _cleanup_expired_idempotency_keys()
 
-    # Check idempotency
-    if request.idempotency_key:
-        existing_entry = _idempotency_keys.get(request.idempotency_key)
-        if existing_entry:
-            existing_decision_id, _ = existing_entry
-            existing = _decisions.get(existing_decision_id)
-            if existing:
-                return DecisionExecuteResponse(
-                    decision_id=existing_decision_id,
-                    executed=True,
-                    was_replay=True,
-                    status=existing["status"],
-                    undo_available=existing["status"] == "staged",
-                    undo_expires_at=existing.get("undo_expires_at"),
-                    result=existing.get("result"),
-                    message="Duplicate request - returning previous result",
-                )
+        # Check idempotency
+        if request.idempotency_key:
+            existing_entry = _idempotency_keys.get(request.idempotency_key)
+            if existing_entry:
+                existing_decision_id, _ = existing_entry
+                existing = _decisions.get(existing_decision_id)
+                if existing:
+                    return DecisionExecuteResponse(
+                        decision_id=existing_decision_id,
+                        executed=True,
+                        was_replay=True,
+                        status=existing["status"],
+                        undo_available=existing["status"] == "staged",
+                        undo_expires_at=existing.get("undo_expires_at"),
+                        result=existing.get("result"),
+                        message="Duplicate request - returning previous result",
+                    )
 
-    # Check if already decided
-    if decision["status"] not in ("pending",):
-        # Someone else already decided
-        return DecisionExecuteResponse(
-            decision_id=decision_id,
-            executed=True,
-            was_replay=True,
-            status=decision["status"],
-            result=decision.get("result"),
-            message=f"Already {decision['status']} by {decision.get('executed_by', 'unknown')}",
-        )
+        # Check if already decided
+        if decision["status"] not in ("pending",):
+            # Someone else already decided
+            return DecisionExecuteResponse(
+                decision_id=decision_id,
+                executed=True,
+                was_replay=True,
+                status=decision["status"],
+                result=decision.get("result"),
+                message=f"Already {decision['status']} by {decision.get('executed_by', 'unknown')}",
+            )
 
-    # Validate choice
-    if request.choice not in decision.get("options", ["approve", "reject"]):
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": {
-                    "code": "INVALID_CHOICE",
-                    "message": f"Invalid choice. Options: {decision['options']}",
-                    "severity": "warning",
-                }
-            },
-        )
+        # Validate choice
+        if request.choice not in decision.get("options", ["approve", "reject"]):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": {
+                        "code": "INVALID_CHOICE",
+                        "message": f"Invalid choice. Options: {decision['options']}",
+                        "severity": "warning",
+                    }
+                },
+            )
 
-    now = datetime.now()
+        now = datetime.now()
 
-    # Track idempotency with timestamp for TTL
-    if request.idempotency_key:
-        _idempotency_keys[request.idempotency_key] = (decision_id, datetime.now())
+        # Track idempotency with timestamp for TTL
+        if request.idempotency_key:
+            _idempotency_keys[request.idempotency_key] = (decision_id, datetime.now())
 
-    # Handle rejection
-    if request.choice == "reject":
-        decision["status"] = "rejected"
-        decision["executed_at"] = now.isoformat()
-        decision["executed_by"] = "user"  # TODO: Get from auth
-        decision["updated_at"] = now.isoformat()
+        # Handle rejection
+        if request.choice == "reject":
+            decision["status"] = "rejected"
+            decision["executed_at"] = now.isoformat()
+            decision["executed_by"] = "user"  # TODO: Get from auth
+            decision["updated_at"] = now.isoformat()
 
-        logger.info(f"Decision rejected: {decision_id}")
+            logger.info(f"Decision rejected: {decision_id}")
 
-        return DecisionExecuteResponse(
-            decision_id=decision_id,
-            executed=True,
-            was_replay=False,
-            status="rejected",
-            message="Decision rejected",
-        )
+            return DecisionExecuteResponse(
+                decision_id=decision_id,
+                executed=True,
+                was_replay=False,
+                status="rejected",
+                message="Decision rejected",
+            )
 
-    # Handle approval
-    if decision["decision_type"] == "soft":
-        # Soft decision: stage with undo window
-        decision["status"] = "staged"
-        decision["executed_at"] = now.isoformat()
-        decision["executed_by"] = "user"
-        decision["undo_expires_at"] = (now + timedelta(seconds=UNDO_WINDOW_SECONDS)).isoformat()
-        decision["updated_at"] = now.isoformat()
+        # Handle approval
+        if decision["decision_type"] == "soft":
+            # Soft decision: stage with undo window
+            decision["status"] = "staged"
+            decision["executed_at"] = now.isoformat()
+            decision["executed_by"] = "user"
+            decision["undo_expires_at"] = (now + timedelta(seconds=UNDO_WINDOW_SECONDS)).isoformat()
+            decision["updated_at"] = now.isoformat()
 
-        # TODO: Stage the actual change (don't commit to ERPNext yet)
-        decision["result"] = {"staged": True, "action": request.choice}
+            # TODO: Stage the actual change (don't commit to ERPNext yet)
+            decision["result"] = {"staged": True, "action": request.choice}
 
-        logger.info(f"Decision staged: {decision_id} (undo window: {UNDO_WINDOW_SECONDS}s)")
+            logger.info(f"Decision staged: {decision_id} (undo window: {UNDO_WINDOW_SECONDS}s)")
 
-        # Schedule auto-commit after window
-        asyncio.create_task(_auto_commit_decision(decision_id, UNDO_WINDOW_SECONDS))
+            # Schedule auto-commit after window
+            asyncio.create_task(_auto_commit_decision(decision_id, UNDO_WINDOW_SECONDS))
 
-        return DecisionExecuteResponse(
-            decision_id=decision_id,
-            executed=True,
-            was_replay=False,
-            status="staged",
-            undo_available=True,
-            undo_expires_at=decision["undo_expires_at"],
-            result=decision["result"],
-            message=f"Approved. You can undo within {UNDO_WINDOW_SECONDS} seconds.",
-        )
+            return DecisionExecuteResponse(
+                decision_id=decision_id,
+                executed=True,
+                was_replay=False,
+                status="staged",
+                undo_available=True,
+                undo_expires_at=decision["undo_expires_at"],
+                result=decision["result"],
+                message=f"Approved. You can undo within {UNDO_WINDOW_SECONDS} seconds.",
+            )
 
-    else:
-        # Hard decision: commit immediately
-        decision["status"] = "committed"
-        decision["executed_at"] = now.isoformat()
-        decision["executed_by"] = "user"
-        decision["updated_at"] = now.isoformat()
+        else:
+            # Hard decision: commit immediately
+            decision["status"] = "committed"
+            decision["executed_at"] = now.isoformat()
+            decision["executed_by"] = "user"
+            decision["updated_at"] = now.isoformat()
 
-        # TODO: Execute the actual change in ERPNext
-        decision["result"] = {"committed": True, "action": request.choice}
+            # TODO: Execute the actual change in ERPNext
+            decision["result"] = {"committed": True, "action": request.choice}
 
-        logger.info(f"Decision committed: {decision_id}")
+            logger.info(f"Decision committed: {decision_id}")
 
-        return DecisionExecuteResponse(
-            decision_id=decision_id,
-            executed=True,
-            was_replay=False,
-            status="committed",
-            undo_available=False,
-            result=decision["result"],
-            message="Approved and executed.",
-        )
+            return DecisionExecuteResponse(
+                decision_id=decision_id,
+                executed=True,
+                was_replay=False,
+                status="committed",
+                undo_available=False,
+                result=decision["result"],
+                message="Approved and executed.",
+            )
 
 
 async def _auto_commit_decision(decision_id: str, delay_seconds: int) -> None:

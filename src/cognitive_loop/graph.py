@@ -312,14 +312,38 @@ def create_cognitive_loop_graph(
 
 # Singleton checkpointer (initialized once)
 _checkpointer: Optional[PostgresSaver] = None
+_checkpointer_ctx: Optional[Any] = None  # Context manager reference for cleanup
+
+
+def cleanup_checkpointer() -> None:
+    """
+    Clean up checkpointer on application shutdown.
+
+    Call this during application shutdown or register with atexit.
+    """
+    global _checkpointer, _checkpointer_ctx
+    if _checkpointer is not None and _checkpointer_ctx is not None:
+        try:
+            _checkpointer_ctx.__exit__(None, None, None)
+        except Exception:
+            # Log but don't fail on cleanup errors
+            import logging
+
+            logging.getLogger(__name__).debug("Error during checkpointer cleanup", exc_info=True)
+        finally:
+            _checkpointer = None
+            _checkpointer_ctx = None
 
 
 def get_checkpointer() -> PostgresSaver:
     """
     Get or create the Postgres checkpointer.
     Calls setup() on first use to create tables.
+
+    Note: The checkpointer stays alive for the application lifetime.
+    Use cleanup_checkpointer() on application shutdown to properly release resources.
     """
-    global _checkpointer
+    global _checkpointer, _checkpointer_ctx
     if _checkpointer is None:
         postgres_url = os.environ.get("DATABASE_URL")
         if not postgres_url:
@@ -327,10 +351,15 @@ def get_checkpointer() -> PostgresSaver:
                 "DATABASE_URL environment variable required for persistence. "
                 "Use create_graph_in_memory() for testing without a database."
             )
-        # from_conn_string returns a context manager, use it to get the saver
-        with PostgresSaver.from_conn_string(postgres_url) as saver:
-            saver.setup()
-            _checkpointer = saver
+        # Enter context manager and store reference for cleanup on shutdown
+        _checkpointer_ctx = PostgresSaver.from_conn_string(postgres_url)
+        _checkpointer = _checkpointer_ctx.__enter__()
+        _checkpointer.setup()
+
+        # Register cleanup on application exit
+        import atexit
+
+        atexit.register(cleanup_checkpointer)
     return _checkpointer
 
 
@@ -341,14 +370,24 @@ def create_graph_with_postgres(
     Create graph with Postgres persistence.
 
     Args:
-        postgres_url: Optional override. If not provided, uses DATABASE_URL env var.
+        postgres_url: Optional override. If provided, permanently sets DATABASE_URL
+                      and resets the singleton. If not provided, uses existing DATABASE_URL.
+
+    Returns:
+        Compiled graph with Postgres checkpointer.
+
+    Note:
+        The checkpointer is a singleton. If you need multiple connections to different
+        databases, manage PostgresSaver instances directly.
     """
     if postgres_url:
-        with PostgresSaver.from_conn_string(postgres_url) as checkpointer:
-            checkpointer.setup()
-            return create_cognitive_loop_graph(checkpointer)
-    else:
-        return create_cognitive_loop_graph(get_checkpointer())
+        # Permanently update DATABASE_URL and reset singleton
+        os.environ["DATABASE_URL"] = postgres_url
+        global _checkpointer, _checkpointer_ctx
+        if _checkpointer is not None:
+            cleanup_checkpointer()
+
+    return create_cognitive_loop_graph(get_checkpointer())
 
 
 def create_graph_in_memory() -> CompiledStateGraph[BabyMARSState]:

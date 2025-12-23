@@ -27,6 +27,7 @@ class EventBus:
         self._event_counter = 0
         self._event_history: list[dict[str, Any]] = []  # For replay on reconnect
         self._max_history = 100
+        self._counter_lock = asyncio.Lock()  # Protect counter from race conditions
 
     def subscribe(self, org_id: str) -> asyncio.Queue[dict[str, Any]]:
         """Subscribe to events for an org."""
@@ -48,9 +49,13 @@ class EventBus:
 
     async def publish(self, org_id: str, event_type: str, data: dict[str, Any]) -> None:
         """Publish an event to all subscribers of an org."""
-        self._event_counter += 1
+        # Use lock to prevent race conditions on counter increment
+        async with self._counter_lock:
+            self._event_counter += 1
+            event_id = f"evt_{self._event_counter}"
+
         event = {
-            "event_id": f"evt_{self._event_counter}",
+            "event_id": event_id,
             "org_id": org_id,
             "type": event_type,
             "data": data,

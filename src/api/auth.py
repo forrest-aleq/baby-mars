@@ -93,7 +93,9 @@ class OrgAuth:
         self._key_to_org: dict[str, str] = {}
         self._org_permissions: dict[str, set[str]] = {}
 
-    def register_key(self, api_key: str, org_id: str, permissions: Optional[list[str]] = None) -> None:
+    def register_key(
+        self, api_key: str, org_id: str, permissions: Optional[list[str]] = None
+    ) -> None:
         """Register an API key for an organization."""
         self._key_to_org[api_key] = org_id
         self._org_permissions[org_id] = set(permissions or ["read", "write"])
@@ -186,7 +188,9 @@ async def check_rate_limit(
     limiter = get_rate_limiter()
 
     # Use API key or IP for rate limiting
-    key = api_key if api_key != "dev-mode" else (request.client.host if request.client else "unknown")
+    key = (
+        api_key if api_key != "dev-mode" else (request.client.host if request.client else "unknown")
+    )
 
     if not limiter.is_allowed(key):
         remaining = limiter.get_remaining(key)
@@ -203,11 +207,11 @@ async def check_rate_limit(
 # MIDDLEWARE
 # ============================================================
 
+from collections.abc import Awaitable, Callable
+
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-from starlette.types import ASGIApp
-from collections.abc import Callable, Awaitable
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -219,7 +223,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     SKIP_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         # Skip auth for certain paths
         if request.url.path in self.SKIP_PATHS:
             return await call_next(request)

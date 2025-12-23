@@ -28,7 +28,9 @@ from ...state.schema import (
 # ============================================================
 
 
-def analyze_outcome(execution_results: list[dict[str, Any]], validation_results: list[dict[str, Any]]) -> dict[str, Any]:
+def analyze_outcome(
+    execution_results: list[dict[str, Any]], validation_results: list[dict[str, Any]]
+) -> dict[str, Any]:
     """
     Analyze execution and validation results to determine outcome.
 
@@ -102,7 +104,9 @@ def analyze_outcome(execution_results: list[dict[str, Any]], validation_results:
 # ============================================================
 
 
-async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict[str, Any]) -> list[dict[str, Any]]:
+async def update_beliefs_from_outcome(
+    state: BabyMARSState, outcome: dict[str, Any]
+) -> list[dict[str, Any]]:
     """
     Update beliefs based on outcome.
 

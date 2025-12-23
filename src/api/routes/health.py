@@ -7,7 +7,7 @@ Health check and system info endpoints.
 
 import logging
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from fastapi import APIRouter, Request
 

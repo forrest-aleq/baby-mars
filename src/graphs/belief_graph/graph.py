@@ -60,6 +60,8 @@ class BeliefGraph:
             belief["supported_by"] = []
         if "support_weights" not in belief:
             belief["support_weights"] = {}
+        if "context_states" not in belief:
+            belief["context_states"] = {}
 
         self.beliefs[belief["belief_id"]] = cast(BeliefState, belief)
         self.G.add_node(
@@ -353,7 +355,8 @@ class BeliefGraph:
 
     def _get_category_multiplier(self, category: str, signal: float) -> float:
         """Get category multiplier (Paper #9)."""
-        multipliers = CATEGORY_MULTIPLIERS[category]
+        # Use default fallback for unknown categories
+        multipliers = CATEGORY_MULTIPLIERS.get(category, {"success": 1.0, "failure": 1.0})
         return multipliers["success"] if signal > 0 else multipliers["failure"]
 
     def _apply_peak_end_rule(
