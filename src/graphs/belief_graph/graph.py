@@ -51,9 +51,7 @@ class BeliefGraph:
         self.G = nx.DiGraph()
         self.beliefs: dict[str, BeliefState] = {}
 
-    # ============================================================
-    # GRAPH MANAGEMENT
-    # ============================================================
+    # --- GRAPH MANAGEMENT ---
 
     def add_belief(self, belief: dict[str, Any]) -> None:
         """Add belief node to graph. Accepts partial dict, fills in defaults."""
@@ -104,9 +102,7 @@ class BeliefGraph:
         """Get all beliefs in a category."""
         return [b for b in self.beliefs.values() if b["category"] == category]
 
-    # ============================================================
-    # CONTEXT RESOLUTION (Paper #4)
-    # ============================================================
+    # --- CONTEXT RESOLUTION (Paper #4) ---
 
     def resolve_belief_for_context(
         self, belief_id: str, context_key: str
@@ -132,7 +128,7 @@ class BeliefGraph:
         if not context_states:
             return {
                 "strength": belief.get("strength", 0.5),
-                "last_updated": belief.get("last_updated"),
+                "last_updated": belief.get("last_updated", ""),
                 "success_count": belief.get("success_count", 0),
                 "failure_count": belief.get("failure_count", 0),
                 "last_outcome": None,
@@ -176,9 +172,7 @@ class BeliefGraph:
         belief["context_states"][context_key] = new_state
         return new_state
 
-    # ============================================================
-    # AUTONOMY (Paper #1)
-    # ============================================================
+    # --- AUTONOMY (Paper #1) ---
 
     def get_autonomy_level(self, belief_id: str, context_key: str) -> str:
         """Map belief strength to supervision mode (Paper #1)."""
@@ -220,9 +214,7 @@ class BeliefGraph:
 
         return (mode, avg_strength)
 
-    # ============================================================
-    # CASCADING UPDATES (Paper #11)
-    # ============================================================
+    # --- CASCADING UPDATES (Paper #11) ---
 
     def cascade_strength_update(
         self, belief_id: str, new_strength: float, _visited: Optional[set[str]] = None
@@ -297,9 +289,7 @@ class BeliefGraph:
 
         return effective
 
-    # ============================================================
-    # BELIEF UPDATES (Papers #1, #9, #12)
-    # ============================================================
+    # --- BELIEF UPDATES (Papers #1, #9, #12) ---
 
     def update_belief_from_outcome(
         self,
@@ -427,9 +417,7 @@ class BeliefGraph:
             "timestamp": datetime.now().isoformat(),
         }
 
-    # ============================================================
-    # A.C.R.E. INVALIDATION (Paper #10)
-    # ============================================================
+    # --- A.C.R.E. INVALIDATION (Paper #10) ---
 
     def check_invalidation_allowed(
         self, belief_id: str, proposed_strength: float
@@ -457,9 +445,7 @@ class BeliefGraph:
 
         return (True, None)
 
-    # ============================================================
-    # ACTIVATION
-    # ============================================================
+    # --- ACTIVATION ---
 
     def get_activated_beliefs(
         self, context_key: str, min_strength: float = 0.3, limit: int = 20
@@ -484,9 +470,7 @@ class BeliefGraph:
         activated.sort(key=lambda b: float(str(b.get("resolved_strength", 0))), reverse=True)
         return cast(list[BeliefState], activated[:limit])
 
-    # ============================================================
-    # SERIALIZATION
-    # ============================================================
+    # --- SERIALIZATION ---
 
     def serialize(self) -> str:
         """Serialize to JSON for Postgres storage."""

@@ -14,6 +14,7 @@ Implements the appraisal phase of the cognitive loop:
 
 from typing import Any, cast
 
+from ...analytics import get_belief_analytics
 from ...claude_client import AppraisalOutput, get_claude_client
 from ...observability import get_logger
 from ...state.schema import (
@@ -22,6 +23,29 @@ from ...state.schema import (
 )
 
 logger = get_logger(__name__)
+
+
+def _track_autonomy_decision(
+    state: BabyMARSState,
+    mode: str,
+    belief_strength: float,
+    belief_count: int,
+    difficulty: int,
+) -> None:
+    """Track autonomy decision in PostHog analytics."""
+    org_id = state.get("org_id", "default")
+    person = state.get("person", {})
+    person_id = person.get("id", "unknown") if isinstance(person, dict) else "unknown"
+    analytics = get_belief_analytics()
+    analytics.autonomy_mode_determined(
+        org_id=org_id,
+        person_id=person_id,
+        mode=mode,
+        aggregate_strength=belief_strength,
+        belief_count=belief_count,
+        difficulty=difficulty,
+    )
+
 
 # ============================================================
 # CONTEXT BUILDING
@@ -186,6 +210,15 @@ Return your appraisal in the structured format.""",
 
         # Determine supervision mode from belief strength (Paper #1)
         supervision_mode = _determine_supervision_mode(appraisal, state, belief_strength)
+
+        # Track autonomy decision in PostHog
+        _track_autonomy_decision(
+            state,
+            supervision_mode,
+            belief_strength,
+            len(appraisal.relevant_belief_ids),
+            appraisal.difficulty_assessment,
+        )
 
         return {
             "appraisal": result,

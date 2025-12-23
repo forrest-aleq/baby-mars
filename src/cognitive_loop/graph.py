@@ -22,8 +22,10 @@ from langgraph.graph.state import CompiledStateGraph
 
 from ..observability import get_instrumentation, get_logger
 from ..state.schema import BabyMARSState
+from .tracing import get_langsmith_callbacks
 
 logger = get_logger(__name__)
+
 
 # ============================================================
 # ROUTING FUNCTIONS
@@ -426,6 +428,15 @@ async def invoke_cognitive_loop(
     if config is None:
         config = {"configurable": {"thread_id": state.get("thread_id", "default")}}
 
+    # Inject LangSmith tracing callbacks if configured
+    langsmith_callbacks = get_langsmith_callbacks()
+    if langsmith_callbacks:
+        existing = config.get("callbacks")
+        if isinstance(existing, list):
+            config = {**config, "callbacks": existing + langsmith_callbacks}
+        else:
+            config = {**config, "callbacks": langsmith_callbacks}
+
     thread_id = config.get("configurable", {}).get("thread_id", "default")
     org_id = state.get("org_id", "unknown")
 
@@ -460,6 +471,15 @@ async def stream_cognitive_loop(
 
     if config is None:
         config = {"configurable": {"thread_id": state.get("thread_id", "default")}}
+
+    # Inject LangSmith tracing callbacks if configured
+    langsmith_callbacks = get_langsmith_callbacks()
+    if langsmith_callbacks:
+        existing = config.get("callbacks")
+        if isinstance(existing, list):
+            config = {**config, "callbacks": existing + langsmith_callbacks}
+        else:
+            config = {**config, "callbacks": langsmith_callbacks}
 
     thread_id = config.get("configurable", {}).get("thread_id", "default")
     org_id = state.get("org_id", "unknown")

@@ -15,13 +15,23 @@ Birth happens ONCE at signup. The 6 things are seeded:
 Mount happens EVERY message - use mount() instead.
 """
 
-import logging
+import os
+import types
 import uuid
 from datetime import datetime, timezone
 from typing import Any, cast
 
+try:
+    import posthog
+
+    POSTHOG_AVAILABLE = True
+except ImportError:
+    POSTHOG_AVAILABLE = False
+    posthog = types.ModuleType("posthog")
+
 from ..graphs.belief_graph import BeliefGraph, get_belief_graph, reset_belief_graph
 from ..graphs.belief_graph_manager import get_belief_graph_manager
+from ..observability import get_logger
 from ..state.schema import BabyMARSState, PersonObject
 from .beliefs import IMMUTABLE_BELIEFS, seed_global_beliefs
 from .defaults import DEFAULT_CAPABILITIES, DEFAULT_STYLE, ROLE_HIERARCHY
@@ -40,7 +50,7 @@ from .knowledge_packs import (
     seed_preference_beliefs,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _collect_knowledge_facts(
@@ -306,7 +316,9 @@ async def _check_existing_person(email: str, message: str) -> BabyMARSState | No
         if await check_person_exists(email):
             return await mount(email, message)
     except Exception:
-        logger.warning("Failed to check/mount existing person, proceeding with new birth", exc_info=True)
+        logger.warning(
+            "Failed to check/mount existing person, proceeding with new birth", exc_info=True
+        )
     return None
 
 
@@ -364,6 +376,20 @@ async def birth_from_apollo(
                 salience,
                 cast(list[dict[str, Any]], beliefs),
             )
+
+            # Track organization in PostHog for group analytics
+            if POSTHOG_AVAILABLE and os.getenv("POSTHOG_API_KEY"):
+                posthog.group_identify(
+                    group_type="organization",
+                    group_key=org_id,
+                    properties={
+                        "name": apollo.company.name or "Unknown",
+                        "industry": industry,
+                        "size": org_size,
+                        "birth_mode": birth_mode,
+                        "initial_belief_count": len(beliefs),
+                    },
+                )
         except Exception as e:
             logger.warning(f"Failed to persist birth: {e}", exc_info=True)
 

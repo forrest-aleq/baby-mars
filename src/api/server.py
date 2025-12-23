@@ -35,10 +35,25 @@ logger = get_logger("baby_mars")
 # ============================================================
 
 
+def _init_langsmith() -> None:
+    """Initialize LangSmith tracing if configured."""
+    api_key = os.getenv("LANGSMITH_API_KEY")
+    if not api_key:
+        logger.debug("LangSmith not configured - set LANGSMITH_API_KEY to enable tracing")
+        return
+
+    project = os.getenv("LANGSMITH_PROJECT", "baby-mars")
+    # LangSmith auto-detects env vars, but we log for visibility
+    logger.info("LangSmith tracing enabled", project=project)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan - initialize and cleanup resources"""
     logger.info("Starting Baby MARS API...")
+
+    # Initialize LangSmith tracing
+    _init_langsmith()
 
     # Initialize database
     try:

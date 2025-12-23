@@ -16,15 +16,43 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional, cast
 
+from ...analytics import get_belief_analytics
 from ...graphs.belief_graph_manager import get_org_belief_graph, save_org_belief
 from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
+    BeliefState,
     FeedbackEvent,
     Memory,
 )
 
 logger = get_logger(__name__)
+
+
+def _track_belief_update(
+    org_id: str,
+    belief_id: str,
+    belief: BeliefState,
+    old_strength: float,
+    new_strength: float,
+    outcome: str,
+    multiplier: float,
+    context_key: str,
+) -> None:
+    """Track belief update in PostHog analytics."""
+    analytics = get_belief_analytics()
+    analytics.belief_updated(
+        org_id=org_id,
+        belief_id=belief_id,
+        category=belief.get("category", "unknown"),
+        old_strength=old_strength,
+        new_strength=new_strength,
+        outcome=outcome,
+        multiplier=multiplier,
+        context_key=context_key,
+        is_cascade=False,
+    )
+
 
 # ============================================================
 # OUTCOME ANALYSIS
@@ -127,7 +155,6 @@ async def update_beliefs_from_outcome(
     appraisal: dict[str, Any] = cast(dict[str, Any], state.get("appraisal") or {})
     attributed_beliefs = appraisal.get("attributed_beliefs", [])
     outcome_type = outcome.get("outcome_type", "failure")
-    success_rate = outcome.get("success_rate", 0.0)
     context_key = state.get("current_context_key", "*|*|*")
 
     updates = []
@@ -156,18 +183,30 @@ async def update_beliefs_from_outcome(
             )
 
             if event:
+                old_strength = event.get("old_strength", 0)
+                new_strength = event.get("new_strength", 0)
                 updates.append(
                     {
                         "belief_id": belief_id,
-                        "old_strength": event.get("old_strength", 0),
-                        "new_strength": event.get("new_strength", 0),
+                        "old_strength": old_strength,
+                        "new_strength": new_strength,
                         "outcome": outcome_signal,
                     }
                 )
 
-                # Persist the updated belief to database
+                # Track belief update in PostHog and persist
                 updated_belief = belief_graph.get_belief(belief_id)
                 if updated_belief:
+                    _track_belief_update(
+                        org_id,
+                        belief_id,
+                        updated_belief,
+                        old_strength,
+                        new_strength,
+                        outcome_signal,
+                        event.get("category_multiplier", 1.0),
+                        context_key,
+                    )
                     await save_org_belief(org_id, cast(dict[str, Any], updated_belief))
 
         except Exception as e:
