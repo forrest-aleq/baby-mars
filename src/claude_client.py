@@ -487,3 +487,4 @@ class DialecticalOutput(BaseModel):
 
 
 # Backwards-compatible re-exports from singleton module
+from .claude_singleton import complete, complete_structured, get_claude_client, reset_claude_client
