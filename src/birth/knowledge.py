@@ -17,8 +17,8 @@ The learning loop NEVER touches knowledge. Only beliefs learn.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Literal
 from datetime import datetime, timezone
+from typing import Literal, Optional
 
 
 @dataclass
@@ -32,6 +32,7 @@ class KnowledgeFact:
     - "Company fiscal year ends December 31" (org, temporal)
     - "User timezone is America/New_York" (person, context)
     """
+
     fact_id: str
     statement: str
     scope: Literal["global", "industry", "org", "person"]
@@ -341,35 +342,41 @@ def create_org_knowledge(
     facts = []
 
     # Basic org facts
-    facts.append(KnowledgeFact(
-        fact_id=f"{org_id}_name",
-        statement=f"Organization name is {org_name}",
-        scope="org",
-        scope_id=org_id,
-        category="entity",
-        source="apollo",
-        tags=["identity"],
-    ))
+    facts.append(
+        KnowledgeFact(
+            fact_id=f"{org_id}_name",
+            statement=f"Organization name is {org_name}",
+            scope="org",
+            scope_id=org_id,
+            category="entity",
+            source="apollo",
+            tags=["identity"],
+        )
+    )
 
-    facts.append(KnowledgeFact(
-        fact_id=f"{org_id}_industry",
-        statement=f"Organization operates in {industry} industry",
-        scope="org",
-        scope_id=org_id,
-        category="entity",
-        source="apollo",
-        tags=["industry"],
-    ))
+    facts.append(
+        KnowledgeFact(
+            fact_id=f"{org_id}_industry",
+            statement=f"Organization operates in {industry} industry",
+            scope="org",
+            scope_id=org_id,
+            category="entity",
+            source="apollo",
+            tags=["industry"],
+        )
+    )
 
-    facts.append(KnowledgeFact(
-        fact_id=f"{org_id}_size",
-        statement=f"Organization is {size} size ({_size_description(size)})",
-        scope="org",
-        scope_id=org_id,
-        category="entity",
-        source="apollo",
-        tags=["size"],
-    ))
+    facts.append(
+        KnowledgeFact(
+            fact_id=f"{org_id}_size",
+            statement=f"Organization is {size} size ({_size_description(size)})",
+            scope="org",
+            scope_id=org_id,
+            category="entity",
+            source="apollo",
+            tags=["size"],
+        )
+    )
 
     # Extract additional facts from Apollo company data
     if apollo_data and "company" in apollo_data:
@@ -377,15 +384,17 @@ def create_org_knowledge(
 
         if company.get("keywords"):
             keywords = ", ".join(company["keywords"][:5])
-            facts.append(KnowledgeFact(
-                fact_id=f"{org_id}_focus",
-                statement=f"Organization focus areas: {keywords}",
-                scope="org",
-                scope_id=org_id,
-                category="entity",
-                source="apollo",
-                tags=["focus", "keywords"],
-            ))
+            facts.append(
+                KnowledgeFact(
+                    fact_id=f"{org_id}_focus",
+                    statement=f"Organization focus areas: {keywords}",
+                    scope="org",
+                    scope_id=org_id,
+                    category="entity",
+                    source="apollo",
+                    tags=["focus", "keywords"],
+                )
+            )
 
     return facts
 
@@ -405,62 +414,72 @@ def create_person_knowledge(
     """
     facts = []
 
-    facts.append(KnowledgeFact(
-        fact_id=f"{person_id}_identity",
-        statement=f"User is {name}, {role}",
-        scope="person",
-        scope_id=person_id,
-        category="entity",
-        source="apollo",
-        tags=["identity"],
-    ))
+    facts.append(
+        KnowledgeFact(
+            fact_id=f"{person_id}_identity",
+            statement=f"User is {name}, {role}",
+            scope="person",
+            scope_id=person_id,
+            category="entity",
+            source="apollo",
+            tags=["identity"],
+        )
+    )
 
-    facts.append(KnowledgeFact(
-        fact_id=f"{person_id}_email",
-        statement=f"User email is {email}",
-        scope="person",
-        scope_id=person_id,
-        category="entity",
-        source="apollo",
-        tags=["contact"],
-    ))
+    facts.append(
+        KnowledgeFact(
+            fact_id=f"{person_id}_email",
+            statement=f"User email is {email}",
+            scope="person",
+            scope_id=person_id,
+            category="entity",
+            source="apollo",
+            tags=["contact"],
+        )
+    )
 
     # Extract from Apollo person data
     if apollo_data and "person" in apollo_data:
         person = apollo_data["person"]
 
         if person.get("timezone"):
-            facts.append(KnowledgeFact(
-                fact_id=f"{person_id}_timezone",
-                statement=f"User timezone is {person['timezone']}",
-                scope="person",
-                scope_id=person_id,
-                category="temporal",
-                source="apollo",
-                tags=["timezone", "context"],
-            ))
+            facts.append(
+                KnowledgeFact(
+                    fact_id=f"{person_id}_timezone",
+                    statement=f"User timezone is {person['timezone']}",
+                    scope="person",
+                    scope_id=person_id,
+                    category="temporal",
+                    source="apollo",
+                    tags=["timezone", "context"],
+                )
+            )
 
         if person.get("location"):
-            facts.append(KnowledgeFact(
-                fact_id=f"{person_id}_location",
-                statement=f"User is located in {person['location']}",
-                scope="person",
-                scope_id=person_id,
-                category="entity",
-                source="apollo",
-                tags=["location", "context"],
-            ))
+            facts.append(
+                KnowledgeFact(
+                    fact_id=f"{person_id}_location",
+                    statement=f"User is located in {person['location']}",
+                    scope="person",
+                    scope_id=person_id,
+                    category="entity",
+                    source="apollo",
+                    tags=["location", "context"],
+                )
+            )
 
         if person.get("seniority"):
-            facts.append(KnowledgeFact(
-                fact_id=f"{person_id}_seniority",
-                statement=f"User seniority level is {person['seniority']}",
-                scope="person",
-                scope_id=person_id,
-                category="entity",
-                source="apollo",
-                tags=["seniority", "role"],
-            ))
+            facts.append(
+                KnowledgeFact(
+                    fact_id=f"{person_id}_seniority",
+                    statement=f"User seniority level is {person['seniority']}",
+                    scope="person",
+                    scope_id=person_id,
+                    category="entity",
+                    source="apollo",
+                    tags=["seniority", "role"],
+                )
+            )
 
     # Rapport hooks as knowledge (facts for personalization)
     if apollo_data and "rapport_hooks" in apollo_data:
@@ -471,15 +490,17 @@ def create_person_knowledge(
                 hooks_text = ", ".join(hooks[:3])
             else:
                 hooks_text = str(hooks)
-            facts.append(KnowledgeFact(
-                fact_id=f"{person_id}_rapport",
-                statement=f"Rapport context: {hooks_text}",
-                scope="person",
-                scope_id=person_id,
-                category="context",
-                source="apollo",
-                tags=["rapport", "personalization"],
-            ))
+            facts.append(
+                KnowledgeFact(
+                    fact_id=f"{person_id}_rapport",
+                    statement=f"Rapport context: {hooks_text}",
+                    scope="person",
+                    scope_id=person_id,
+                    category="context",
+                    source="apollo",
+                    tags=["rapport", "personalization"],
+                )
+            )
 
     return facts
 
@@ -498,6 +519,7 @@ def _size_description(size: str) -> str:
 # KNOWLEDGE RESOLUTION
 # Narrower scope wins, no strength-based resolution.
 # ============================================================
+
 
 def resolve_knowledge(
     all_facts: list[KnowledgeFact],

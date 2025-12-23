@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
 logger = logging.getLogger("baby_mars.api.events")
@@ -107,10 +107,12 @@ async def event_stream(
             # Send initial connection event
             yield {
                 "event": "connected",
-                "data": json.dumps({
-                    "org_id": org_id,
-                    "timestamp": datetime.now().isoformat(),
-                })
+                "data": json.dumps(
+                    {
+                        "org_id": org_id,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                ),
             }
 
             # TODO: If last_event_id provided, replay missed events
@@ -130,7 +132,7 @@ async def event_stream(
                     # Send keepalive
                     yield {
                         "event": "keepalive",
-                        "data": json.dumps({"timestamp": datetime.now().isoformat()})
+                        "data": json.dumps({"timestamp": datetime.now().isoformat()}),
                     }
 
         except asyncio.CancelledError:
@@ -143,22 +145,31 @@ async def event_stream(
 
 # Helper functions for publishing events from other routes
 
+
 async def publish_task_created(org_id: str, task_id: str, task_type: str, summary: str):
     """Publish task:created event."""
-    await _event_bus.publish(org_id, "task:created", {
-        "task_id": task_id,
-        "type": task_type,
-        "summary": summary,
-    })
+    await _event_bus.publish(
+        org_id,
+        "task:created",
+        {
+            "task_id": task_id,
+            "type": task_type,
+            "summary": summary,
+        },
+    )
 
 
 async def publish_task_updated(org_id: str, task_id: str, status: str, summary: str):
     """Publish task:updated event."""
-    await _event_bus.publish(org_id, "task:updated", {
-        "task_id": task_id,
-        "status": status,
-        "summary": summary,
-    })
+    await _event_bus.publish(
+        org_id,
+        "task:updated",
+        {
+            "task_id": task_id,
+            "status": status,
+            "summary": summary,
+        },
+    )
 
 
 async def publish_task_decision_needed(
@@ -168,11 +179,15 @@ async def publish_task_decision_needed(
     summary: str,
 ):
     """Publish task:decision_needed event."""
-    await _event_bus.publish(org_id, "task:decision_needed", {
-        "task_id": task_id,
-        "decision_id": decision_id,
-        "summary": summary,
-    })
+    await _event_bus.publish(
+        org_id,
+        "task:decision_needed",
+        {
+            "task_id": task_id,
+            "decision_id": decision_id,
+            "summary": summary,
+        },
+    )
 
 
 async def publish_decision_made(
@@ -182,32 +197,48 @@ async def publish_decision_made(
     action: str,
 ):
     """Publish decision:made event."""
-    await _event_bus.publish(org_id, "decision:made", {
-        "decision_id": decision_id,
-        "made_by": made_by,
-        "action": action,
-    })
+    await _event_bus.publish(
+        org_id,
+        "decision:made",
+        {
+            "decision_id": decision_id,
+            "made_by": made_by,
+            "action": action,
+        },
+    )
 
 
 async def publish_data_changed(org_id: str, widget_id: str, change_type: str):
     """Publish data:changed event."""
-    await _event_bus.publish(org_id, "data:changed", {
-        "widget_id": widget_id,
-        "change_type": change_type,
-    })
+    await _event_bus.publish(
+        org_id,
+        "data:changed",
+        {
+            "widget_id": widget_id,
+            "change_type": change_type,
+        },
+    )
 
 
 async def publish_presence_update(org_id: str, task_id: str, users: list[str]):
     """Publish presence:update event."""
-    await _event_bus.publish(org_id, "presence:update", {
-        "task_id": task_id,
-        "users": users,
-    })
+    await _event_bus.publish(
+        org_id,
+        "presence:update",
+        {
+            "task_id": task_id,
+            "users": users,
+        },
+    )
 
 
 async def publish_aleq_message(org_id: str, message: str, references: list[dict]):
     """Publish aleq:message event for proactive communication."""
-    await _event_bus.publish(org_id, "aleq:message", {
-        "message": message,
-        "references": references,
-    })
+    await _event_bus.publish(
+        org_id,
+        "aleq:message",
+        {
+            "message": message,
+            "references": references,
+        },
+    )

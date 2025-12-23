@@ -25,25 +25,26 @@ Source Priority (higher wins when upgrading):
 """
 
 import json
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, Literal
-from dataclasses import dataclass, asdict
-from uuid import UUID
+from typing import Literal, Optional
 
 from .database import get_connection
-
 
 # ============================================================
 # EXCEPTIONS
 # ============================================================
 
+
 class KnowledgeError(Exception):
     """Base exception for knowledge operations."""
+
     pass
 
 
 class FactNotFoundError(KnowledgeError):
     """Raised when a fact is not found."""
+
     def __init__(self, fact_id: str):
         self.fact_id = fact_id
         super().__init__(f"Fact not found: {fact_id}")
@@ -51,6 +52,7 @@ class FactNotFoundError(KnowledgeError):
 
 class FactAlreadySupersededError(KnowledgeError):
     """Raised when trying to replace an already-superseded fact."""
+
     def __init__(self, fact_id: str, current_status: str):
         self.fact_id = fact_id
         self.current_status = current_status
@@ -59,6 +61,7 @@ class FactAlreadySupersededError(KnowledgeError):
 
 class SourcePriorityError(KnowledgeError):
     """Raised when trying to replace with lower-priority source."""
+
     def __init__(self, old_source: str, new_source: str):
         self.old_source = old_source
         self.new_source = new_source
@@ -67,6 +70,7 @@ class SourcePriorityError(KnowledgeError):
 
 class DuplicateFactKeyError(KnowledgeError):
     """Raised when inserting a duplicate active fact key in same scope."""
+
     def __init__(self, fact_key: str, scope_type: str, scope_id: Optional[str]):
         self.fact_key = fact_key
         self.scope_type = scope_type
@@ -100,16 +104,20 @@ def can_replace_source(old_source: str, new_source: str) -> bool:
 # DATA CLASSES
 # ============================================================
 
+
 @dataclass
 class KnowledgeFact:
     """A knowledge fact from the database."""
+
     id: str
     fact_key: str
     scope_type: Literal["global", "industry", "org", "person"]
     scope_id: Optional[str]
     statement: str
     category: Literal["accounting", "regulatory", "process", "entity", "temporal", "context"]
-    source_type: Literal["system", "knowledge_pack", "apollo", "user", "admin", "inferred", "integration"]
+    source_type: Literal[
+        "system", "knowledge_pack", "apollo", "user", "admin", "inferred", "integration"
+    ]
     source_ref: dict
     status: str
     tags: list[str]
@@ -135,6 +143,7 @@ class KnowledgeFact:
 @dataclass
 class FactCorrection:
     """Record of a fact being corrected."""
+
     id: str
     old_fact_id: str
     new_fact_id: Optional[str]
@@ -149,11 +158,13 @@ class FactCorrection:
 # INITIALIZATION
 # ============================================================
 
+
 async def init_knowledge_tables() -> None:
     """Create knowledge tables if they don't exist."""
     async with get_connection() as conn:
         # Read and execute the SQL schema
         import os
+
         schema_path = os.path.join(os.path.dirname(__file__), "knowledge_schema.sql")
 
         # For now, create tables inline (schema file is reference)
@@ -231,6 +242,7 @@ async def init_knowledge_tables() -> None:
 # CORE OPERATIONS
 # ============================================================
 
+
 async def load_facts_for_context(
     org_id: str,
     person_id: Optional[str] = None,
@@ -245,8 +257,7 @@ async def load_facts_for_context(
     async with get_connection() as conn:
         # Get org's industries
         industries = await conn.fetch(
-            "SELECT industry FROM org_industries WHERE org_id = $1",
-            org_id
+            "SELECT industry FROM org_industries WHERE org_id = $1", org_id
         )
         industry_list = [r["industry"] for r in industries]
 
@@ -307,7 +318,9 @@ async def add_fact(
     statement: str,
     scope_type: Literal["global", "industry", "org", "person"],
     category: Literal["accounting", "regulatory", "process", "entity", "temporal", "context"],
-    source_type: Literal["system", "knowledge_pack", "apollo", "user", "admin", "inferred", "integration"],
+    source_type: Literal[
+        "system", "knowledge_pack", "apollo", "user", "admin", "inferred", "integration"
+    ],
     scope_id: Optional[str] = None,
     source_ref: Optional[dict] = None,
     tags: Optional[list[str]] = None,
@@ -321,7 +334,8 @@ async def add_fact(
     Returns the new fact's ID.
     """
     async with get_connection() as conn:
-        row = await conn.fetchrow("""
+        row = await conn.fetchrow(
+            """
             INSERT INTO knowledge_facts (
                 fact_key, scope_type, scope_id, statement, category,
                 source_type, source_ref, tags, confidence, valid_from, valid_until
@@ -349,7 +363,9 @@ async def replace_fact(
     old_fact_id: str,
     new_statement: str,
     reason: str,
-    correction_type: Literal["factual_error", "outdated", "more_specific", "scope_change", "source_upgrade"],
+    correction_type: Literal[
+        "factual_error", "outdated", "more_specific", "scope_change", "source_upgrade"
+    ],
     corrected_by_type: Literal["user", "admin", "system", "integration"],
     corrected_by_ref: Optional[str] = None,
     force_source_downgrade: bool = False,
@@ -380,8 +396,7 @@ async def replace_fact(
         async with conn.transaction():
             # Get the old fact WITH ROW LOCK to prevent race conditions
             old_fact = await conn.fetchrow(
-                "SELECT * FROM knowledge_facts WHERE id = $1 FOR UPDATE",
-                old_fact_id
+                "SELECT * FROM knowledge_facts WHERE id = $1 FOR UPDATE", old_fact_id
             )
 
             if not old_fact:
@@ -396,7 +411,8 @@ async def replace_fact(
                     raise SourcePriorityError(old_fact["source_type"], corrected_by_type)
 
             # Create new fact
-            new_fact_id = await conn.fetchval("""
+            new_fact_id = await conn.fetchval(
+                """
                 INSERT INTO knowledge_facts (
                     fact_key, scope_type, scope_id, statement, category,
                     source_type, source_ref, supersedes, tags, metadata, confidence
@@ -418,7 +434,8 @@ async def replace_fact(
             )
 
             # Supersede old fact
-            await conn.execute("""
+            await conn.execute(
+                """
                 UPDATE knowledge_facts
                 SET status = 'superseded',
                     superseded_by = $1,
@@ -426,10 +443,15 @@ async def replace_fact(
                     valid_until = NOW(),
                     updated_at = NOW()
                 WHERE id = $3
-            """, new_fact_id, reason, old_fact_id)
+            """,
+                new_fact_id,
+                reason,
+                old_fact_id,
+            )
 
             # Log the correction
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO knowledge_corrections (
                     old_fact_id, new_fact_id, corrected_by_type, corrected_by_ref,
                     reason, correction_type
@@ -460,22 +482,32 @@ async def delete_fact(
     """
     async with get_connection() as conn:
         async with conn.transaction():
-            await conn.execute("""
+            await conn.execute(
+                """
                 UPDATE knowledge_facts
                 SET status = 'deleted',
                     deleted_at = NOW(),
                     supersession_reason = $1,
                     updated_at = NOW()
                 WHERE id = $2
-            """, reason, fact_id)
+            """,
+                reason,
+                fact_id,
+            )
 
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO knowledge_corrections (
                     old_fact_id, new_fact_id, corrected_by_type, corrected_by_ref,
                     reason, correction_type
                 )
                 VALUES ($1, NULL, $2, $3, $4, 'factual_error')
-            """, fact_id, deleted_by_type, deleted_by_ref, reason)
+            """,
+                fact_id,
+                deleted_by_type,
+                deleted_by_ref,
+                reason,
+            )
 
 
 async def get_fact_history(
@@ -489,7 +521,8 @@ async def get_fact_history(
     Follows the supersession chain to show how a fact evolved.
     """
     async with get_connection() as conn:
-        rows = await conn.fetch("""
+        rows = await conn.fetch(
+            """
             WITH RECURSIVE fact_chain AS (
                 SELECT f.*, 1::BIGINT as version_num
                 FROM knowledge_facts f
@@ -509,7 +542,11 @@ async def get_fact_history(
                 valid_until, supersession_reason, version_num
             FROM fact_chain
             ORDER BY version_num ASC
-        """, fact_key, scope_type, scope_id)
+        """,
+            fact_key,
+            scope_type,
+            scope_id,
+        )
 
         return [
             {
@@ -530,6 +567,7 @@ async def get_fact_history(
 # BULK OPERATIONS
 # ============================================================
 
+
 async def seed_global_facts(facts: list[dict]) -> int:
     """
     Seed global facts (system init).
@@ -542,7 +580,7 @@ async def seed_global_facts(facts: list[dict]) -> int:
         for fact in facts:
             existing = await conn.fetchval(
                 "SELECT 1 FROM knowledge_facts WHERE fact_key = $1 AND scope_type = 'global' AND status = 'active'",
-                fact["fact_key"]
+                fact["fact_key"],
             )
             if not existing:
                 await add_fact(
@@ -568,7 +606,8 @@ async def seed_industry_facts(industry: str, facts: list[dict]) -> int:
         for fact in facts:
             existing = await conn.fetchval(
                 "SELECT 1 FROM knowledge_facts WHERE fact_key = $1 AND scope_type = 'industry' AND scope_id = $2 AND status = 'active'",
-                fact["fact_key"], industry
+                fact["fact_key"],
+                industry,
             )
             if not existing:
                 await add_fact(
@@ -592,15 +631,22 @@ async def set_org_industries(org_id: str, industries: list[str], source: str = "
 
         # Insert new
         for i, industry in enumerate(industries):
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO org_industries (org_id, industry, is_primary, source)
                 VALUES ($1, $2, $3, $4)
-            """, org_id, industry, i == 0, source)
+            """,
+                org_id,
+                industry,
+                i == 0,
+                source,
+            )
 
 
 # ============================================================
 # QUERY HELPERS
 # ============================================================
+
 
 async def get_fact_by_key(
     fact_key: str,
@@ -609,13 +655,18 @@ async def get_fact_by_key(
 ) -> Optional[KnowledgeFact]:
     """Get a specific active fact by key and scope."""
     async with get_connection() as conn:
-        row = await conn.fetchrow("""
+        row = await conn.fetchrow(
+            """
             SELECT * FROM knowledge_facts
             WHERE fact_key = $1
             AND scope_type = $2
             AND COALESCE(scope_id, '') = COALESCE($3, '')
             AND status = 'active'
-        """, fact_key, scope_type, scope_id)
+        """,
+            fact_key,
+            scope_type,
+            scope_id,
+        )
 
         if not row:
             return None
@@ -641,7 +692,8 @@ async def get_fact_by_key(
 async def count_facts_by_scope(org_id: str) -> dict:
     """Get count of active facts by scope for an org."""
     async with get_connection() as conn:
-        rows = await conn.fetch("""
+        rows = await conn.fetch(
+            """
             SELECT scope_type, COUNT(*) as count
             FROM knowledge_facts
             WHERE status = 'active'
@@ -650,7 +702,9 @@ async def count_facts_by_scope(org_id: str) -> dict:
                 OR (scope_type = 'org' AND scope_id = $1)
             )
             GROUP BY scope_type
-        """, org_id)
+        """,
+            org_id,
+        )
 
         return {r["scope_type"]: r["count"] for r in rows}
 
@@ -658,6 +712,7 @@ async def count_facts_by_scope(org_id: str) -> dict:
 # ============================================================
 # POINT-IN-TIME QUERIES
 # ============================================================
+
 
 async def load_facts_known_at(
     org_id: str,
@@ -680,8 +735,7 @@ async def load_facts_known_at(
     async with get_connection() as conn:
         # Get org's industries (as they were at that time - simplified, assumes stable)
         industries = await conn.fetch(
-            "SELECT industry FROM org_industries WHERE org_id = $1",
-            org_id
+            "SELECT industry FROM org_industries WHERE org_id = $1", org_id
         )
         industry_list = [r["industry"] for r in industries]
 
@@ -744,6 +798,7 @@ async def load_facts_known_at(
 # BULK OPERATIONS (EFFICIENT)
 # ============================================================
 
+
 async def bulk_import_facts(
     facts: list[dict],
     source_type: Literal["system", "knowledge_pack", "apollo", "admin", "integration"] = "admin",
@@ -782,14 +837,19 @@ async def bulk_import_facts(
                     scope_id = fact.get("scope_id")
 
                     # Check for existing active fact
-                    existing = await conn.fetchrow("""
+                    existing = await conn.fetchrow(
+                        """
                         SELECT id, source_type FROM knowledge_facts
                         WHERE fact_key = $1
                         AND scope_type = $2
                         AND COALESCE(scope_id, '') = COALESCE($3, '')
                         AND status = 'active'
                         FOR UPDATE
-                    """, fact_key, scope_type, scope_id)
+                    """,
+                        fact_key,
+                        scope_type,
+                        scope_id,
+                    )
 
                     if existing:
                         if on_conflict == "skip":
@@ -800,10 +860,12 @@ async def bulk_import_facts(
                         elif on_conflict == "replace":
                             # Check source priority
                             if not can_replace_source(existing["source_type"], source_type):
-                                results["errors"].append({
-                                    "fact_key": fact_key,
-                                    "error": f"Cannot replace {existing['source_type']} with {source_type}"
-                                })
+                                results["errors"].append(
+                                    {
+                                        "fact_key": fact_key,
+                                        "error": f"Cannot replace {existing['source_type']} with {source_type}",
+                                    }
+                                )
                                 continue
 
                             # Supersede existing
@@ -818,7 +880,8 @@ async def bulk_import_facts(
                             continue
 
                     # Insert new fact
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         INSERT INTO knowledge_facts (
                             fact_key, scope_type, scope_id, statement, category,
                             source_type, tags, valid_from, valid_until
@@ -840,10 +903,9 @@ async def bulk_import_facts(
                 except DuplicateFactKeyError:
                     raise
                 except Exception as e:
-                    results["errors"].append({
-                        "fact_key": fact.get("fact_key", "unknown"),
-                        "error": str(e)
-                    })
+                    results["errors"].append(
+                        {"fact_key": fact.get("fact_key", "unknown"), "error": str(e)}
+                    )
 
     return results
 
@@ -883,7 +945,8 @@ async def export_facts(
 
         where_clause = " AND ".join(conditions) if conditions else "TRUE"
 
-        rows = await conn.fetch(f"""
+        rows = await conn.fetch(
+            f"""
             SELECT
                 fact_key, scope_type, scope_id, statement, category,
                 source_type, tags, valid_from, valid_until, status,
@@ -891,7 +954,9 @@ async def export_facts(
             FROM knowledge_facts
             WHERE {where_clause}
             ORDER BY scope_type, scope_id, fact_key, created_at
-        """, *params)
+        """,
+            *params,
+        )
 
         return [
             {

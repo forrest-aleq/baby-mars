@@ -14,20 +14,18 @@ Flow:
 """
 
 from typing import Literal
+
 from langgraph.types import interrupt
 
-from ...state.schema import BabyMARSState, SelectedAction
 from ...claude_client import get_claude_client
-
+from ...state.schema import BabyMARSState, SelectedAction
 
 # ============================================================
 # HUMAN-READABLE SUMMARY GENERATION
 # ============================================================
 
-async def generate_action_summary(
-    state: BabyMARSState,
-    action: SelectedAction
-) -> str:
+
+async def generate_action_summary(state: BabyMARSState, action: SelectedAction) -> str:
     """
     Generate a human-readable summary of the proposed action.
 
@@ -57,7 +55,11 @@ async def generate_action_summary(
             desc += f" ({entity_str})"
         work_unit_descriptions.append(desc)
 
-    work_units_text = "\n".join(work_unit_descriptions) if work_unit_descriptions else "• (No specific actions defined)"
+    work_units_text = (
+        "\n".join(work_unit_descriptions)
+        if work_unit_descriptions
+        else "• (No specific actions defined)"
+    )
 
     # Get the original request (find most recent user message)
     messages = state.get("messages", [])
@@ -89,11 +91,10 @@ Keep it under 150 words. Be professional but conversational."""
 
     try:
         response = await client.complete(
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=300
+            messages=[{"role": "user", "content": prompt}], max_tokens=300
         )
         return response
-    except Exception as e:
+    except Exception:
         # Fallback to basic summary
         return f"""I'd like to perform the following action:
 
@@ -108,11 +109,8 @@ This requires your approval before I can proceed.
 # INTERRUPT PAYLOAD
 # ============================================================
 
-def build_interrupt_payload(
-    state: BabyMARSState,
-    action: SelectedAction,
-    summary: str
-) -> dict:
+
+def build_interrupt_payload(state: BabyMARSState, action: SelectedAction, summary: str) -> dict:
     """
     Build the payload that will be sent to the frontend
     when the graph pauses for approval.
@@ -133,6 +131,7 @@ def build_interrupt_payload(
 # MAIN PROCESS FUNCTION
 # ============================================================
 
+
 async def process(state: BabyMARSState) -> dict:
     """
     Action Proposal Node
@@ -148,10 +147,7 @@ async def process(state: BabyMARSState) -> dict:
 
     if not action:
         # No action to propose - skip to guidance
-        return {
-            "supervision_mode": "guidance_seeking",
-            "approval_status": "no_action"
-        }
+        return {"supervision_mode": "guidance_seeking", "approval_status": "no_action"}
 
     # Generate human-readable summary
     summary = await generate_action_summary(state, action)
@@ -164,7 +160,9 @@ async def process(state: BabyMARSState) -> dict:
     human_response = interrupt(payload)
 
     # Process the response
-    choice = human_response.get("choice", "reject") if isinstance(human_response, dict) else "reject"
+    choice = (
+        human_response.get("choice", "reject") if isinstance(human_response, dict) else "reject"
+    )
 
     if choice == "approve":
         # Continue to execution
@@ -187,6 +185,7 @@ async def process(state: BabyMARSState) -> dict:
 # ============================================================
 # ROUTING HELPER
 # ============================================================
+
 
 def route_after_proposal(state: BabyMARSState) -> Literal["execution", "response_generation"]:
     """

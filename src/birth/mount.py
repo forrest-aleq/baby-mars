@@ -17,23 +17,22 @@ Plus computed:
 7. Temporal context - Current time situation
 """
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
-from dataclasses import dataclass, field
 
-from ..state.schema import BabyMARSState, PersonObject
 from ..graphs.belief_graph_manager import get_org_belief_graph
 from ..persistence.database import get_connection
-
+from ..state.schema import BabyMARSState, PersonObject
 from .defaults import DEFAULT_CAPABILITIES, DEFAULT_STYLE
 from .knowledge import (
     GLOBAL_KNOWLEDGE_FACTS,
-    load_industry_knowledge,
+    KnowledgeFact,
     create_org_knowledge,
     create_person_knowledge,
-    resolve_knowledge,
     facts_to_dicts,
-    KnowledgeFact,
+    load_industry_knowledge,
+    resolve_knowledge,
 )
 
 
@@ -47,6 +46,7 @@ class TemporalContext:
     - Urgency multipliers for goals
     - Style adjustments (month-end = more deliberate)
     """
+
     current_time: str
     day_of_week: str
     time_of_day: str  # morning, afternoon, evening
@@ -65,15 +65,16 @@ class ActiveSubgraph:
 
     This is what the cognitive loop receives.
     """
+
     person: dict
     org: dict
-    capabilities: dict          # Binary flags
-    relationships: dict         # Org structure
-    knowledge: list[dict]       # Facts (no strength)
-    beliefs: list[dict]         # Claims (with strength)
-    goals: list[dict]           # Active goals
-    style: dict                 # Resolved style
-    temporal: TemporalContext   # Current situation
+    capabilities: dict  # Binary flags
+    relationships: dict  # Org structure
+    knowledge: list[dict]  # Facts (no strength)
+    beliefs: list[dict]  # Claims (with strength)
+    goals: list[dict]  # Active goals
+    style: dict  # Resolved style
+    temporal: TemporalContext  # Current situation
 
 
 def compute_temporal_context(org_timezone: Optional[str] = None) -> TemporalContext:
@@ -120,11 +121,14 @@ async def load_person(email: str) -> Optional[dict]:
     """Load person from database by email."""
     try:
         async with get_connection() as conn:
-            row = await conn.fetchrow("""
+            row = await conn.fetchrow(
+                """
                 SELECT person_id, org_id, name, email, role, authority,
                        seniority, department, timezone, apollo_data
                 FROM persons WHERE email = $1
-            """, email)
+            """,
+                email,
+            )
 
             if not row:
                 return None
@@ -150,10 +154,13 @@ async def load_org(org_id: str) -> Optional[dict]:
     """Load organization from database."""
     try:
         async with get_connection() as conn:
-            row = await conn.fetchrow("""
+            row = await conn.fetchrow(
+                """
                 SELECT org_id, name, industry, size, settings
                 FROM organizations WHERE org_id = $1
-            """, org_id)
+            """,
+                org_id,
+            )
 
             if not row:
                 return None
@@ -226,13 +233,15 @@ async def load_knowledge(
     if apollo_data and "company" in apollo_data:
         org_name = apollo_data["company"].get("name", "Unknown")
 
-    all_facts.extend(create_org_knowledge(
-        org_id=org_id,
-        org_name=org_name,
-        industry=industry,
-        size="mid_market",  # TODO: Get from org
-        apollo_data=apollo_data,
-    ))
+    all_facts.extend(
+        create_org_knowledge(
+            org_id=org_id,
+            org_name=org_name,
+            industry=industry,
+            size="mid_market",  # TODO: Get from org
+            apollo_data=apollo_data,
+        )
+    )
 
     # Person-specific knowledge
     if apollo_data:
@@ -240,14 +249,16 @@ async def load_knowledge(
         person_email = apollo_data.get("person", {}).get("email", "")
         person_role = apollo_data.get("person", {}).get("title", "User")
 
-        all_facts.extend(create_person_knowledge(
-            person_id=person_id,
-            org_id=org_id,
-            name=person_name,
-            email=person_email,
-            role=person_role,
-            apollo_data=apollo_data,
-        ))
+        all_facts.extend(
+            create_person_knowledge(
+                person_id=person_id,
+                org_id=org_id,
+                name=person_name,
+                email=person_email,
+                role=person_role,
+                apollo_data=apollo_data,
+            )
+        )
 
     # Resolve by scope (narrower wins)
     resolved = resolve_knowledge(all_facts, org_id, person_id)
@@ -307,6 +318,7 @@ def resolve_style(
 
     # Role-level overrides
     from .defaults import ROLE_STYLE_OVERRIDES
+
     role = person.get("role", "")
     if role in ROLE_STYLE_OVERRIDES:
         style.update(ROLE_STYLE_OVERRIDES[role])
@@ -415,7 +427,9 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
     )
     knowledge = await load_knowledge(org_id, person_id, industry, apollo_data)
     beliefs = await load_beliefs(org_id)
-    goals = await load_goals(person_id, org_id, person.get("role", ""), person.get("authority", 0.5))
+    goals = await load_goals(
+        person_id, org_id, person.get("role", ""), person.get("authority", 0.5)
+    )
     style = resolve_style(person, org, temporal)
 
     # Validate mount
@@ -443,7 +457,6 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
         "messages": [{"role": "user", "content": message}],
         "org_id": org_id,
         "person": person_obj,
-
         # The 6 Things
         "capabilities": capabilities,
         "relationships": relationships,
@@ -451,7 +464,6 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
         "activated_beliefs": beliefs,  # Claims, with strength
         "active_goals": goals,
         "style": style,
-
         # Context
         "current_context_key": "*|*|*",
         "temporal": {
@@ -463,7 +475,6 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
             "is_quarter_end": temporal.is_quarter_end,
             "is_year_end": temporal.is_year_end,
         },
-
         # Working memory
         "working_memory": {
             "active_tasks": [
@@ -482,7 +493,6 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
                 "beliefs_in_focus": [],
             },
         },
-
         # Cognitive loop state
         "supervision_mode": None,
         "belief_strength_for_action": None,

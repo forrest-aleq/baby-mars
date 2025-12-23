@@ -17,33 +17,30 @@ The 6 Things:
 import uuid
 from datetime import datetime, timezone
 
-from ..state.schema import BabyMARSState, PersonObject
 from ..graphs.belief_graph import get_belief_graph, reset_belief_graph
-
-from .defaults import (
-    DEFAULT_CAPABILITIES,
-    DEFAULT_STYLE,
-    ROLE_HIERARCHY,
-    ROLE_GOALS,
-    ROLE_STYLE_OVERRIDES,
-)
+from ..state.schema import BabyMARSState, PersonObject
 from .beliefs import (
     IMMUTABLE_BELIEFS,
     seed_global_beliefs,
     seed_role_beliefs,
 )
+from .defaults import (
+    DEFAULT_CAPABILITIES,
+    DEFAULT_STYLE,
+    ROLE_GOALS,
+    ROLE_HIERARCHY,
+    ROLE_STYLE_OVERRIDES,
+)
 from .knowledge import (
     GLOBAL_KNOWLEDGE_FACTS,
-    load_industry_knowledge,
     facts_to_dicts,
+    load_industry_knowledge,
 )
 from .knowledge_packs import seed_industry_beliefs
 
 
 def calculate_salience(
-    role: str,
-    org_size: str = "mid_market",
-    is_decision_maker: bool = False
+    role: str, org_size: str = "mid_market", is_decision_maker: bool = False
 ) -> float:
     """
     Calculate salience score for birth mode selection.
@@ -51,11 +48,17 @@ def calculate_salience(
     salience = (future_interaction × 0.4) + (incentive_value × 0.4) + (deviation × 0.2)
     """
     role_scores = {
-        "CFO": 0.9, "CEO": 0.95, "COO": 0.85,
-        "Controller": 0.8, "VP Finance": 0.75,
-        "Director": 0.7, "Manager": 0.6,
-        "Senior Accountant": 0.5, "Staff Accountant": 0.4,
-        "AP Specialist": 0.35, "AR Specialist": 0.35,
+        "CFO": 0.9,
+        "CEO": 0.95,
+        "COO": 0.85,
+        "Controller": 0.8,
+        "VP Finance": 0.75,
+        "Director": 0.7,
+        "Manager": 0.6,
+        "Senior Accountant": 0.5,
+        "Staff Accountant": 0.4,
+        "AP Specialist": 0.35,
+        "AR Specialist": 0.35,
     }
 
     size_multipliers = {"smb": 0.8, "mid_market": 1.0, "enterprise": 1.2}
@@ -134,9 +137,16 @@ def birth_person(
     }
 
     # Get role goals
-    goals = ROLE_GOALS.get(role, [
-        {"goal_id": "default_accuracy", "description": "Complete tasks accurately", "priority": 0.9},
-    ])
+    goals = ROLE_GOALS.get(
+        role,
+        [
+            {
+                "goal_id": "default_accuracy",
+                "description": "Complete tasks accurately",
+                "priority": 0.9,
+            },
+        ],
+    )
 
     # Get knowledge (facts, no strength)
     knowledge_facts = list(GLOBAL_KNOWLEDGE_FACTS) + load_industry_knowledge(industry)
@@ -220,7 +230,7 @@ def quick_birth(
     name: str,
     role: str = "Controller",
     industry: str = "general",
-    message: str = "Hello, I need help with something."
+    message: str = "Hello, I need help with something.",
 ) -> BabyMARSState:
     """Quick birth for testing - creates person and initial state in one call."""
     reset_belief_graph()

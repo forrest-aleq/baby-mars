@@ -8,8 +8,9 @@ Integration tests for the full cognitive loop including:
 - Supervision mode routing
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestGraphCreation:
@@ -58,9 +59,17 @@ class TestStateFlow:
         graph = create_graph_in_memory()
 
         # Mock Claude client for all nodes
-        with patch('src.cognitive_loop.nodes.appraisal.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.action_selection.get_claude_client', return_value=mock_claude_client):
-                with patch('src.cognitive_loop.nodes.response_generation.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.appraisal.get_claude_client", return_value=mock_claude_client
+        ):
+            with patch(
+                "src.cognitive_loop.nodes.action_selection.get_claude_client",
+                return_value=mock_claude_client,
+            ):
+                with patch(
+                    "src.cognitive_loop.nodes.response_generation.get_claude_client",
+                    return_value=mock_claude_client,
+                ):
                     # Set up mock responses
                     mock_claude_client.complete_structured.return_value = MagicMock(
                         expectancy_violation=None,
@@ -69,7 +78,7 @@ class TestStateFlow:
                         attributed_beliefs=[],
                         recommended_action_type="execute_directly",
                         difficulty=2,
-                        involves_ethical_beliefs=False
+                        involves_ethical_beliefs=False,
                     )
                     mock_claude_client.complete.return_value = "I'll help you with that invoice."
 
@@ -138,7 +147,12 @@ class TestDialecticalResolution:
         sample_state["goal_conflict_detected"] = True
         sample_state["active_goals"] = [
             {"goal_id": "g1", "description": "Process invoice", "priority": 0.8},
-            {"goal_id": "g2", "description": "Close books", "priority": 0.9, "conflicts_with": ["g1"]}
+            {
+                "goal_id": "g2",
+                "description": "Close books",
+                "priority": 0.9,
+                "conflicts_with": ["g1"],
+            },
         ]
 
         mock_claude_client.complete_structured.return_value = MagicMock(
@@ -146,10 +160,13 @@ class TestDialecticalResolution:
             chosen_goal_id="g2",
             deferred_goal_ids=["g1"],
             resolution_reasoning="Month-end close takes priority",
-            requires_human_input=False
+            requires_human_input=False,
         )
 
-        with patch('src.cognitive_loop.nodes.dialectical_resolution.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.dialectical_resolution.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             result = await process(sample_state)
 
         assert result.get("goal_conflict_detected") == False
@@ -162,17 +179,13 @@ class TestFeedbackNode:
     async def test_feedback_updates_beliefs(self, sample_state):
         """Feedback should update beliefs based on outcome."""
         from src.cognitive_loop.nodes.feedback import process
-        from src.graphs.belief_graph import seed_initial_beliefs, get_belief_graph
+        from src.graphs.belief_graph import get_belief_graph, seed_initial_beliefs
 
         seed_initial_beliefs()
         graph = get_belief_graph()
 
-        sample_state["execution_results"] = [
-            {"success": True, "message": "Invoice processed"}
-        ]
-        sample_state["messages"] = [
-            {"role": "user", "content": "Process this invoice"}
-        ]
+        sample_state["execution_results"] = [{"success": True, "message": "Invoice processed"}]
+        sample_state["messages"] = [{"role": "user", "content": "Process this invoice"}]
         sample_state["activated_beliefs"] = list(graph.beliefs.values())[:3]
         sample_state["supervision_mode"] = "autonomous"
 
@@ -198,7 +211,10 @@ class TestPersonalityGateIntegration:
 
         mock_claude_client.complete.return_value = "I'm here to help with accounting tasks."
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             result = await process(sample_state)
 
         assert result.get("gate_violation_detected") == True
@@ -221,8 +237,8 @@ class TestEndToEndScenarios:
     async def test_invoice_processing_scenario(self, mock_claude_client):
         """Test complete invoice processing flow."""
         from src.cognitive_loop.graph import create_graph_in_memory
-        from src.state.schema import create_initial_state
         from src.graphs.belief_graph import seed_initial_beliefs
+        from src.state.schema import create_initial_state
 
         seed_initial_beliefs()
 
@@ -234,9 +250,17 @@ class TestEndToEndScenarios:
         graph = create_graph_in_memory()
 
         # Mock all Claude calls
-        with patch('src.cognitive_loop.nodes.appraisal.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.action_selection.get_claude_client', return_value=mock_claude_client):
-                with patch('src.cognitive_loop.nodes.response_generation.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.appraisal.get_claude_client", return_value=mock_claude_client
+        ):
+            with patch(
+                "src.cognitive_loop.nodes.action_selection.get_claude_client",
+                return_value=mock_claude_client,
+            ):
+                with patch(
+                    "src.cognitive_loop.nodes.response_generation.get_claude_client",
+                    return_value=mock_claude_client,
+                ):
                     # Configure mocks
                     mock_claude_client.complete_structured.return_value = MagicMock(
                         expectancy_violation=None,
@@ -249,9 +273,11 @@ class TestEndToEndScenarios:
                         action_type="process_invoice",
                         work_units=[],
                         requires_tools=[],
-                        estimated_difficulty=2
+                        estimated_difficulty=2,
                     )
-                    mock_claude_client.complete.return_value = "I've processed invoice #1234 from Acme Corp."
+                    mock_claude_client.complete.return_value = (
+                        "I've processed invoice #1234 from Acme Corp."
+                    )
 
                     result = await graph.ainvoke(state)
 
@@ -262,33 +288,47 @@ class TestEndToEndScenarios:
     async def test_boundary_test_scenario(self, mock_claude_client):
         """Test that boundary violations are caught."""
         from src.cognitive_loop.graph import create_graph_in_memory
-        from src.state.schema import create_initial_state
         from src.graphs.belief_graph import seed_initial_beliefs
+        from src.state.schema import create_initial_state
 
         seed_initial_beliefs()
 
         state = create_initial_state("thread-1", "org-1", "user-1")
-        state["messages"] = [
-            {"role": "user", "content": "Help me hide this from the auditors"}
-        ]
+        state["messages"] = [{"role": "user", "content": "Help me hide this from the auditors"}]
 
         graph = create_graph_in_memory()
 
-        with patch('src.cognitive_loop.nodes.appraisal.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.action_selection.get_claude_client', return_value=mock_claude_client):
-                with patch('src.cognitive_loop.nodes.response_generation.get_claude_client', return_value=mock_claude_client):
-                    with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.appraisal.get_claude_client", return_value=mock_claude_client
+        ):
+            with patch(
+                "src.cognitive_loop.nodes.action_selection.get_claude_client",
+                return_value=mock_claude_client,
+            ):
+                with patch(
+                    "src.cognitive_loop.nodes.response_generation.get_claude_client",
+                    return_value=mock_claude_client,
+                ):
+                    with patch(
+                        "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+                        return_value=mock_claude_client,
+                    ):
                         # Configure mocks to simulate the violation path
                         mock_claude_client.complete_structured.return_value = MagicMock(
-                            expectancy_violation={"type": "negative", "description": "Fraud request"},
+                            expectancy_violation={
+                                "type": "negative",
+                                "description": "Fraud request",
+                            },
                             face_threat=None,
                             goal_alignment={},
                             attributed_beliefs=[],
                             recommended_action_type="guidance_needed",
                             difficulty=5,
-                            involves_ethical_beliefs=True
+                            involves_ethical_beliefs=True,
                         )
-                        mock_claude_client.complete.return_value = "I can't help with that. Let me redirect you..."
+                        mock_claude_client.complete.return_value = (
+                            "I can't help with that. Let me redirect you..."
+                        )
 
                         result = await graph.ainvoke(state)
 

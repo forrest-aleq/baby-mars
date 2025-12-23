@@ -9,9 +9,8 @@ Supports CLI, JSON, and HTML output formats.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-from .schema import HarnessReport, CompanyResult, PersonaResult, TestCaseResult
+from .schema import HarnessReport
 
 
 def get_status_indicator(score: float, threshold: float = 96.0) -> tuple[str, str]:
@@ -54,7 +53,9 @@ class Reporter:
         lines.append("By Company:")
         for cr in r.company_results:
             status, _ = get_status_indicator(cr.score, r.pass_threshold)
-            lines.append(f"  {cr.company:20} {cr.score:5.1f}% [{status}] ({cr.total_personas} personas)")
+            lines.append(
+                f"  {cr.company:20} {cr.score:5.1f}% [{status}] ({cr.total_personas} personas)"
+            )
 
         lines.append("")
 
@@ -77,7 +78,9 @@ class Reporter:
         # Summary
         lines.append("-" * 60)
         lines.append(f"Execution Time: {r.execution_time_ms/1000:.1f}s")
-        lines.append(f"Total: {r.total_tests} tests, {r.passed_tests} passed, {r.failed_tests} failed")
+        lines.append(
+            f"Total: {r.total_tests} tests, {r.passed_tests} passed, {r.failed_tests} failed"
+        )
         lines.append(f"Personas: {r.total_personas}")
         lines.append("=" * 60)
         lines.append("")

@@ -6,7 +6,8 @@ Session management endpoints.
 """
 
 import logging
-from fastapi import APIRouter, Request, HTTPException
+
+from fastapi import APIRouter, HTTPException, Request
 
 logger = logging.getLogger("baby_mars.api.sessions")
 
@@ -28,9 +29,9 @@ async def get_session(session_id: str, request: Request):
                     "recoverable": True,
                     "actions": [
                         {"label": "Start new session", "action": "new_session"},
-                    ]
+                    ],
                 }
-            }
+            },
         )
 
     state = session.get("state")
@@ -46,7 +47,9 @@ async def get_session(session_id: str, request: Request):
         "person_name": birth.get("person", {}).get("name"),
         "supervision_mode": state.get("supervision_mode") if state else None,
         "active_context_pills": len(session.get("context_pills", [])),
-        "has_pending_approval": state.get("supervision_mode") == "action_proposal" if state else False,
+        "has_pending_approval": state.get("supervision_mode") == "action_proposal"
+        if state
+        else False,
     }
 
 
@@ -62,7 +65,7 @@ async def delete_session(session_id: str, request: Request):
                     "message": "Session not found",
                     "severity": "info",
                 }
-            }
+            },
         )
 
     del request.app.state.sessions[session_id]
@@ -88,7 +91,7 @@ async def get_session_context(session_id: str, request: Request):
                     "message": "Session not found",
                     "severity": "warning",
                 }
-            }
+            },
         )
 
     pills = session.get("context_pills", [])
@@ -104,7 +107,7 @@ async def get_session_context(session_id: str, request: Request):
             "max_items": 10,
             "estimated_tokens": estimated_tokens,
             "max_tokens": 8000,
-        }
+        },
     }
 
 
@@ -128,7 +131,7 @@ async def get_session_history(session_id: str, request: Request, limit: int = 20
                     "message": "Session not found",
                     "severity": "warning",
                 }
-            }
+            },
         )
 
     state = session.get("state")

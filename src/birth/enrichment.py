@@ -11,13 +11,15 @@ Apollo provides:
 """
 
 import os
-import httpx
-from typing import Optional
 from dataclasses import dataclass, field
+from typing import Optional
+
+import httpx
 
 # Load .env
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -29,6 +31,7 @@ APOLLO_BASE_URL = "https://api.apollo.io/v1"
 @dataclass
 class PersonData:
     """Person data from Apollo"""
+
     id: str = ""
     email: str = ""
     name: str = ""
@@ -48,6 +51,7 @@ class PersonData:
 @dataclass
 class CompanyData:
     """Company data from Apollo"""
+
     id: str = ""
     name: str = ""
     domain: str = ""
@@ -71,6 +75,7 @@ class CompanyData:
 @dataclass
 class ApolloEnrichment:
     """Combined enrichment result"""
+
     person: PersonData
     company: CompanyData
     rapport_hooks: dict = field(default_factory=dict)
@@ -106,7 +111,7 @@ async def enrich_from_apollo(email: str) -> Optional[ApolloEnrichment]:
                     "email": email,
                     "reveal_personal_emails": False,
                     "reveal_phone_number": False,
-                }
+                },
             )
 
             if response.status_code != 200:
@@ -131,9 +136,13 @@ async def enrich_from_apollo(email: str) -> Optional[ApolloEnrichment]:
                 last_name=person_data.get("last_name", ""),
                 title=person_data.get("title", ""),
                 seniority=person_data.get("seniority", ""),
-                department=person_data.get("departments", [""])[0] if person_data.get("departments") else "",
+                department=person_data.get("departments", [""])[0]
+                if person_data.get("departments")
+                else "",
                 linkedin_url=person_data.get("linkedin_url", ""),
-                phone=person_data.get("phone_numbers", [{}])[0].get("sanitized_number", "") if person_data.get("phone_numbers") else "",
+                phone=person_data.get("phone_numbers", [{}])[0].get("sanitized_number", "")
+                if person_data.get("phone_numbers")
+                else "",
                 city=person_data.get("city", ""),
                 state=person_data.get("state", ""),
                 country=person_data.get("country", ""),
@@ -207,35 +216,28 @@ def map_industry_to_knowledge_pack(industry: str) -> list[str]:
         "venture capital": ["gaap", "investment_management"],
         "private equity": ["gaap", "investment_management"],
         "insurance": ["gaap", "insurance"],
-
         # Real estate
         "real estate": ["gaap", "real_estate"],
         "commercial real estate": ["gaap", "real_estate", "lease_accounting"],
         "property management": ["gaap", "real_estate", "property_management"],
-
         # Technology
         "computer software": ["gaap", "saas", "asc_606"],
         "information technology": ["gaap", "saas"],
         "internet": ["gaap", "saas", "asc_606"],
-
         # Professional services
         "accounting": ["gaap", "professional_services"],
         "legal services": ["gaap", "professional_services"],
         "management consulting": ["gaap", "professional_services"],
-
         # Manufacturing
         "manufacturing": ["gaap", "manufacturing", "inventory"],
         "industrial": ["gaap", "manufacturing"],
-
         # Healthcare
         "hospital & health care": ["gaap", "healthcare"],
         "medical practice": ["gaap", "healthcare"],
         "pharmaceuticals": ["gaap", "healthcare", "r_and_d"],
-
         # Retail
         "retail": ["gaap", "retail", "inventory"],
         "consumer goods": ["gaap", "retail"],
-
         # Nonprofit
         "nonprofit": ["gaap", "nonprofit"],
         "philanthropy": ["gaap", "nonprofit"],

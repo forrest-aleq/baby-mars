@@ -6,22 +6,20 @@ Decision lifecycle with idempotency and undo.
 Per API_CONTRACT_V0.md section 3
 """
 
-import uuid
 import asyncio
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
 from ..schemas.decisions import (
+    BeliefSnapshot,
     DecisionDetail,
     DecisionExecuteRequest,
     DecisionExecuteResponse,
     DecisionUndoResponse,
-    DecisionAlreadyDecided,
-    BeliefSnapshot,
-    DecisionStatus,
 )
 
 logger = logging.getLogger("baby_mars.api.decisions")
@@ -63,7 +61,7 @@ def _get_decision_or_404(decision_id: str) -> dict:
                     "message": f"Decision {decision_id} not found",
                     "severity": "warning",
                 }
-            }
+            },
         )
     return decision
 
@@ -101,9 +99,7 @@ async def get_decision(decision_id: str):
         status=decision["status"],
         confidence=decision["confidence"],
         task_id=decision.get("task_id"),
-        belief_snapshots=[
-            BeliefSnapshot(**b) for b in decision.get("belief_snapshots", [])
-        ],
+        belief_snapshots=[BeliefSnapshot(**b) for b in decision.get("belief_snapshots", [])],
         reasoning=decision.get("reasoning"),
         options=decision.get("options", ["approve", "reject"]),
         executed_at=decision.get("executed_at"),
@@ -179,7 +175,7 @@ async def execute_decision(
                     "message": f"Invalid choice. Options: {decision['options']}",
                     "severity": "warning",
                 }
-            }
+            },
         )
 
     now = datetime.now()

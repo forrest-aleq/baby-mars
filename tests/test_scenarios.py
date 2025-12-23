@@ -12,18 +12,14 @@ Usage:
 """
 
 import pytest
-import asyncio
-from pathlib import Path
 
 from tests.harness import HarnessRunner
-from tests.harness.schema import PersonaSpec, HarnessReport
 from tests.harness.runner import RunConfig
-
+from tests.harness.schema import HarnessReport
 
 # Skip by default - use --run-scenarios to enable
 pytestmark = pytest.mark.skipif(
-    "not config.getoption('--run-scenarios')",
-    reason="Scenario tests require --run-scenarios flag"
+    "not config.getoption('--run-scenarios')", reason="Scenario tests require --run-scenarios flag"
 )
 
 
@@ -33,13 +29,13 @@ def pytest_addoption(parser):
         "--run-scenarios",
         action="store_true",
         default=False,
-        help="Run scenario-based integration tests (uses real Claude API)"
+        help="Run scenario-based integration tests (uses real Claude API)",
     )
     parser.addoption(
         "--threshold",
         type=float,
         default=96.0,
-        help="Pass threshold for scenario tests (default: 96%%)"
+        help="Pass threshold for scenario tests (default: 96%%)",
     )
 
 
@@ -91,8 +87,7 @@ class TestScenarioHarness:
             ]
             pytest.fail(
                 f"Readiness score {report.overall_score:.1f}% below threshold "
-                f"{report.pass_threshold}%.\nTop failures:\n" +
-                "\n".join(failures)
+                f"{report.pass_threshold}%.\nTop failures:\n" + "\n".join(failures)
             )
 
 
@@ -104,9 +99,9 @@ class TestStorageCorner:
         """Test all StorageCorner personas."""
         result = await harness_runner.run_company("storagecorner")
 
-        assert result.score >= harness_runner.config.pass_threshold, (
-            f"StorageCorner score {result.score:.1f}% below threshold"
-        )
+        assert (
+            result.score >= harness_runner.config.pass_threshold
+        ), f"StorageCorner score {result.score:.1f}% below threshold"
 
 
 class TestClose:
@@ -117,9 +112,9 @@ class TestClose:
         """Test all Close personas."""
         result = await harness_runner.run_company("close")
 
-        assert result.score >= harness_runner.config.pass_threshold, (
-            f"Close score {result.score:.1f}% below threshold"
-        )
+        assert (
+            result.score >= harness_runner.config.pass_threshold
+        ), f"Close score {result.score:.1f}% below threshold"
 
 
 class TestGGHC:
@@ -130,9 +125,9 @@ class TestGGHC:
         """Test all GGHC personas."""
         result = await harness_runner.run_company("gghc")
 
-        assert result.score >= harness_runner.config.pass_threshold, (
-            f"GGHC score {result.score:.1f}% below threshold"
-        )
+        assert (
+            result.score >= harness_runner.config.pass_threshold
+        ), f"GGHC score {result.score:.1f}% below threshold"
 
 
 class TestDockwa:
@@ -143,6 +138,6 @@ class TestDockwa:
         """Test all Dockwa personas."""
         result = await harness_runner.run_company("dockwa")
 
-        assert result.score >= harness_runner.config.pass_threshold, (
-            f"Dockwa score {result.score:.1f}% below threshold"
-        )
+        assert (
+            result.score >= harness_runner.config.pass_threshold
+        ), f"Dockwa score {result.score:.1f}% below threshold"

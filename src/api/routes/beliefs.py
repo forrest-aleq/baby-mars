@@ -6,22 +6,21 @@ Belief system endpoints with challenge functionality.
 Per API_CONTRACT_V0.md section 4
 """
 
-import uuid
 import logging
+import uuid
 from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from ...graphs.belief_graph_manager import get_org_belief_graph
 from ..schemas.beliefs import (
-    BeliefResponse,
-    BeliefDetailResponse,
     BeliefChallengeRequest,
     BeliefChallengeResponse,
-    BeliefEvidence,
+    BeliefDetailResponse,
+    BeliefResponse,
     BeliefVersion,
 )
-from ...graphs.belief_graph_manager import get_org_belief_graph
 
 logger = logging.getLogger("baby_mars.api.beliefs")
 
@@ -54,7 +53,7 @@ async def list_beliefs(
 
         # Paginate
         total = len(beliefs)
-        beliefs = beliefs[offset:offset + limit]
+        beliefs = beliefs[offset : offset + limit]
 
         return [
             BeliefResponse(
@@ -98,7 +97,7 @@ async def get_belief(org_id: str, belief_id: str):
                         "message": f"Belief {belief_id} not found",
                         "severity": "warning",
                     }
-                }
+                },
             )
 
         # Build version history (placeholder - will be enhanced)
@@ -179,7 +178,7 @@ async def challenge_belief(
                         "severity": "warning",
                         "recoverable": False,
                     }
-                }
+                },
             )
 
         # Show existing evidence (placeholder)
@@ -211,7 +210,7 @@ async def challenge_belief(
             new_status=projected_status,
             existing_evidence=existing_evidence,
             message=f"Challenge recorded. If accepted, strength would change from {old_strength:.2f} to {projected_strength:.2f}. "
-                    f"Note: Full challenge flow not yet implemented - this is a preview.",
+            f"Note: Full challenge flow not yet implemented - this is a preview.",
         )
 
     except HTTPException:

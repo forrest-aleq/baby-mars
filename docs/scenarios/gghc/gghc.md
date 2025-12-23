@@ -170,4 +170,3 @@ Typical Software Today: ChatGPT, Capital IQ, Bloomberg Terminal, Excel
 7. Compile outputs into research deck for PM review.
 8. Log AI queries, outputs, and analyst commentary for compliance/audit trail.
 9. Use insights to support portfolio rebalancing or new investment recommendations.
-

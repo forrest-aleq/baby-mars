@@ -5,15 +5,14 @@ Birth Routes
 Agent initialization endpoint.
 """
 
-import uuid
 import logging
+import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from ..schemas.birth import BirthRequest, BirthResponse
-from ..schemas.common import APIError
 from ...birth.birth_system import birth_person
+from ..schemas.birth import BirthRequest, BirthResponse
 
 logger = logging.getLogger("baby_mars.api.birth")
 
@@ -87,7 +86,7 @@ async def birth(request_data: BirthRequest, request: Request):
                     "recoverable": True,
                     "actions": [
                         {"label": "Try again", "action": "retry"},
-                    ]
+                    ],
                 }
-            }
+            },
         )

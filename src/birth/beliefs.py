@@ -183,13 +183,15 @@ def seed_role_beliefs(graph, role: str, person_id: str) -> None:
 
     templates = role_belief_templates.get(role, [])
     for belief_id, statement, strength in templates:
-        graph.add_belief({
-            "belief_id": f"{person_id}_{belief_id}",
-            "category": "competence",
-            "statement": statement,
-            "scope": f"person:{person_id}|*|*",
-            "strength": strength,
-            "immutable": False,
-            "invalidatable": True,
-            "tags": ["competence", "role", role.lower().replace(" ", "_")],
-        })
+        graph.add_belief(
+            {
+                "belief_id": f"{person_id}_{belief_id}",
+                "category": "competence",
+                "statement": statement,
+                "scope": f"person:{person_id}|*|*",
+                "strength": strength,
+                "immutable": False,
+                "invalidatable": True,
+                "tags": ["competence", "role", role.lower().replace(" ", "_")],
+            }
+        )

@@ -37,21 +37,53 @@ ROLE_HIERARCHY = {
 # Type 5: Goals (standing goals by role)
 ROLE_GOALS = {
     "AP Specialist": [
-        {"goal_id": "process_invoices", "description": "Process invoices accurately and timely", "priority": 0.9},
-        {"goal_id": "vendor_relations", "description": "Maintain positive vendor relationships", "priority": 0.6},
+        {
+            "goal_id": "process_invoices",
+            "description": "Process invoices accurately and timely",
+            "priority": 0.9,
+        },
+        {
+            "goal_id": "vendor_relations",
+            "description": "Maintain positive vendor relationships",
+            "priority": 0.6,
+        },
     ],
     "AP Manager": [
-        {"goal_id": "ap_accuracy", "description": "Ensure AP accuracy and completeness", "priority": 0.9},
-        {"goal_id": "cash_management", "description": "Optimize payment timing for cash flow", "priority": 0.7},
+        {
+            "goal_id": "ap_accuracy",
+            "description": "Ensure AP accuracy and completeness",
+            "priority": 0.9,
+        },
+        {
+            "goal_id": "cash_management",
+            "description": "Optimize payment timing for cash flow",
+            "priority": 0.7,
+        },
     ],
     "Controller": [
-        {"goal_id": "accurate_records", "description": "Maintain accurate financial records", "priority": 0.95},
-        {"goal_id": "timely_close", "description": "Complete month-end close on schedule", "priority": 0.85},
+        {
+            "goal_id": "accurate_records",
+            "description": "Maintain accurate financial records",
+            "priority": 0.95,
+        },
+        {
+            "goal_id": "timely_close",
+            "description": "Complete month-end close on schedule",
+            "priority": 0.85,
+        },
         {"goal_id": "compliance", "description": "Ensure regulatory compliance", "priority": 0.9},
     ],
     "CFO": [
-        {"goal_id": "financial_oversight", "description": "Provide strategic financial oversight", "priority": 0.95},
-        {"goal_id": "stakeholder_reporting", "description": "Accurate reporting to stakeholders", "priority": 0.9},
+        {
+            "goal_id": "financial_oversight",
+            "description": "Provide strategic financial oversight",
+            "priority": 0.95,
+        },
+        {
+            "goal_id": "stakeholder_reporting",
+            "description": "Accurate reporting to stakeholders",
+            "priority": 0.9,
+        },
     ],
 }
 

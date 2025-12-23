@@ -1,10 +1,12 @@
 """Test Apollo-enriched birth with Knowledge vs Beliefs distinction"""
+
 import asyncio
-from src.birth import birth_from_apollo, knowledge_to_context_string
+
+from src.birth import birth_from_apollo
+from src.cognitive_loop.nodes.appraisal import process as appraisal_process
+from src.cognitive_loop.nodes.cognitive_activation import process as cognitive_activation
 from src.graphs.belief_graph import get_belief_graph
 from src.graphs.belief_graph_manager import get_belief_graph_manager
-from src.cognitive_loop.nodes.cognitive_activation import process as cognitive_activation
-from src.cognitive_loop.nodes.appraisal import process as appraisal_process
 
 
 async def test_apollo_birth():
@@ -26,31 +28,31 @@ async def test_apollo_birth():
     print("=" * 60)
 
     # 1. Person
-    print(f"\n1. PERSON:")
+    print("\n1. PERSON:")
     print(f"   Name: {state['person']['name']}")
     print(f"   Role: {state['person']['role']}")
     print(f"   Authority: {state['person']['authority']}")
 
     # 2. Capabilities (binary)
-    print(f"\n2. CAPABILITIES (binary flags):")
-    for cap, enabled in list(state['capabilities'].items())[:5]:
+    print("\n2. CAPABILITIES (binary flags):")
+    for cap, enabled in list(state["capabilities"].items())[:5]:
         print(f"   {'✓' if enabled else '✗'} {cap}")
 
     # 3. Relationships
-    print(f"\n3. RELATIONSHIPS (org structure):")
+    print("\n3. RELATIONSHIPS (org structure):")
     print(f"   Reports to: {state['relationships'].get('reports_to', 'N/A')}")
     print(f"   Authority: {state['relationships'].get('authority', 0)}")
     print(f"   Org: {state['org_id']}")
 
     # 4. KNOWLEDGE (facts, NO strength)
     print(f"\n4. KNOWLEDGE (facts, NO strength): {len(state.get('knowledge', []))} facts")
-    for k in state.get('knowledge', [])[:5]:
+    for k in state.get("knowledge", [])[:5]:
         print(f"   [{k.get('scope', 'global'):8}] {k['statement'][:60]}...")
 
     # 5. BELIEFS (claims, WITH strength)
     print(f"\n5. BELIEFS (claims, WITH strength): {len(state['activated_beliefs'])} beliefs")
     by_category = {}
-    for b in state['activated_beliefs']:
+    for b in state["activated_beliefs"]:
         cat = b.get("category", "unknown")
         if cat not in by_category:
             by_category[cat] = []
@@ -59,24 +61,24 @@ async def test_apollo_birth():
     for cat, beliefs in sorted(by_category.items()):
         print(f"\n   {cat.upper()} ({len(beliefs)}):")
         for b in beliefs[:3]:
-            strength = b.get('strength', 0)
-            immutable = " [IMMUTABLE]" if b.get('immutable') else ""
+            strength = b.get("strength", 0)
+            immutable = " [IMMUTABLE]" if b.get("immutable") else ""
             print(f"   - {b['belief_id'][:30]:30} @ {strength:.2f}{immutable}")
             print(f"     \"{b['statement'][:50]}...\"")
 
     # 6. Goals
     print(f"\n6. GOALS ({len(state['active_goals'])}):")
-    for g in state['active_goals'][:3]:
+    for g in state["active_goals"][:3]:
         print(f"   [{g.get('type', 'standing'):8}] {g['description']} (priority: {g['priority']})")
 
     # 7. Style
-    print(f"\n7. STYLE:")
-    for k, v in state['style'].items():
+    print("\n7. STYLE:")
+    for k, v in state["style"].items():
         print(f"   {k}: {v}")
 
     # Show temporal
-    print(f"\n8. TEMPORAL (computed at mount):")
-    temporal = state.get('temporal', {})
+    print("\n8. TEMPORAL (computed at mount):")
+    temporal = state.get("temporal", {})
     print(f"   Time: {temporal.get('day_of_week', 'N/A')}, {temporal.get('time_of_day', 'N/A')}")
     print(f"   Phase: {temporal.get('month_phase', 'N/A')}")
     print(f"   Month-end: {temporal.get('is_month_end', False)}")
@@ -91,19 +93,19 @@ async def test_apollo_birth():
 
     print("\nKNOWLEDGE (facts, no strength, replace to change):")
     print("-" * 50)
-    knowledge_facts = state.get('knowledge', [])
+    knowledge_facts = state.get("knowledge", [])
     for k in knowledge_facts[:3]:
         print(f"  FACT: \"{k['statement']}\"")
         print(f"        scope={k.get('scope')}, source={k.get('source')}")
-        print(f"        → No strength, no learning loop\n")
+        print("        → No strength, no learning loop\n")
 
     print("\nBELIEFS (claims, with strength, learning loop updates):")
     print("-" * 50)
-    for b in state['activated_beliefs'][:3]:
-        if not b.get('immutable'):
+    for b in state["activated_beliefs"][:3]:
+        if not b.get("immutable"):
             print(f"  CLAIM: \"{b['statement']}\"")
             print(f"         strength={b.get('strength', 0):.2f}, category={b.get('category')}")
-            print(f"         → Learning loop will adjust based on outcomes\n")
+            print("         → Learning loop will adjust based on outcomes\n")
 
     # ============================================================
     # COGNITIVE LOOP TEST
@@ -121,7 +123,7 @@ async def test_apollo_birth():
     # Run cognitive activation
     print("\n1. Cognitive Activation:")
     activation_result = await cognitive_activation(state)
-    activated = activation_result.get('activated_beliefs', [])
+    activated = activation_result.get("activated_beliefs", [])
     print(f"   Activated {len(activated)} beliefs for this context")
 
     state.update(activation_result)
@@ -130,9 +132,9 @@ async def test_apollo_birth():
     print("\n2. Appraisal:")
     appraisal_result = await appraisal_process(state)
 
-    supervision = appraisal_result.get('supervision_mode')
-    strength = appraisal_result.get('belief_strength_for_action')
-    appraisal = appraisal_result.get('appraisal', {})
+    supervision = appraisal_result.get("supervision_mode")
+    strength = appraisal_result.get("belief_strength_for_action")
+    appraisal = appraisal_result.get("appraisal", {})
 
     print(f"   Supervision mode: {supervision}")
     print(f"   Belief strength: {strength}")
@@ -140,7 +142,7 @@ async def test_apollo_birth():
     print(f"   Ethical concerns: {appraisal.get('involves_ethical_beliefs')}")
 
     # Show attributed beliefs
-    attr_ids = appraisal.get('attributed_beliefs', [])
+    attr_ids = appraisal.get("attributed_beliefs", [])
     if attr_ids:
         print(f"\n   Attributed beliefs ({len(attr_ids)}):")
         belief_map = {b["belief_id"]: b for b in activated}

@@ -13,39 +13,39 @@ The 6 Things:
 6. Style - How to behave (configuration)
 """
 
+from .apollo_birth import birth_from_apollo
+from .beliefs import IMMUTABLE_BELIEFS
 from .birth_system import (
     birth_person,
-    create_initial_state,
-    quick_birth,
     calculate_salience,
+    create_initial_state,
     determine_birth_mode,
+    quick_birth,
 )
 from .defaults import (
     DEFAULT_CAPABILITIES,
     DEFAULT_STYLE,
-    ROLE_HIERARCHY,
     ROLE_GOALS,
+    ROLE_HIERARCHY,
 )
-from .beliefs import IMMUTABLE_BELIEFS
 from .knowledge import (
     GLOBAL_KNOWLEDGE_FACTS,
     INDUSTRY_KNOWLEDGE_PACKS,
     KnowledgeFact,
-    load_industry_knowledge,
     create_org_knowledge,
     create_person_knowledge,
-    resolve_knowledge,
     knowledge_to_context_string,
+    load_industry_knowledge,
+    resolve_knowledge,
 )
 from .knowledge_packs import (
-    seed_industry_beliefs,
-    seed_authority_beliefs,
-    seed_preference_beliefs,
     infer_goals_from_role,
+    seed_authority_beliefs,
+    seed_industry_beliefs,
+    seed_preference_beliefs,
 )
-from .apollo_birth import birth_from_apollo
 from .mount import mount
-from .persist import persist_birth, check_person_exists, init_birth_tables
+from .persist import check_person_exists, init_birth_tables, persist_birth
 
 __all__ = [
     # Birth functions

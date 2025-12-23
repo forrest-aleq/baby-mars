@@ -221,7 +221,7 @@ Escalate to human when:
       "fix_hint": null
     },
     {
-      "validator": "approval_validator", 
+      "validator": "approval_validator",
       "passed": false,
       "severity": 0.7,
       "message": "Manager approval required for amount > $5,000",

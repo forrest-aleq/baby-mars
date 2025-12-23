@@ -15,14 +15,15 @@ Pass threshold: 96%
 """
 
 from typing import Optional
+
 from .schema import (
+    CompanyResult,
+    ExpectedWorkUnit,
+    HarnessReport,
+    PersonaResult,
+    ScoreBreakdown,
     TestCase,
     TestCaseResult,
-    PersonaResult,
-    CompanyResult,
-    HarnessReport,
-    ScoreBreakdown,
-    ExpectedWorkUnit,
 )
 
 
@@ -104,9 +105,7 @@ class Scorer:
 
         if expected.should_escalate != did_escalate:
             error_handling_score -= 50.0
-            errors.append(
-                f"Escalation: expected {expected.should_escalate}, got {did_escalate}"
-            )
+            errors.append(f"Escalation: expected {expected.should_escalate}, got {did_escalate}")
 
         if expected.should_flag_exceptions != flagged_exceptions:
             error_handling_score -= 50.0
@@ -149,7 +148,8 @@ class Scorer:
 
             # Count actual units matching this pattern
             matching = [
-                u for u in actual_units
+                u
+                for u in actual_units
                 if u.get("tool", "").lower() == expected.tool.lower()
                 and u.get("verb", "").lower() == expected.verb.lower()
             ]
@@ -190,7 +190,8 @@ class Scorer:
 
         for expected in expected_units:
             matching = [
-                u for u in actual_units
+                u
+                for u in actual_units
                 if u.get("tool", "").lower() == expected.tool.lower()
                 and u.get("verb", "").lower() == expected.verb.lower()
             ]
@@ -275,12 +276,14 @@ class Scorer:
             for pr in cr.persona_results:
                 for tr in pr.test_results:
                     if not tr.passed:
-                        top_failures.append({
-                            "persona": pr.persona_name,
-                            "test_case": tr.test_case_id,
-                            "score": tr.score,
-                            "errors": tr.errors[:2],  # Top 2 errors
-                        })
+                        top_failures.append(
+                            {
+                                "persona": pr.persona_name,
+                                "test_case": tr.test_case_id,
+                                "score": tr.score,
+                                "errors": tr.errors[:2],  # Top 2 errors
+                            }
+                        )
 
         # Sort by score (lowest first) and take top 10
         top_failures.sort(key=lambda x: x["score"])

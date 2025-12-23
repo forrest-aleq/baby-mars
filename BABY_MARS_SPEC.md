@@ -1,8 +1,8 @@
 # Baby MARS: Cognitive Architecture on Claude + LangGraph
 
-**Purpose:** Ship MARS research to production using Claude API + LangGraph  
-**Timeline:** 4 weeks backend, no UI  
-**What This Is:** Duct-tape implementation that proves the cognitive research works  
+**Purpose:** Ship MARS research to production using Claude API + LangGraph
+**Timeline:** 4 weeks backend, no UI
+**What This Is:** Duct-tape implementation that proves the cognitive research works
 **What This Isn't:** Final production system (that's TAMI + full MARS)
 
 ---
@@ -150,7 +150,7 @@ class ActiveTask:
     started_at: datetime
     context: Dict  # relevant beliefs, entities
     history: List[str] = field(default_factory=list)
-    
+
     def to_dict(self):
         return {
             **asdict(self),
@@ -167,16 +167,16 @@ class Note:
     ttl_hours: float
     priority: float  # 0.0 - 1.0
     source: str  # where it came from
-    
+
     @property
     def expires_at(self) -> datetime:
         from datetime import timedelta
         return self.created_at + timedelta(hours=self.ttl_hours)
-    
+
     @property
     def is_expired(self) -> bool:
         return datetime.now() > self.expires_at
-    
+
     def to_dict(self):
         return {
             **asdict(self),
@@ -195,14 +195,14 @@ class PersonObject:
     interaction_frequency: float  # 0.0 - 1.0
     context_relevance: float  # 0.0 - 1.0
     preferences: Dict = field(default_factory=dict)
-    
+
     @property
     def relationship_value(self) -> float:
         """60% authority + 20% interaction + 20% context"""
-        return (0.6 * self.authority + 
-                0.2 * self.interaction_frequency + 
+        return (0.6 * self.authority +
+                0.2 * self.interaction_frequency +
                 0.2 * self.context_relevance)
-    
+
     def to_dict(self):
         return {**asdict(self), "relationship_value": self.relationship_value}
 
@@ -214,7 +214,7 @@ class TemporalContext:
     is_year_end: bool = False
     days_until_deadline: Optional[int] = None
     urgency_multiplier: float = 1.0
-    
+
     def to_dict(self):
         return asdict(self)
 
@@ -230,7 +230,7 @@ class Memory:
     is_end: bool = False   # 1.5x weight
     related_belief_ids: List[str] = field(default_factory=list)
     context: Dict = field(default_factory=dict)
-    
+
     @property
     def salience_weight(self) -> float:
         """Peak: 2x, End: 1.5x, Middle: 1x"""
@@ -239,7 +239,7 @@ class Memory:
         elif self.is_end:
             return 1.5
         return 1.0
-    
+
     def to_dict(self):
         return {
             **asdict(self),
@@ -260,7 +260,7 @@ class BeliefEvent:
     old_strength: float
     new_strength: float
     multiplier_applied: float
-    
+
     def to_dict(self):
         return {
             **asdict(self),
@@ -275,7 +275,7 @@ class WorkUnit:
     verb: str  # e.g., "create_record", "fill_form", "approve_request"
     entities: Dict  # e.g., {"vendor": "Acme", "amount": 1500}
     constraints: List[Dict] = field(default_factory=list)
-    
+
     def to_dict(self):
         return asdict(self)
 
@@ -318,37 +318,37 @@ class CognitiveState(TypedDict):
     The complete cognitive state for Baby MARS.
     Persisted via LangGraph checkpointer to Postgres.
     """
-    
+
     # === IDENTITY ===
     org_id: str
     person_id: str  # The user this state belongs to
     thread_id: str  # LangGraph thread
-    
+
     # === COLUMN 1: ACTIVE TASKS (3-4 slots) ===
     active_tasks: Annotated[List[Dict], task_reducer]
-    
+
     # === COLUMN 2: NOTES (TTL queue) ===
     notes: Annotated[List[Dict], note_reducer]
-    
+
     # === COLUMN 3: OBJECTS (ambient context) ===
     people: List[Dict]  # PersonObject dicts
     entities: List[Dict]  # Salient entities (vendors, projects, etc.)
     temporal_context: Dict  # TemporalContext dict
     high_strength_beliefs: List[Dict]  # Beliefs with strength > 0.8
-    
+
     # === BELIEF GRAPH (serialized NetworkX) ===
     belief_graph_json: str  # nx.node_link_data(G) serialized
-    
+
     # === MEMORY ===
     memories: Annotated[List[Dict], memory_reducer]
-    
+
     # === EVENT LOG (immutable history) ===
     belief_events: Annotated[List[Dict], event_reducer]
-    
+
     # === CURRENT INTERACTION ===
     user_input: str
     conversation_history: List[Dict]  # {"role": "user"|"assistant", "content": str}
-    
+
     # === COGNITIVE LOOP STATE ===
     current_context: Dict  # Result of activation node
     appraisal: Dict  # Result of appraise node
@@ -356,7 +356,7 @@ class CognitiveState(TypedDict):
     selected_action: Dict  # WorkUnit or action decision
     execution_result: Dict  # What happened
     verification_result: Dict  # Did it work?
-    
+
     # === BIRTH METADATA ===
     birth_timestamp: str
     birth_source: str  # "full" | "micro"
@@ -406,25 +406,25 @@ class BeliefGraph:
     - Moral asymmetry multipliers
     - Event-sourced history
     """
-    
+
     def __init__(self):
         self.G = nx.DiGraph()
         self.events: List[BeliefEvent] = []
-    
+
     # === SERIALIZATION ===
-    
+
     def to_json(self) -> str:
         """Serialize for LangGraph state"""
         data = nx.node_link_data(self.G)
         data["events"] = [e.to_dict() for e in self.events]
         return json.dumps(data)
-    
+
     @classmethod
     def from_json(cls, json_str: str) -> "BeliefGraph":
         """Deserialize from LangGraph state"""
         data = json.loads(json_str)
         events_data = data.pop("events", [])
-        
+
         graph = cls()
         graph.G = nx.node_link_graph(data)
         graph.events = [
@@ -443,9 +443,9 @@ class BeliefGraph:
             for e in events_data
         ]
         return graph
-    
+
     # === BELIEF CRUD ===
-    
+
     def add_belief(
         self,
         belief_id: str,
@@ -467,7 +467,7 @@ class BeliefGraph:
             is_invalidated=False,
             is_distrusted=False  # Permanent flag for moral violations
         )
-    
+
     def add_supports_edge(
         self,
         assumption_id: str,
@@ -476,13 +476,13 @@ class BeliefGraph:
     ) -> None:
         """Add hierarchical SUPPORTS relationship"""
         self.G.add_edge(assumption_id, core_id, rel="SUPPORTS", weight=weight)
-    
+
     def get_belief(self, belief_id: str) -> Optional[Dict]:
         """Get belief by ID"""
         if belief_id in self.G.nodes:
             return dict(self.G.nodes[belief_id])
         return None
-    
+
     def get_belief_strength(
         self,
         belief_id: str,
@@ -495,16 +495,16 @@ class BeliefGraph:
         belief = self.get_belief(belief_id)
         if not belief:
             return 0.0
-        
+
         # Check context-specific strength first
         if context and context in belief.get("context_strengths", {}):
             return belief["context_strengths"][context]
-        
+
         # Fall back to default strength
         return belief.get("strength", 0.0)
-    
+
     # === BELIEF UPDATES WITH MORAL ASYMMETRY ===
-    
+
     def update_belief(
         self,
         belief_id: str,
@@ -518,53 +518,53 @@ class BeliefGraph:
         """
         Update belief strength with moral asymmetry.
         Returns (old_strength, new_strength).
-        
+
         Formula: new = clip(old + α_effective × signal, 0, 1)
         Where α_effective = α_base × moral_multiplier × (0.5 + 0.5 × severity)
         """
         belief = self.get_belief(belief_id)
         if not belief:
             raise ValueError(f"Belief {belief_id} not found")
-        
+
         # Check if permanently distrusted
         if belief.get("is_distrusted"):
             return belief["strength"], belief["strength"]
-        
+
         # Get moral multiplier
         moral_multiplier = MORAL_MULTIPLIERS[moral_valence]
-        
+
         # Calculate effective learning rate
         if outcome == "failure":
             α_effective = α_base * moral_multiplier * (0.5 + 0.5 * severity)
         else:
             α_effective = α_base * moral_multiplier
-        
+
         # Determine signal
         signal = {"success": 1, "failure": -1, "neutral": 0}[outcome]
-        
+
         # Get old strength (context-specific or default)
         old_strength = self.get_belief_strength(belief_id, context)
-        
+
         # Calculate new strength
         new_strength = max(0.0, min(1.0, old_strength + α_effective * signal))
-        
+
         # Update graph
         if context:
             self.G.nodes[belief_id]["context_strengths"][context] = new_strength
         else:
             self.G.nodes[belief_id]["strength"] = new_strength
-        
+
         # Check for permanent distrust (moral violation that drops to 0)
-        if (moral_valence == MoralValence.VIOLATION and 
-            new_strength == 0.0 and 
+        if (moral_valence == MoralValence.VIOLATION and
+            new_strength == 0.0 and
             BeliefCategory(belief["category"]) == BeliefCategory.ETHICAL):
             self.G.nodes[belief_id]["is_distrusted"] = True
-        
+
         # Check invalidation threshold
         category = BeliefCategory(belief["category"])
         threshold = CATEGORY_THRESHOLDS[category]
         self.G.nodes[belief_id]["is_invalidated"] = new_strength < threshold
-        
+
         # Record event (event sourcing)
         event = BeliefEvent(
             event_id=str(uuid.uuid4()),
@@ -579,12 +579,12 @@ class BeliefGraph:
             multiplier_applied=moral_multiplier
         )
         self.events.append(event)
-        
+
         # Cascade to supported beliefs
         self._cascade_update(belief_id)
-        
+
         return old_strength, new_strength
-    
+
     def _cascade_update(self, updated_belief_id: str) -> None:
         """
         Cascade strength updates to core beliefs that this assumption supports.
@@ -595,7 +595,7 @@ class BeliefGraph:
             if data.get("rel") == "SUPPORTS":
                 # Recalculate core belief strength from all supporters
                 self._recalculate_core_strength(target_id)
-    
+
     def _recalculate_core_strength(self, core_id: str) -> None:
         """Recalculate core belief strength from weighted average of supporters"""
         # Find all assumptions that support this core
@@ -605,21 +605,21 @@ class BeliefGraph:
                 weight = data.get("weight", 1.0)
                 strength = self.G.nodes[source_id].get("strength", 0.5)
                 supporters.append((strength, weight))
-        
+
         if supporters:
             total_weight = sum(w for _, w in supporters)
             weighted_sum = sum(s * w for s, w in supporters)
             new_strength = weighted_sum / total_weight
             self.G.nodes[core_id]["strength"] = new_strength
-            
+
             # Check invalidation for the core
             belief = self.G.nodes[core_id]
             category = BeliefCategory(belief["category"])
             threshold = CATEGORY_THRESHOLDS[category]
             self.G.nodes[core_id]["is_invalidated"] = new_strength < threshold
-    
+
     # === AUTONOMY DETERMINATION ===
-    
+
     def get_supervision_mode(
         self,
         belief_id: str,
@@ -632,16 +632,16 @@ class BeliefGraph:
         - >= 0.7: AUTONOMOUS
         """
         strength = self.get_belief_strength(belief_id, context)
-        
+
         if strength < 0.4:
             return SupervisionMode.GUIDANCE_SEEKING
         elif strength < 0.7:
             return SupervisionMode.ACTION_PROPOSAL
         else:
             return SupervisionMode.AUTONOMOUS
-    
+
     # === QUERIES ===
-    
+
     def get_beliefs_by_category(self, category: BeliefCategory) -> List[Dict]:
         """Get all beliefs in a category"""
         return [
@@ -649,7 +649,7 @@ class BeliefGraph:
             for n in self.G.nodes
             if self.G.nodes[n].get("category") == category.value
         ]
-    
+
     def get_high_strength_beliefs(self, threshold: float = 0.8) -> List[Dict]:
         """Get beliefs above strength threshold"""
         return [
@@ -657,7 +657,7 @@ class BeliefGraph:
             for n in self.G.nodes
             if self.G.nodes[n].get("strength", 0) >= threshold
         ]
-    
+
     def get_invalidated_beliefs(self) -> List[Dict]:
         """Get beliefs that have been invalidated"""
         return [
@@ -665,7 +665,7 @@ class BeliefGraph:
             for n in self.G.nodes
             if self.G.nodes[n].get("is_invalidated", False)
         ]
-    
+
     def get_relevant_beliefs(
         self,
         entity_ids: List[str],
@@ -682,7 +682,7 @@ class BeliefGraph:
             if any(e.lower() in statement for e in entity_ids):
                 strength = self.get_belief_strength(node_id, context)
                 relevant.append({**node, "belief_id": node_id, "current_strength": strength})
-        
+
         # Sort by strength descending
         relevant.sort(key=lambda b: b["current_strength"], reverse=True)
         return relevant[:limit]
@@ -728,7 +728,7 @@ When analyzing accounting tasks, consider:
 3. Segregation of duties
 4. Materiality thresholds
 """,
-    
+
     "situation_appraisal": """
 Analyze the current situation considering:
 
@@ -744,7 +744,7 @@ Provide structured appraisal:
 - uncertainty_areas: [list]
 - recommended_approach: string
 """,
-    
+
     "work_unit_vocabulary": """
 Generate semantic Work Units using these verbs:
 
@@ -772,7 +772,7 @@ Output format:
     "constraints": [{"type": "constraint_type", "value": "..."}]
 }
 """,
-    
+
     "validation_rules": """
 Verify the execution result against these criteria:
 
@@ -802,13 +802,13 @@ def cognitive_activation(state: CognitiveState) -> Dict[str, Any]:
     """
     # Load belief graph
     belief_graph = BeliefGraph.from_json(state["belief_graph_json"])
-    
+
     # Get high-strength beliefs for Objects column
     high_strength = belief_graph.get_high_strength_beliefs(threshold=0.8)
-    
+
     # Get invalidated beliefs (need attention)
     invalidated = belief_graph.get_invalidated_beliefs()
-    
+
     # Build context
     context = {
         "active_tasks": state["active_tasks"],
@@ -821,7 +821,7 @@ def cognitive_activation(state: CognitiveState) -> Dict[str, Any]:
         "user_input": state["user_input"],
         "conversation_history": state["conversation_history"][-10:]  # Last 10 turns
     }
-    
+
     return {"current_context": context}
 
 
@@ -831,7 +831,7 @@ def appraise_situation(state: CognitiveState) -> Dict[str, Any]:
     Applies situation_appraisal skill.
     """
     context = state["current_context"]
-    
+
     # Build prompt
     prompt = f"""
 {SKILLS["situation_appraisal"]}
@@ -848,20 +848,20 @@ Conversation History:
 
 Provide your appraisal as JSON.
 """
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}]
     )
-    
+
     # Parse response (assume JSON in response)
     appraisal_text = response.content[0].text
     try:
         appraisal = json.loads(appraisal_text)
     except:
         appraisal = {"raw": appraisal_text, "parsed": False}
-    
+
     return {"appraisal": appraisal}
 
 
@@ -872,21 +872,21 @@ def route_by_autonomy(state: CognitiveState) -> str:
     # Determine relevant belief for this task
     user_input = state["user_input"].lower()
     belief_graph = BeliefGraph.from_json(state["belief_graph_json"])
-    
+
     # Simple heuristic: find most relevant belief
     # In production, this would be more sophisticated
     relevant_beliefs = belief_graph.get_relevant_beliefs(
         entity_ids=[user_input.split()[:3]],  # First 3 words as entities
         limit=1
     )
-    
+
     if relevant_beliefs:
         belief = relevant_beliefs[0]
         mode = belief_graph.get_supervision_mode(belief["belief_id"])
     else:
         # No relevant belief = guidance seeking
         mode = SupervisionMode.GUIDANCE_SEEKING
-    
+
     return mode.value
 
 
@@ -909,20 +909,20 @@ Please help me understand:
 2. What should I watch out for?
 3. Can you show me how to do this?
 """
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}]
     )
-    
+
     # This requires human input - use LangGraph interrupt
     human_guidance = interrupt({
         "type": "guidance_request",
         "question": response.content[0].text,
         "context": state["current_context"]
     })
-    
+
     return {
         "supervision_mode": "guidance",
         "selected_action": {
@@ -951,22 +951,22 @@ Appraisal: {json.dumps(state["appraisal"], indent=2)}
 My Proposed Action:
 Generate a Work Unit that addresses this request.
 """
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}]
     )
-    
+
     proposed_action = response.content[0].text
-    
+
     # Request approval via interrupt
     approval = interrupt({
         "type": "approval_request",
         "proposed_action": proposed_action,
         "requires": "yes/no/modify"
     })
-    
+
     return {
         "supervision_mode": "proposal",
         "selected_action": {
@@ -994,13 +994,13 @@ Appraisal: {json.dumps(state["appraisal"], indent=2)}
 
 Generate the Work Unit and I will execute it.
 """
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}]
     )
-    
+
     return {
         "supervision_mode": "autonomous",
         "selected_action": {
@@ -1017,7 +1017,7 @@ def execute_action(state: CognitiveState) -> Dict[str, Any]:
     In production, this would call MCP servers / Stargate.
     """
     action = state["selected_action"]
-    
+
     if action.get("type") == "awaiting_guidance":
         # Learning from guidance
         result = {
@@ -1038,7 +1038,7 @@ def execute_action(state: CognitiveState) -> Dict[str, Any]:
             "status": "rejected",
             "reason": action.get("approval")
         }
-    
+
     return {"execution_result": result}
 
 
@@ -1048,10 +1048,10 @@ def verify_outcome(state: CognitiveState) -> Dict[str, Any]:
     Self-correcting validation with retry budget.
     """
     result = state["execution_result"]
-    
+
     if result.get("status") != "executed":
         return {"verification_result": {"is_valid": True, "skipped": True}}
-    
+
     prompt = f"""
 {SKILLS["validation_rules"]}
 
@@ -1060,18 +1060,18 @@ Verify this execution result:
 
 Original request: {state["user_input"]}
 """
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=500,
         messages=[{"role": "user", "content": prompt}]
     )
-    
+
     try:
         verification = json.loads(response.content[0].text)
     except:
         verification = {"is_valid": True, "raw": response.content[0].text}
-    
+
     return {"verification_result": verification}
 
 
@@ -1083,7 +1083,7 @@ def update_beliefs(state: CognitiveState) -> Dict[str, Any]:
     belief_graph = BeliefGraph.from_json(state["belief_graph_json"])
     result = state["execution_result"]
     verification = state["verification_result"]
-    
+
     # Determine outcome
     if result.get("status") == "learned":
         outcome = "neutral"  # Learning isn't success or failure
@@ -1095,14 +1095,14 @@ def update_beliefs(state: CognitiveState) -> Dict[str, Any]:
         outcome = "failure"
         severity = _calculate_severity(verification.get("issues", []))
         moral_valence = MoralValence.VIOLATION if _is_moral_context(state) else MoralValence.NEUTRAL
-    
+
     # Find and update relevant beliefs
     # In production, this would be more sophisticated
     relevant_beliefs = belief_graph.get_relevant_beliefs(
         entity_ids=state["user_input"].split()[:5],
         limit=3
     )
-    
+
     for belief in relevant_beliefs:
         belief_graph.update_belief(
             belief_id=belief["belief_id"],
@@ -1111,7 +1111,7 @@ def update_beliefs(state: CognitiveState) -> Dict[str, Any]:
             severity=severity if outcome == "failure" else 0.0,
             event_context={"user_input": state["user_input"]}
         )
-    
+
     # Create new belief if learned something
     if result.get("should_create_belief"):
         belief_graph.add_belief(
@@ -1120,7 +1120,7 @@ def update_beliefs(state: CognitiveState) -> Dict[str, Any]:
             category=BeliefCategory.CONTEXTUAL,
             initial_strength=0.5
         )
-    
+
     # Create memory
     memory = Memory(
         memory_id=str(uuid.uuid4()),
@@ -1130,7 +1130,7 @@ def update_beliefs(state: CognitiveState) -> Dict[str, Any]:
         emotional_valence=1.0 if outcome == "success" else -0.5 if outcome == "failure" else 0.0,
         related_belief_ids=[b["belief_id"] for b in relevant_beliefs]
     )
-    
+
     return {
         "belief_graph_json": belief_graph.to_json(),
         "memories": [memory.to_dict()],
@@ -1159,9 +1159,9 @@ def _calculate_severity(issues: List[Dict]) -> float:
 
 def build_cognitive_graph():
     """Build the LangGraph cognitive loop"""
-    
+
     builder = StateGraph(CognitiveState)
-    
+
     # Add nodes
     builder.add_node("activate", cognitive_activation)
     builder.add_node("appraise", appraise_situation)
@@ -1171,11 +1171,11 @@ def build_cognitive_graph():
     builder.add_node("execute", execute_action)
     builder.add_node("verify", verify_outcome)
     builder.add_node("update", update_beliefs)
-    
+
     # Add edges
     builder.add_edge(START, "activate")
     builder.add_edge("activate", "appraise")
-    
+
     # Conditional routing based on autonomy
     builder.add_conditional_edges(
         "appraise",
@@ -1186,34 +1186,34 @@ def build_cognitive_graph():
             "autonomous": "autonomous"
         }
     )
-    
+
     # All supervision modes lead to execute
     builder.add_edge("guidance", "execute")
     builder.add_edge("proposal", "execute")
     builder.add_edge("autonomous", "execute")
-    
+
     # Execute -> Verify -> Update -> END
     builder.add_edge("execute", "verify")
     builder.add_edge("verify", "update")
     builder.add_edge("update", END)
-    
+
     return builder
 
 
 def create_app(postgres_url: str):
     """Create the compiled graph with persistence"""
-    
+
     builder = build_cognitive_graph()
-    
+
     # Add Postgres checkpointer
     checkpointer = PostgresSaver.from_conn_string(postgres_url)
-    
+
     # Compile
     graph = builder.compile(
         checkpointer=checkpointer,
         interrupt_before=["guidance", "proposal"]  # HITL points
     )
-    
+
     return graph
 ```
 
@@ -1242,7 +1242,7 @@ async def birth_full(
     2. Domain knowledge injection
     3. Initial belief synthesis
     """
-    
+
     # === PILLAR 1: Social Context Enrichment ===
     async with httpx.AsyncClient() as client:
         # Apollo API enrichment
@@ -1252,7 +1252,7 @@ async def birth_full(
             json={"email": email}
         )
         profile = response.json() if response.status_code == 200 else {}
-    
+
     person = {
         "person_id": str(uuid.uuid4()),
         "name": profile.get("name", email.split("@")[0]),
@@ -1261,14 +1261,14 @@ async def birth_full(
         "industry": profile.get("organization", {}).get("industry", "Unknown"),
         "seniority": profile.get("seniority", "unknown")
     }
-    
+
     # === PILLAR 2: Domain Knowledge Injection ===
     # Load knowledge packs based on industry
     knowledge_packs = _load_knowledge_packs(person["industry"])
-    
+
     # === PILLAR 3: Initial Belief Synthesis ===
     belief_graph = BeliefGraph()
-    
+
     # Core ethical beliefs (high initial strength, high threshold)
     ethical_beliefs = [
         ("Maintain confidentiality of financial data", BeliefCategory.ETHICAL, 0.85),
@@ -1276,7 +1276,7 @@ async def birth_full(
         ("Follow segregation of duties requirements", BeliefCategory.ETHICAL, 0.80),
         ("Respect authorization boundaries", BeliefCategory.ETHICAL, 0.80),
     ]
-    
+
     for statement, category, strength in ethical_beliefs:
         belief_graph.add_belief(
             belief_id=str(uuid.uuid4()),
@@ -1285,7 +1285,7 @@ async def birth_full(
             initial_strength=strength,
             is_core=True
         )
-    
+
     # Contextual beliefs from knowledge packs (medium initial strength)
     for pack in knowledge_packs:
         for rule in pack.get("rules", []):
@@ -1295,7 +1295,7 @@ async def birth_full(
                 category=BeliefCategory.CONTEXTUAL,
                 initial_strength=0.5  # Appropriately uncertain
             )
-    
+
     # Role-based assumptions
     role_beliefs = _generate_role_beliefs(person["role"], person["seniority"])
     for statement, strength in role_beliefs:
@@ -1305,19 +1305,19 @@ async def birth_full(
             category=BeliefCategory.CONTEXTUAL,
             initial_strength=strength
         )
-    
+
     # === Build Initial State ===
     state: CognitiveState = {
         "org_id": str(uuid.uuid4()),
         "person_id": person["person_id"],
         "thread_id": "",  # Set by LangGraph
-        
+
         # Column 1: Empty initially
         "active_tasks": [],
-        
+
         # Column 2: Empty initially
         "notes": [],
-        
+
         # Column 3: Populated
         "people": [PersonObject(
             person_id=person["person_id"],
@@ -1331,20 +1331,20 @@ async def birth_full(
         "entities": [],
         "temporal_context": TemporalContext().to_dict(),
         "high_strength_beliefs": belief_graph.get_high_strength_beliefs(),
-        
+
         # Belief graph
         "belief_graph_json": belief_graph.to_json(),
-        
+
         # Memory: Empty initially
         "memories": [],
-        
+
         # Events: Empty initially
         "belief_events": [],
-        
+
         # Current interaction: Empty
         "user_input": "",
         "conversation_history": [],
-        
+
         # Cognitive loop state: Empty
         "current_context": {},
         "appraisal": {},
@@ -1352,13 +1352,13 @@ async def birth_full(
         "selected_action": {},
         "execution_result": {},
         "verification_result": {},
-        
+
         # Birth metadata
         "birth_timestamp": datetime.now().isoformat(),
         "birth_source": "full",
         "initial_beliefs_count": len(list(belief_graph.G.nodes))
     }
-    
+
     return state
 
 
@@ -1391,7 +1391,7 @@ def _load_knowledge_packs(industry: str) -> List[Dict]:
             ]
         }
     ]
-    
+
     industry_packs = {
         "Investment Management": [
             {
@@ -1404,16 +1404,16 @@ def _load_knowledge_packs(industry: str) -> List[Dict]:
         ],
         # ... other industries
     }
-    
+
     return base_packs + industry_packs.get(industry, [])
 
 
 def _generate_role_beliefs(role: str, seniority: str) -> List[Tuple[str, float]]:
     """Generate role-based initial beliefs"""
     beliefs = []
-    
+
     role_lower = role.lower()
-    
+
     if "analyst" in role_lower:
         beliefs.extend([
             ("Analysts typically handle variance analysis", 0.6),
@@ -1429,7 +1429,7 @@ def _generate_role_beliefs(role: str, seniority: str) -> List[Tuple[str, float]]
             ("Controllers have final approval on financial statements", 0.5),
             ("Controllers ensure compliance with accounting standards", 0.5),
         ])
-    
+
     return beliefs
 
 

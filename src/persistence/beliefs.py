@@ -7,11 +7,9 @@ One row per belief for queryability.
 """
 
 import json
-from typing import Optional
 from datetime import datetime
 
 from .database import get_connection
-
 
 # ============================================================
 # SHARED SQL AND HELPERS
@@ -108,6 +106,7 @@ def _row_to_belief(row) -> dict:
 # SAVE FUNCTIONS
 # ============================================================
 
+
 async def save_belief(org_id: str, belief: dict) -> None:
     """
     Save or update a belief in the database.
@@ -134,13 +133,15 @@ async def save_beliefs_batch(org_id: str, beliefs: list[dict]) -> None:
 # LOAD FUNCTIONS
 # ============================================================
 
+
 async def load_beliefs_for_org(org_id: str) -> list[dict]:
     """
     Load all beliefs for an organization.
     Used on cache miss to populate in-memory graph.
     """
     async with get_connection() as conn:
-        rows = await conn.fetch("""
+        rows = await conn.fetch(
+            """
             SELECT
                 belief_id, statement, category, strength,
                 context_key, context_states, supports, supported_by,
@@ -150,20 +151,20 @@ async def load_beliefs_for_org(org_id: str) -> list[dict]:
             FROM beliefs
             WHERE org_id = $1
             ORDER BY strength DESC
-        """, org_id)
+        """,
+            org_id,
+        )
 
         return [_row_to_belief(row) for row in rows]
 
 
 async def get_beliefs_by_category(
-    org_id: str,
-    category: str,
-    min_strength: float = 0.0,
-    limit: int = 50
+    org_id: str, category: str, min_strength: float = 0.0, limit: int = 50
 ) -> list[dict]:
     """Get beliefs filtered by category and minimum strength"""
     async with get_connection() as conn:
-        rows = await conn.fetch("""
+        rows = await conn.fetch(
+            """
             SELECT
                 belief_id, statement, category, strength,
                 context_key, context_states, supports, supported_by,
@@ -176,7 +177,12 @@ async def get_beliefs_by_category(
               AND strength >= $3
             ORDER BY strength DESC
             LIMIT $4
-        """, org_id, category, min_strength, limit)
+        """,
+            org_id,
+            category,
+            min_strength,
+            limit,
+        )
 
         return [_row_to_belief(row) for row in rows]
 
@@ -185,11 +191,16 @@ async def get_beliefs_by_category(
 # DELETE FUNCTION
 # ============================================================
 
+
 async def delete_belief(org_id: str, belief_id: str) -> bool:
     """Delete a belief (rare - usually just update strength to 0)"""
     async with get_connection() as conn:
-        result = await conn.execute("""
+        result = await conn.execute(
+            """
             DELETE FROM beliefs
             WHERE org_id = $1 AND belief_id = $2
-        """, org_id, belief_id)
+        """,
+            org_id,
+            belief_id,
+        )
         return result == "DELETE 1"

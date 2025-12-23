@@ -1,7 +1,13 @@
 """Test Apollo API enrichment"""
+
 import asyncio
-import json
-from src.birth.enrichment import enrich_from_apollo, map_industry_to_knowledge_pack, infer_authority_from_role, determine_org_size
+
+from src.birth.enrichment import (
+    determine_org_size,
+    enrich_from_apollo,
+    infer_authority_from_role,
+    map_industry_to_knowledge_pack,
+)
 
 
 async def test_apollo():
@@ -31,7 +37,11 @@ async def test_apollo():
     print(f"  Employees: {result.company.employee_count} ({result.company.employee_range})")
     print(f"  Revenue: {result.company.revenue_range}")
     print(f"  Location: {result.company.city}, {result.company.state}")
-    print(f"  Description: {result.company.description[:100]}..." if result.company.description else "  Description: N/A")
+    print(
+        f"  Description: {result.company.description[:100]}..."
+        if result.company.description
+        else "  Description: N/A"
+    )
     print(f"  Technologies: {result.company.technologies[:5]}")
     print(f"  Keywords: {result.company.keywords[:5]}")
 
@@ -52,7 +62,7 @@ async def test_apollo():
     if result.raw_response.get("person"):
         # Just show the keys
         print(f"  Person keys: {list(result.raw_response['person'].keys())[:15]}")
-        if result.raw_response['person'].get('organization'):
+        if result.raw_response["person"].get("organization"):
             print(f"  Org keys: {list(result.raw_response['person']['organization'].keys())[:15]}")
 
 

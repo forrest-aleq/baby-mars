@@ -13,7 +13,6 @@ Tests for the BeliefGraph class including:
 """
 
 import pytest
-from datetime import datetime
 
 
 class TestBeliefGraphBasics:
@@ -84,22 +83,22 @@ class TestSupportRelationships:
         assert derived1["belief_id"] in foundation["supports"]
         assert foundation["belief_id"] in derived1["supported_by"]
 
-    def test_add_support_relationship_invalid_supporter(self, populated_belief_graph, sample_belief):
+    def test_add_support_relationship_invalid_supporter(
+        self, populated_belief_graph, sample_belief
+    ):
         """Should raise error for non-existent supporter."""
         with pytest.raises(ValueError, match="Supporter belief"):
             populated_belief_graph.add_support_relationship(
-                "non-existent",
-                sample_belief["belief_id"],
-                0.8
+                "non-existent", sample_belief["belief_id"], 0.8
             )
 
-    def test_add_support_relationship_invalid_supported(self, populated_belief_graph, sample_belief):
+    def test_add_support_relationship_invalid_supported(
+        self, populated_belief_graph, sample_belief
+    ):
         """Should raise error for non-existent supported belief."""
         with pytest.raises(ValueError, match="Supported belief"):
             populated_belief_graph.add_support_relationship(
-                sample_belief["belief_id"],
-                "non-existent",
-                0.8
+                sample_belief["belief_id"], "non-existent", 0.8
             )
 
     def test_support_weight_stored(self, hierarchical_belief_graph):
@@ -118,8 +117,7 @@ class TestContextResolution:
         empty_belief_graph.add_belief(sample_belief)
 
         result = empty_belief_graph.resolve_belief_for_context(
-            sample_belief["belief_id"],
-            sample_belief["context_key"]
+            sample_belief["belief_id"], sample_belief["context_key"]
         )
 
         assert result is not None
@@ -133,14 +131,13 @@ class TestContextResolution:
             statement="Test",
             category="competence",
             initial_strength=0.8,
-            context_key="*|*|*"  # Global context
+            context_key="*|*|*",  # Global context
         )
         empty_belief_graph.add_belief(belief)
 
         # Query with specific context should backoff to global
         result = empty_belief_graph.resolve_belief_for_context(
-            belief["belief_id"],
-            "ClientA|month-end|>10K"
+            belief["belief_id"], "ClientA|month-end|>10K"
         )
 
         assert result is not None
@@ -152,18 +149,15 @@ class TestContextResolution:
 
         expected = [
             "ClientA|month-end|>10K",  # Exact
-            "ClientA|month-end|*",      # Drop amount
-            "ClientA|*|*",              # Drop period
-            "*|*|*"                     # Global
+            "ClientA|month-end|*",  # Drop amount
+            "ClientA|*|*",  # Drop period
+            "*|*|*",  # Global
         ]
         assert ladder == expected
 
     def test_resolve_returns_none_for_missing_belief(self, empty_belief_graph):
         """Should return None for non-existent belief."""
-        result = empty_belief_graph.resolve_belief_for_context(
-            "non-existent",
-            "*|*|*"
-        )
+        result = empty_belief_graph.resolve_belief_for_context("non-existent", "*|*|*")
         assert result is None
 
 
@@ -175,8 +169,7 @@ class TestGetOrCreateContextState:
         empty_belief_graph.add_belief(sample_belief)
 
         state = empty_belief_graph.get_or_create_context_state(
-            sample_belief["belief_id"],
-            sample_belief["context_key"]
+            sample_belief["belief_id"], sample_belief["context_key"]
         )
 
         assert state["strength"] == sample_belief["strength"]
@@ -186,8 +179,7 @@ class TestGetOrCreateContextState:
         empty_belief_graph.add_belief(sample_belief)
 
         state = empty_belief_graph.get_or_create_context_state(
-            sample_belief["belief_id"],
-            "new|context|key"
+            sample_belief["belief_id"], "new|context|key"
         )
 
         assert state is not None
@@ -199,17 +191,11 @@ class TestGetOrCreateContextState:
         from src.state.schema import create_belief
 
         belief = create_belief(
-            statement="Test",
-            category="competence",
-            initial_strength=0.9,
-            context_key="*|*|*"
+            statement="Test", category="competence", initial_strength=0.9, context_key="*|*|*"
         )
         empty_belief_graph.add_belief(belief)
 
-        state = empty_belief_graph.get_or_create_context_state(
-            belief["belief_id"],
-            "specific|*|*"
-        )
+        state = empty_belief_graph.get_or_create_context_state(belief["belief_id"], "specific|*|*")
 
         # Should inherit from parent (*|*|*)
         assert state["strength"] == 0.9
@@ -225,10 +211,7 @@ class TestAutonomyLevel:
         belief = create_belief("Test", "competence", initial_strength=0.3)
         empty_belief_graph.add_belief(belief)
 
-        level = empty_belief_graph.get_autonomy_level(
-            belief["belief_id"],
-            belief["context_key"]
-        )
+        level = empty_belief_graph.get_autonomy_level(belief["belief_id"], belief["context_key"])
 
         assert level == "guidance_seeking"
 
@@ -239,10 +222,7 @@ class TestAutonomyLevel:
         belief = create_belief("Test", "competence", initial_strength=0.5)
         empty_belief_graph.add_belief(belief)
 
-        level = empty_belief_graph.get_autonomy_level(
-            belief["belief_id"],
-            belief["context_key"]
-        )
+        level = empty_belief_graph.get_autonomy_level(belief["belief_id"], belief["context_key"])
 
         assert level == "action_proposal"
 
@@ -253,19 +233,13 @@ class TestAutonomyLevel:
         belief = create_belief("Test", "competence", initial_strength=0.85)
         empty_belief_graph.add_belief(belief)
 
-        level = empty_belief_graph.get_autonomy_level(
-            belief["belief_id"],
-            belief["context_key"]
-        )
+        level = empty_belief_graph.get_autonomy_level(belief["belief_id"], belief["context_key"])
 
         assert level == "autonomous"
 
     def test_missing_belief_guidance_seeking(self, empty_belief_graph):
         """Missing belief should default to guidance_seeking."""
-        level = empty_belief_graph.get_autonomy_level(
-            "non-existent",
-            "*|*|*"
-        )
+        level = empty_belief_graph.get_autonomy_level("non-existent", "*|*|*")
 
         assert level == "guidance_seeking"
 
@@ -279,8 +253,7 @@ class TestAutonomyLevel:
         empty_belief_graph.add_belief(belief2)
 
         mode, avg = empty_belief_graph.get_aggregate_autonomy(
-            [belief1["belief_id"], belief2["belief_id"]],
-            "*|*|*"
+            [belief1["belief_id"], belief2["belief_id"]], "*|*|*"
         )
 
         assert avg == pytest.approx(0.7)
@@ -297,7 +270,7 @@ class TestCascadingUpdates:
         # Update foundation
         affected = graph.cascade_strength_update(
             foundation["belief_id"],
-            0.5  # Decrease from 0.95
+            0.5,  # Decrease from 0.95
         )
 
         # Should affect all three beliefs
@@ -309,11 +282,7 @@ class TestCascadingUpdates:
         graph, foundation, derived1, _ = hierarchical_belief_graph
 
         # Add reverse relationship to create cycle
-        graph.add_support_relationship(
-            derived1["belief_id"],
-            foundation["belief_id"],
-            0.3
-        )
+        graph.add_support_relationship(derived1["belief_id"], foundation["belief_id"], 0.3)
 
         # Should not infinite loop
         affected = graph.cascade_strength_update(foundation["belief_id"], 0.8)
@@ -343,7 +312,7 @@ class TestBeliefOutcomeUpdates:
             sample_belief["belief_id"],
             sample_belief["context_key"],
             outcome="success",
-            difficulty_level=3
+            difficulty_level=3,
         )
 
         new_strength = sample_belief["strength"]
@@ -360,7 +329,7 @@ class TestBeliefOutcomeUpdates:
             sample_belief["belief_id"],
             sample_belief["context_key"],
             outcome="failure",
-            difficulty_level=3
+            difficulty_level=3,
         )
 
         new_strength = sample_belief["strength"]
@@ -375,10 +344,7 @@ class TestBeliefOutcomeUpdates:
 
         # Apply failure
         empty_belief_graph.update_belief_from_outcome(
-            sample_moral_belief["belief_id"],
-            "*|*|*",
-            outcome="failure",
-            difficulty_level=3
+            sample_moral_belief["belief_id"], "*|*|*", outcome="failure", difficulty_level=3
         )
 
         failure_drop = baseline - sample_moral_belief["strength"]
@@ -389,10 +355,7 @@ class TestBeliefOutcomeUpdates:
 
         # Apply success
         empty_belief_graph.update_belief_from_outcome(
-            sample_moral_belief["belief_id"],
-            "*|*|*",
-            outcome="success",
-            difficulty_level=3
+            sample_moral_belief["belief_id"], "*|*|*", outcome="success", difficulty_level=3
         )
 
         success_increase = sample_moral_belief["strength"] - baseline
@@ -411,7 +374,7 @@ class TestBeliefOutcomeUpdates:
             outcome="success",
             difficulty_level=3,
             is_end_memory=True,
-            emotional_intensity=0.9
+            emotional_intensity=0.9,
         )
 
         assert sample_belief["is_end_memory_influenced"] == True
@@ -425,7 +388,7 @@ class TestBeliefOutcomeUpdates:
             sample_belief["belief_id"],
             sample_belief["context_key"],
             outcome="success",
-            difficulty_level=3
+            difficulty_level=3,
         )
 
         assert sample_belief["success_count"] == 1
@@ -438,7 +401,7 @@ class TestBeliefOutcomeUpdates:
             sample_belief["belief_id"],
             sample_belief["context_key"],
             outcome="failure",
-            difficulty_level=3
+            difficulty_level=3,
         )
 
         assert sample_belief["failure_count"] == 1
@@ -453,7 +416,7 @@ class TestACREInvalidation:
 
         allowed, reason = empty_belief_graph.check_invalidation_allowed(
             sample_belief["belief_id"],
-            sample_belief["strength"] - 0.05  # Small decrease
+            sample_belief["strength"] - 0.05,  # Small decrease
         )
 
         assert allowed == True
@@ -467,7 +430,7 @@ class TestACREInvalidation:
 
         allowed, reason = empty_belief_graph.check_invalidation_allowed(
             belief["belief_id"],
-            0.5  # Large decrease
+            0.5,  # Large decrease
         )
 
         assert allowed == False
@@ -479,7 +442,7 @@ class TestACREInvalidation:
 
         allowed, reason = empty_belief_graph.check_invalidation_allowed(
             sample_identity_belief["belief_id"],
-            0.1  # Try to invalidate
+            0.1,  # Try to invalidate
         )
 
         # Identity has threshold 1.0, so any significant decrease is blocked
@@ -491,20 +454,14 @@ class TestActivation:
 
     def test_get_activated_beliefs(self, populated_belief_graph):
         """Should return beliefs above minimum strength."""
-        activated = populated_belief_graph.get_activated_beliefs(
-            "*|*|*",
-            min_strength=0.5
-        )
+        activated = populated_belief_graph.get_activated_beliefs("*|*|*", min_strength=0.5)
 
         # Both beliefs in fixture have strength >= 0.5
         assert len(activated) >= 1
 
     def test_activated_beliefs_sorted(self, populated_belief_graph):
         """Activated beliefs should be sorted by strength."""
-        activated = populated_belief_graph.get_activated_beliefs(
-            "*|*|*",
-            min_strength=0.0
-        )
+        activated = populated_belief_graph.get_activated_beliefs("*|*|*", min_strength=0.0)
 
         strengths = [b["resolved_strength"] for b in activated]
         assert strengths == sorted(strengths, reverse=True)
@@ -531,6 +488,7 @@ class TestSerialization:
 
         # Deserialize
         from src.graphs.belief_graph import BeliefGraph
+
         restored = BeliefGraph.deserialize(json_str)
 
         # Verify beliefs
@@ -549,6 +507,7 @@ class TestSerialization:
 
         # From dict
         from src.graphs.belief_graph import BeliefGraph
+
         restored = BeliefGraph.from_dict(data)
 
         assert len(restored.beliefs) == len(graph.beliefs)
@@ -582,7 +541,7 @@ class TestSeedInitialBeliefs:
 
     def test_seed_creates_beliefs(self):
         """seed_initial_beliefs should populate the graph."""
-        from src.graphs.belief_graph import seed_initial_beliefs, BeliefGraph
+        from src.graphs.belief_graph import BeliefGraph, seed_initial_beliefs
 
         graph = BeliefGraph()
         seed_initial_beliefs(graph)
@@ -591,7 +550,7 @@ class TestSeedInitialBeliefs:
 
     def test_seed_creates_identity_beliefs(self):
         """Should create immutable identity beliefs."""
-        from src.graphs.belief_graph import seed_initial_beliefs, BeliefGraph
+        from src.graphs.belief_graph import BeliefGraph, seed_initial_beliefs
 
         graph = BeliefGraph()
         seed_initial_beliefs(graph)
@@ -601,7 +560,7 @@ class TestSeedInitialBeliefs:
 
     def test_seed_creates_support_relationships(self):
         """Should create support relationships."""
-        from src.graphs.belief_graph import seed_initial_beliefs, BeliefGraph
+        from src.graphs.belief_graph import BeliefGraph, seed_initial_beliefs
 
         graph = BeliefGraph()
         seed_initial_beliefs(graph)
@@ -611,7 +570,7 @@ class TestSeedInitialBeliefs:
 
     def test_seed_uses_mars_taxonomy(self):
         """Should use MARS taxonomy (moral, competence, technical, preference, identity)."""
-        from src.graphs.belief_graph import seed_initial_beliefs, BeliefGraph
+        from src.graphs.belief_graph import BeliefGraph, seed_initial_beliefs
 
         graph = BeliefGraph()
         seed_initial_beliefs(graph)

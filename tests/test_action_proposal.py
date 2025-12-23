@@ -8,24 +8,29 @@ Tests for the HITL action proposal node including:
 - Routing logic
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestGenerateActionSummary:
     """Test human-readable summary generation."""
 
     @pytest.mark.asyncio
-    async def test_generates_summary_with_claude(self, sample_state_with_action, mock_claude_client):
+    async def test_generates_summary_with_claude(
+        self, sample_state_with_action, mock_claude_client
+    ):
         """Should use Claude to generate summary."""
         from src.cognitive_loop.nodes.action_proposal import generate_action_summary
 
         mock_claude_client.complete.return_value = "I'd like to process the invoice..."
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             summary = await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         assert len(summary) > 0
@@ -38,10 +43,12 @@ class TestGenerateActionSummary:
 
         mock_claude_client.complete.side_effect = Exception("API Error")
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             summary = await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         assert "perform the following action" in summary
@@ -54,10 +61,12 @@ class TestGenerateActionSummary:
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         # Check the prompt contains work unit info
@@ -74,9 +83,7 @@ class TestBuildInterruptPayload:
         from src.cognitive_loop.nodes.action_proposal import build_interrupt_payload
 
         payload = build_interrupt_payload(
-            sample_state_with_action,
-            sample_state_with_action["selected_action"],
-            "Test summary"
+            sample_state_with_action, sample_state_with_action["selected_action"], "Test summary"
         )
 
         assert payload["type"] == "action_proposal"
@@ -91,11 +98,7 @@ class TestBuildInterruptPayload:
 
         action = sample_state_with_action["selected_action"]
 
-        payload = build_interrupt_payload(
-            sample_state_with_action,
-            action,
-            "Summary"
-        )
+        payload = build_interrupt_payload(sample_state_with_action, action, "Summary")
 
         assert payload["action_type"] == action["action_type"]
         assert payload["work_unit_count"] == len(action["work_units"])
@@ -106,9 +109,7 @@ class TestBuildInterruptPayload:
         from src.cognitive_loop.nodes.action_proposal import build_interrupt_payload
 
         payload = build_interrupt_payload(
-            sample_state_with_action,
-            sample_state_with_action["selected_action"],
-            "Summary"
+            sample_state_with_action, sample_state_with_action["selected_action"], "Summary"
         )
 
         assert payload["thread_id"] == sample_state_with_action["thread_id"]
@@ -170,8 +171,11 @@ class TestProcessFunction:
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.action_proposal.interrupt') as mock_interrupt:
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.action_proposal.interrupt") as mock_interrupt:
                 mock_interrupt.return_value = {"choice": "approve"}
 
                 result = await process(sample_state_with_action)
@@ -186,8 +190,11 @@ class TestProcessFunction:
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.action_proposal.interrupt') as mock_interrupt:
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.action_proposal.interrupt") as mock_interrupt:
                 mock_interrupt.return_value = {"choice": "reject"}
 
                 result = await process(sample_state_with_action)
@@ -197,14 +204,19 @@ class TestProcessFunction:
         assert result["selected_action"] is None
 
     @pytest.mark.asyncio
-    async def test_non_dict_response_treated_as_reject(self, sample_state_with_action, mock_claude_client):
+    async def test_non_dict_response_treated_as_reject(
+        self, sample_state_with_action, mock_claude_client
+    ):
         """Non-dict interrupt response should be treated as rejection."""
         from src.cognitive_loop.nodes.action_proposal import process
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.action_proposal.interrupt') as mock_interrupt:
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.action_proposal.interrupt") as mock_interrupt:
                 mock_interrupt.return_value = "invalid_response"
 
                 result = await process(sample_state_with_action)
@@ -222,15 +234,17 @@ class TestMessageExtraction:
 
         sample_state_with_action["messages"] = [
             {"role": "user", "content": "Process my invoice please"},
-            {"role": "assistant", "content": "I'll help you with that"}
+            {"role": "assistant", "content": "I'll help you with that"},
         ]
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         call_args = mock_claude_client.complete.call_args
@@ -247,18 +261,20 @@ class TestMessageExtraction:
                 "role": "user",
                 "content": [
                     {"type": "text", "text": "First part"},
-                    {"type": "text", "text": "Second part"}
-                ]
+                    {"type": "text", "text": "Second part"},
+                ],
             }
         ]
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             # Should not raise error
             await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
     @pytest.mark.asyncio
@@ -267,16 +283,16 @@ class TestMessageExtraction:
         from src.cognitive_loop.nodes.action_proposal import generate_action_summary
 
         long_message = "x" * 500
-        sample_state_with_action["messages"] = [
-            {"role": "user", "content": long_message}
-        ]
+        sample_state_with_action["messages"] = [{"role": "user", "content": long_message}]
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         # The prompt shouldn't contain the full 500 chars
@@ -301,7 +317,7 @@ class TestWorkUnitDescriptions:
                 "verb": "process_invoice",
                 "entities": {"invoice_id": "INV-1234"},
                 "slots": {},
-                "constraints": []
+                "constraints": [],
             },
             {
                 "unit_id": "wu-2",
@@ -309,16 +325,18 @@ class TestWorkUnitDescriptions:
                 "verb": "process_payment",
                 "entities": {"amount": 5000},
                 "slots": {},
-                "constraints": []
-            }
+                "constraints": [],
+            },
         ]
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         call_args = mock_claude_client.complete.call_args
@@ -335,10 +353,12 @@ class TestWorkUnitDescriptions:
 
         mock_claude_client.complete.return_value = "Summary"
 
-        with patch('src.cognitive_loop.nodes.action_proposal.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.action_proposal.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             summary = await generate_action_summary(
-                sample_state_with_action,
-                sample_state_with_action["selected_action"]
+                sample_state_with_action, sample_state_with_action["selected_action"]
             )
 
         # Should not error

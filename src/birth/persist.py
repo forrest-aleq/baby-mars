@@ -10,8 +10,8 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
-from ..persistence.database import get_connection
 from ..persistence.beliefs import save_beliefs_batch
+from ..persistence.database import get_connection
 
 
 async def persist_birth(
@@ -45,7 +45,8 @@ async def persist_birth(
         async with conn.transaction():
             try:
                 # 1. Upsert Organization
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO organizations (
                         org_id, name, industry, size, settings, created_at
                     ) VALUES ($1, $2, $3, $4, $5, $6)
@@ -63,7 +64,8 @@ async def persist_birth(
                 )
 
                 # 2. Insert Person (fail if exists - idempotency)
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO persons (
                         person_id, org_id, name, email, role, authority,
                         seniority, department, timezone, apollo_data,
@@ -99,10 +101,7 @@ async def persist_birth(
 async def check_person_exists(email: str) -> bool:
     """Check if person already exists (idempotency check)."""
     async with get_connection() as conn:
-        result = await conn.fetchval(
-            "SELECT 1 FROM persons WHERE email = $1",
-            email
-        )
+        result = await conn.fetchval("SELECT 1 FROM persons WHERE email = $1", email)
         return result is not None
 
 

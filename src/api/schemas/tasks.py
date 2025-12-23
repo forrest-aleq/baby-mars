@@ -6,32 +6,32 @@ Request/response models for task management.
 Per API_CONTRACT_V0.md section 2
 """
 
-from typing import Optional, Literal
-from datetime import datetime
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
 
 from .common import PaginatedResponse
 
-
 TaskStatus = Literal[
-    "pending",      # Queued, not started
-    "running",      # Actively working
-    "blocked",      # Waiting on external (decision, data, human)
-    "paused",       # User explicitly paused
-    "completed",    # Done successfully
-    "failed",       # Unrecoverable error
-    "superseded",   # Replaced by newer task
+    "pending",  # Queued, not started
+    "running",  # Actively working
+    "blocked",  # Waiting on external (decision, data, human)
+    "paused",  # User explicitly paused
+    "completed",  # Done successfully
+    "failed",  # Unrecoverable error
+    "superseded",  # Replaced by newer task
 ]
 
 TaskSource = Literal[
-    "system",       # Auto-triggered (lockbox, overdue, etc.)
-    "user",         # User requested
-    "aleq",         # Aleq proposed
+    "system",  # Auto-triggered (lockbox, overdue, etc.)
+    "user",  # User requested
+    "aleq",  # Aleq proposed
 ]
 
 
 class TaskTimelineEntry(BaseModel):
     """Single entry in task timeline"""
+
     timestamp: str
     event: str = Field(..., description="What happened")
     actor: str = Field(..., description="Who/what did it: 'aleq', 'system', user_id")
@@ -40,6 +40,7 @@ class TaskTimelineEntry(BaseModel):
 
 class TaskSummary(BaseModel):
     """Task summary for list views"""
+
     task_id: str
     type: str = Field(..., description="Task type: lockbox, collection, close, etc.")
     summary: str = Field(..., description="Human-readable summary")
@@ -56,6 +57,7 @@ class TaskSummary(BaseModel):
 
 class TaskDecision(BaseModel):
     """Decision summary within task context"""
+
     decision_id: str
     type: str
     summary: str
@@ -66,6 +68,7 @@ class TaskDecision(BaseModel):
 
 class TaskDetail(BaseModel):
     """Full task detail"""
+
     task_id: str
     type: str
     summary: str
@@ -102,6 +105,7 @@ class TaskDetail(BaseModel):
 
 class TaskTimeline(BaseModel):
     """Just the timeline for refresh"""
+
     task_id: str
     timeline: list[TaskTimelineEntry]
     status: TaskStatus
@@ -110,6 +114,7 @@ class TaskTimeline(BaseModel):
 
 class TaskListResponse(PaginatedResponse):
     """Paginated task list"""
+
     tasks: list[TaskSummary]
 
 
@@ -118,6 +123,7 @@ class TaskProgressEvent(BaseModel):
     SSE progress event for long-running tasks.
     Per API_CONTRACT_V0.md section 2.4
     """
+
     task_id: str
     stage: int
     stage_name: str
@@ -129,6 +135,7 @@ class TaskProgressEvent(BaseModel):
 
 class TaskMilestoneEvent(BaseModel):
     """Milestone event for stage completion"""
+
     task_id: str
     type: Literal["stage_complete", "checkpoint", "error_recovered"]
     stage: int

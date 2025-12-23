@@ -10,21 +10,20 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Optional
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sse_starlette.sse import EventSourceResponse
 
-from ..schemas.chat import (
-    MessageRequest,
-    MessageResponse,
-    ChatInterruptRequest,
-    ChatInterruptResponse,
-    ApprovalRequest,
-    Reference,
-)
 from ...birth.birth_system import create_initial_state
 from ...cognitive_loop.graph import invoke_cognitive_loop, stream_cognitive_loop
+from ..schemas.chat import (
+    ApprovalRequest,
+    ChatInterruptRequest,
+    ChatInterruptResponse,
+    MessageRequest,
+    MessageResponse,
+    Reference,
+)
 
 logger = logging.getLogger("baby_mars.api.chat")
 
@@ -45,9 +44,9 @@ def get_session(request: Request, session_id: str) -> dict:
                     "recoverable": True,
                     "actions": [
                         {"label": "Start new session", "action": "new_session"},
-                    ]
+                    ],
                 }
-            }
+            },
         )
     return session
 
@@ -80,15 +79,9 @@ async def send_message(request_data: MessageRequest, request: Request):
     try:
         # Create or update state
         if session["state"] is None:
-            session["state"] = create_initial_state(
-                session["birth_result"],
-                request_data.message
-            )
+            session["state"] = create_initial_state(session["birth_result"], request_data.message)
         else:
-            session["state"]["messages"].append({
-                "role": "user",
-                "content": request_data.message
-            })
+            session["state"]["messages"].append({"role": "user", "content": request_data.message})
             session["state"]["current_turn"] += 1
 
         session["message_count"] += 1
@@ -96,17 +89,12 @@ async def send_message(request_data: MessageRequest, request: Request):
         # Store context pills in state
         if request_data.context_pills:
             session["context_pills"] = [
-                {"type": p.type, "id": p.id}
-                for p in request_data.context_pills
+                {"type": p.type, "id": p.id} for p in request_data.context_pills
             ]
             # TODO: Resolve pills to actual data and add to state
 
         # Run cognitive loop
-        config = {
-            "configurable": {
-                "thread_id": session["state"]["thread_id"]
-            }
-        }
+        config = {"configurable": {"thread_id": session["state"]["thread_id"]}}
 
         result = await invoke_cognitive_loop(
             state=session["state"],
@@ -130,11 +118,13 @@ async def send_message(request_data: MessageRequest, request: Request):
         references = []
         if result.get("referenced_objects"):
             for ref in result["referenced_objects"]:
-                references.append(Reference(
-                    type=ref.get("type", "widget"),
-                    id=ref.get("id", ""),
-                    intensity=ref.get("intensity", "mention")
-                ))
+                references.append(
+                    Reference(
+                        type=ref.get("type", "widget"),
+                        id=ref.get("id", ""),
+                        intensity=ref.get("intensity", "mention"),
+                    )
+                )
 
         logger.info(
             f"Message processed: session={request_data.session_id}, "
@@ -165,9 +155,9 @@ async def send_message(request_data: MessageRequest, request: Request):
                     "retry": {"after_seconds": 2, "max_attempts": 3, "strategy": "exponential"},
                     "actions": [
                         {"label": "Try again", "action": "retry"},
-                    ]
+                    ],
                 }
-            }
+            },
         )
 
 
@@ -195,23 +185,17 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
             # Create or update state
             if session["state"] is None:
                 session["state"] = create_initial_state(
-                    session["birth_result"],
-                    request_data.message
+                    session["birth_result"], request_data.message
                 )
             else:
-                session["state"]["messages"].append({
-                    "role": "user",
-                    "content": request_data.message
-                })
+                session["state"]["messages"].append(
+                    {"role": "user", "content": request_data.message}
+                )
                 session["state"]["current_turn"] += 1
 
             session["message_count"] += 1
 
-            config = {
-                "configurable": {
-                    "thread_id": session["state"]["thread_id"]
-                }
-            }
+            config = {"configurable": {"thread_id": session["state"]["thread_id"]}}
 
             # Stream events from cognitive loop
             async for event in stream_cognitive_loop(
@@ -223,10 +207,12 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
                 if session["interrupt_event"].is_set():
                     yield {
                         "event": "interrupted",
-                        "data": json.dumps({
-                            "partial_response": session["state"].get("final_response", ""),
-                            "will_resume": True
-                        })
+                        "data": json.dumps(
+                            {
+                                "partial_response": session["state"].get("final_response", ""),
+                                "will_resume": True,
+                            }
+                        ),
                     }
                     return
 
@@ -234,10 +220,7 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
 
                 if event_type == "on_chain_start":
                     node_name = event.get("name", "unknown")
-                    yield {
-                        "event": "node_start",
-                        "data": json.dumps({"node": node_name})
-                    }
+                    yield {"event": "node_start", "data": json.dumps({"node": node_name})}
 
                 elif event_type == "on_chain_end":
                     node_name = event.get("name", "unknown")
@@ -248,37 +231,36 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
 
                     yield {
                         "event": "node_end",
-                        "data": json.dumps({
-                            "node": node_name,
-                            "supervision_mode": session["state"].get("supervision_mode"),
-                        })
+                        "data": json.dumps(
+                            {
+                                "node": node_name,
+                                "supervision_mode": session["state"].get("supervision_mode"),
+                            }
+                        ),
                     }
 
                 elif event_type == "on_llm_stream":
                     chunk = event.get("data", {}).get("chunk", "")
                     if chunk:
-                        yield {
-                            "event": "token",
-                            "data": json.dumps({"text": chunk})
-                        }
+                        yield {"event": "token", "data": json.dumps({"text": chunk})}
 
             # Send completion
             yield {
                 "event": "complete",
-                "data": json.dumps({
-                    "response": session["state"].get("final_response", ""),
-                    "supervision_mode": session["state"].get("supervision_mode", ""),
-                    "belief_strength": session["state"].get("belief_strength_for_action", 0.0),
-                    "approval_needed": session["state"].get("supervision_mode") == "action_proposal",
-                })
+                "data": json.dumps(
+                    {
+                        "response": session["state"].get("final_response", ""),
+                        "supervision_mode": session["state"].get("supervision_mode", ""),
+                        "belief_strength": session["state"].get("belief_strength_for_action", 0.0),
+                        "approval_needed": session["state"].get("supervision_mode")
+                        == "action_proposal",
+                    }
+                ),
             }
 
         except Exception as e:
             logger.error(f"Stream error: {e}", exc_info=True)
-            yield {
-                "event": "error",
-                "data": json.dumps({"message": str(e)})
-            }
+            yield {"event": "error", "data": json.dumps({"message": str(e)})}
         finally:
             # Clean up interrupt event
             session["interrupt_event"] = None
@@ -346,7 +328,7 @@ async def approve_action(request_data: ApprovalRequest, request: Request):
                     "message": "No conversation state found",
                     "severity": "warning",
                 }
-            }
+            },
         )
 
     if state.get("supervision_mode") != "action_proposal":
@@ -358,7 +340,7 @@ async def approve_action(request_data: ApprovalRequest, request: Request):
                     "message": "No action waiting for approval",
                     "severity": "info",
                 }
-            }
+            },
         )
 
     try:
@@ -368,22 +350,21 @@ async def approve_action(request_data: ApprovalRequest, request: Request):
         # Add feedback as note
         if request_data.feedback:
             import uuid
-            state["notes"].append({
-                "note_id": f"approval_feedback_{uuid.uuid4().hex[:8]}",
-                "content": request_data.feedback,
-                "created_at": datetime.now().isoformat(),
-                "ttl_hours": 24,
-                "priority": 0.8,
-                "source": "user",
-                "context": {"approval": request_data.approved}
-            })
+
+            state["notes"].append(
+                {
+                    "note_id": f"approval_feedback_{uuid.uuid4().hex[:8]}",
+                    "content": request_data.feedback,
+                    "created_at": datetime.now().isoformat(),
+                    "ttl_hours": 24,
+                    "priority": 0.8,
+                    "source": "user",
+                    "context": {"approval": request_data.approved},
+                }
+            )
 
         # Continue cognitive loop
-        config = {
-            "configurable": {
-                "thread_id": state["thread_id"]
-            }
-        }
+        config = {"configurable": {"thread_id": state["thread_id"]}}
 
         result = await invoke_cognitive_loop(
             state=state,
@@ -393,7 +374,9 @@ async def approve_action(request_data: ApprovalRequest, request: Request):
 
         session["state"] = result
 
-        logger.info(f"Approval processed: session={request_data.session_id}, approved={request_data.approved}")
+        logger.info(
+            f"Approval processed: session={request_data.session_id}, approved={request_data.approved}"
+        )
 
         return MessageResponse(
             session_id=request_data.session_id,

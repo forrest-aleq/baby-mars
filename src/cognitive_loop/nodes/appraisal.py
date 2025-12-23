@@ -12,19 +12,16 @@ Implements the appraisal phase of the cognitive loop:
 - Uncertainty identification
 """
 
-from typing import Any
-from pydantic import BaseModel, Field
-
+from ...claude_client import AppraisalOutput, get_claude_client
 from ...state.schema import (
-    BabyMARSState,
     AppraisalResult,
+    BabyMARSState,
 )
-from ...claude_client import get_claude_client, AppraisalOutput
-
 
 # ============================================================
 # CONTEXT BUILDING
 # ============================================================
+
 
 def build_appraisal_context(state: BabyMARSState) -> str:
     """
@@ -32,7 +29,7 @@ def build_appraisal_context(state: BabyMARSState) -> str:
     Includes activated beliefs, current context, and conversation history.
     """
     parts = []
-    
+
     # Current message
     messages = state.get("messages", [])
     if messages:
@@ -41,18 +38,22 @@ def build_appraisal_context(state: BabyMARSState) -> str:
         if isinstance(content, list):
             content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
         parts.append(f"<current_request>\n{content}\n</current_request>")
-    
+
     # Context key
     context_key = state.get("current_context_key", "*|*|*")
     parts.append(f"<context_key>{context_key}</context_key>")
-    
+
     # Activated beliefs - prioritize competence/technical over identity
     # Identity beliefs are constraints, competence beliefs drive capability
     beliefs = state.get("activated_beliefs", [])
     if beliefs:
         # Group by category
-        competence_beliefs = [b for b in beliefs if b.get("category") in ("competence", "technical")]
-        other_beliefs = [b for b in beliefs if b.get("category") not in ("competence", "technical", "identity")]
+        competence_beliefs = [
+            b for b in beliefs if b.get("category") in ("competence", "technical")
+        ]
+        other_beliefs = [
+            b for b in beliefs if b.get("category") not in ("competence", "technical", "identity")
+        ]
         identity_beliefs = [b for b in beliefs if b.get("category") == "identity"]
 
         # Show competence first (most relevant for autonomy), then others, then identity
@@ -65,16 +66,16 @@ def build_appraisal_context(state: BabyMARSState) -> str:
                 f"- [{b['belief_id']}] {b['statement']} "
                 f"(category={b['category']}, strength={strength:.2f})"
             )
-        parts.append(f"<activated_beliefs>\n" + "\n".join(belief_strs) + "\n</activated_beliefs>")
-    
+        parts.append("<activated_beliefs>\n" + "\n".join(belief_strs) + "\n</activated_beliefs>")
+
     # Active goals
     goals = state.get("active_goals", [])
     if goals:
         goal_strs = []
         for g in goals:
             goal_strs.append(f"- [{g.get('goal_id', 'unknown')}] {g.get('description', '')}")
-        parts.append(f"<active_goals>\n" + "\n".join(goal_strs) + "\n</active_goals>")
-    
+        parts.append("<active_goals>\n" + "\n".join(goal_strs) + "\n</active_goals>")
+
     # People in context
     objects = state.get("objects", {})
     people = objects.get("people", [])
@@ -86,8 +87,8 @@ def build_appraisal_context(state: BabyMARSState) -> str:
                 f"authority={p.get('authority', 0):.2f}, "
                 f"relationship_value={p.get('relationship_value', 0):.2f}"
             )
-        parts.append(f"<people_context>\n" + "\n".join(people_strs) + "\n</people_context>")
-    
+        parts.append("<people_context>\n" + "\n".join(people_strs) + "\n</people_context>")
+
     # Temporal context
     temporal = objects.get("temporal", {})
     if temporal:
@@ -98,7 +99,7 @@ def build_appraisal_context(state: BabyMARSState) -> str:
 - Year-end: {temporal.get('is_year_end', False)}
 - Urgency multiplier: {temporal.get('urgency_multiplier', 1.0)}
 </temporal_context>""")
-    
+
     return "\n\n".join(parts)
 
 
@@ -106,22 +107,23 @@ def build_appraisal_context(state: BabyMARSState) -> str:
 # MAIN PROCESS FUNCTION
 # ============================================================
 
+
 async def process(state: BabyMARSState) -> dict:
     """
     Appraisal Node
-    
+
     Analyzes the current situation:
     1. Build context from state
     2. Call Claude with appraisal skill
     3. Parse structured response
     4. Return appraisal result
     """
-    
+
     client = get_claude_client()
-    
+
     # Build context for Claude
     context = build_appraisal_context(state)
-    
+
     # Build messages
     messages = [
         {
@@ -141,39 +143,39 @@ Analyze the request and provide a structured appraisal including:
 - Difficulty assessment (1-5)
 - Whether ethical beliefs are involved
 
-Return your appraisal in the structured format."""
+Return your appraisal in the structured format.""",
         }
     ]
-    
+
     try:
         # Call Claude with structured output
         appraisal = await client.complete_structured(
             messages=messages,
             response_model=AppraisalOutput,
-            skills=["situation_appraisal", "accounting_domain"]
+            skills=["situation_appraisal", "accounting_domain"],
         )
-        
+
         # Convert to AppraisalResult format
         result: AppraisalResult = {
-            "expectancy_violation": {
-                "type": appraisal.expectancy_violation,
-                "description": None
-            } if appraisal.expectancy_violation else None,
+            "expectancy_violation": {"type": appraisal.expectancy_violation, "description": None}
+            if appraisal.expectancy_violation
+            else None,
             "face_threat": {
                 "level": appraisal.face_threat_level,
-                "mitigation_needed": appraisal.face_threat_level > 0.3
-            } if appraisal.face_threat_level > 0 else None,
+                "mitigation_needed": appraisal.face_threat_level > 0.3,
+            }
+            if appraisal.face_threat_level > 0
+            else None,
             "goal_alignment": appraisal.goal_alignment,
             "attributed_beliefs": appraisal.relevant_belief_ids,
             "recommended_action_type": _map_approach(appraisal.recommended_approach),
             "difficulty": appraisal.difficulty_assessment,
-            "involves_ethical_beliefs": appraisal.involves_ethical_beliefs
+            "involves_ethical_beliefs": appraisal.involves_ethical_beliefs,
         }
-        
+
         # Compute belief strength first (Paper #1)
         belief_strength = _compute_aggregate_strength(
-            appraisal.relevant_belief_ids,
-            state.get("activated_beliefs", [])
+            appraisal.relevant_belief_ids, state.get("activated_beliefs", [])
         )
 
         # Determine supervision mode from belief strength (Paper #1)
@@ -182,9 +184,9 @@ Return your appraisal in the structured format."""
         return {
             "appraisal": result,
             "supervision_mode": supervision_mode,
-            "belief_strength_for_action": belief_strength
+            "belief_strength_for_action": belief_strength,
         }
-        
+
     except Exception as e:
         # Fallback to safe defaults on error
         print(f"Appraisal error: {e}")
@@ -196,10 +198,10 @@ Return your appraisal in the structured format."""
                 "attributed_beliefs": [],
                 "recommended_action_type": "guidance_needed",
                 "difficulty": 3,
-                "involves_ethical_beliefs": False
+                "involves_ethical_beliefs": False,
             },
             "supervision_mode": "guidance_seeking",
-            "belief_strength_for_action": 0.3
+            "belief_strength_for_action": 0.3,
         }
 
 
@@ -208,15 +210,13 @@ def _map_approach(approach: str) -> str:
     mapping = {
         "seek_guidance": "guidance_needed",
         "propose_action": "propose_and_confirm",
-        "execute": "execute_directly"
+        "execute": "execute_directly",
     }
     return mapping.get(approach, "guidance_needed")
 
 
 def _determine_supervision_mode(
-    appraisal: AppraisalOutput,
-    state: BabyMARSState,
-    belief_strength: float
+    appraisal: AppraisalOutput, state: BabyMARSState, belief_strength: float
 ) -> str:
     """
     Determine supervision mode primarily from belief strength (Paper #1).

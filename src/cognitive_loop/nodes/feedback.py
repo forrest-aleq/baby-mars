@@ -12,29 +12,26 @@ Key responsibilities:
 4. Handle peak-end memory weighting
 """
 
+import uuid
 from datetime import datetime
 from typing import Optional
-import uuid
 
+from ...graphs.belief_graph_manager import get_org_belief_graph, save_org_belief
 from ...state.schema import (
     BabyMARSState,
-    Memory,
     FeedbackEvent,
+    Memory,
 )
-from ...graphs.belief_graph_manager import get_org_belief_graph, save_org_belief
-
 
 # ============================================================
 # OUTCOME ANALYSIS
 # ============================================================
 
-def analyze_outcome(
-    execution_results: list[dict],
-    validation_results: list[dict]
-) -> dict:
+
+def analyze_outcome(execution_results: list[dict], validation_results: list[dict]) -> dict:
     """
     Analyze execution and validation results to determine outcome.
-    
+
     Returns:
         outcome_type: "success", "partial_success", "failure"
         success_rate: 0.0 to 1.0
@@ -46,21 +43,21 @@ def analyze_outcome(
             "outcome_type": "failure",
             "success_rate": 0.0,
             "peak_event": None,
-            "failures": ["No execution results"]
+            "failures": ["No execution results"],
         }
-    
+
     # Count successes
     exec_successes = sum(1 for r in execution_results if r.get("success", False))
     exec_total = len(execution_results)
-    
+
     val_successes = sum(1 for r in validation_results if r.get("passed", True))
     val_total = len(validation_results) if validation_results else 1
-    
+
     # Combined success rate
     exec_rate = exec_successes / exec_total if exec_total > 0 else 0
     val_rate = val_successes / val_total if val_total > 0 else 1
     success_rate = (exec_rate + val_rate) / 2
-    
+
     # Determine outcome type
     if success_rate >= 0.9:
         outcome_type = "success"
@@ -68,11 +65,11 @@ def analyze_outcome(
         outcome_type = "partial_success"
     else:
         outcome_type = "failure"
-    
+
     # Find peak event (most significant)
     peak_event = None
     peak_severity = 0
-    
+
     for r in validation_results:
         severity = r.get("severity", 0)
         if severity > peak_severity:
@@ -80,9 +77,9 @@ def analyze_outcome(
             peak_event = {
                 "type": "validation_failure" if not r.get("passed") else "validation_success",
                 "message": r.get("message", ""),
-                "severity": severity
+                "severity": severity,
             }
-    
+
     # Collect failures
     failures = []
     for r in execution_results:
@@ -91,12 +88,12 @@ def analyze_outcome(
     for r in validation_results:
         if not r.get("passed", True):
             failures.append(r.get("message", "Validation failed"))
-    
+
     return {
         "outcome_type": outcome_type,
         "success_rate": success_rate,
         "peak_event": peak_event,
-        "failures": failures
+        "failures": failures,
     }
 
 
@@ -104,10 +101,8 @@ def analyze_outcome(
 # BELIEF UPDATE LOGIC
 # ============================================================
 
-async def update_beliefs_from_outcome(
-    state: BabyMARSState,
-    outcome: dict
-) -> list[dict]:
+
+async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict) -> list[dict]:
     """
     Update beliefs based on outcome.
 
@@ -149,16 +144,18 @@ async def update_beliefs_from_outcome(
                 outcome=outcome_signal,
                 difficulty_level=difficulty,
                 is_end_memory=False,
-                emotional_intensity=0.5
+                emotional_intensity=0.5,
             )
 
             if event:
-                updates.append({
-                    "belief_id": belief_id,
-                    "old_strength": event.get("old_strength", 0),
-                    "new_strength": event.get("new_strength", 0),
-                    "outcome": outcome_signal
-                })
+                updates.append(
+                    {
+                        "belief_id": belief_id,
+                        "old_strength": event.get("old_strength", 0),
+                        "new_strength": event.get("new_strength", 0),
+                        "outcome": outcome_signal,
+                    }
+                )
 
                 # Persist the updated belief to database
                 updated_belief = belief_graph.get_belief(belief_id)
@@ -175,16 +172,14 @@ async def update_beliefs_from_outcome(
 # MEMORY CREATION
 # ============================================================
 
-def create_memory_from_outcome(
-    state: BabyMARSState,
-    outcome: dict
-) -> Optional[Memory]:
+
+def create_memory_from_outcome(state: BabyMARSState, outcome: dict) -> Optional[Memory]:
     """
     Create a memory from significant outcomes.
-    
+
     Paper #12: Peak-End Rule Memory Weighting
     Paper #14: Cognitive Engrams
-    
+
     Only create memories for:
     - Significant successes
     - Failures (for learning)
@@ -192,7 +187,7 @@ def create_memory_from_outcome(
     """
     outcome_type = outcome.get("outcome_type", "")
     peak_event = outcome.get("peak_event")
-    
+
     # Determine if memory-worthy
     if outcome_type == "success":
         # Only memorable if it was a significant achievement
@@ -210,7 +205,7 @@ def create_memory_from_outcome(
             return None
         memory_type = "episodic"
         emotional_weight = 0.4
-    
+
     # Build memory content (find most recent user message)
     messages = state.get("messages", [])
     request_content = ""
@@ -221,10 +216,10 @@ def create_memory_from_outcome(
                 content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
             request_content = content[:200]  # Truncate
             break
-    
+
     action = state.get("selected_action", {})
     action_summary = f"{action.get('action_type', 'unknown')} with {len(action.get('work_units', []))} work units"
-    
+
     memory: Memory = {
         "memory_id": f"mem_{uuid.uuid4().hex[:12]}",
         "type": memory_type,
@@ -233,14 +228,14 @@ def create_memory_from_outcome(
             "action": action_summary,
             "outcome": outcome_type,
             "failures": outcome.get("failures", [])[:3],  # Top 3 failures
-            "peak_event": peak_event
+            "peak_event": peak_event,
         },
         "created_at": datetime.now().isoformat(),
         "emotional_weight": emotional_weight,
         "decay_rate": 0.01 if memory_type == "procedural" else 0.05,
-        "associations": state.get("appraisal", {}).get("attributed_beliefs", [])
+        "associations": state.get("appraisal", {}).get("attributed_beliefs", []),
     }
-    
+
     return memory
 
 
@@ -248,13 +243,12 @@ def create_memory_from_outcome(
 # FEEDBACK EVENT LOGGING
 # ============================================================
 
+
 def create_feedback_event(
-    state: BabyMARSState,
-    outcome: dict,
-    belief_updates: list[dict]
+    state: BabyMARSState, outcome: dict, belief_updates: list[dict]
 ) -> FeedbackEvent:
     """Create a feedback event for logging"""
-    
+
     return {
         "event_id": f"fb_{uuid.uuid4().hex[:12]}",
         "timestamp": datetime.now().isoformat(),
@@ -262,7 +256,7 @@ def create_feedback_event(
         "outcome_type": outcome.get("outcome_type", "unknown"),
         "belief_updates": belief_updates,
         "context_key": state.get("current_context_key", "*|*|*"),
-        "supervision_mode": state.get("supervision_mode", "unknown")
+        "supervision_mode": state.get("supervision_mode", "unknown"),
     }
 
 
@@ -270,45 +264,44 @@ def create_feedback_event(
 # MAIN PROCESS FUNCTION
 # ============================================================
 
+
 async def process(state: BabyMARSState) -> dict:
     """
     Feedback Node
-    
+
     Updates system based on execution outcome:
     1. Analyze outcome (success/failure)
     2. Update attributed beliefs
     3. Create memories for significant events
     4. Log feedback event
     """
-    
+
     execution_results = state.get("execution_results", [])
     validation_results = state.get("validation_results", [])
-    
+
     # Skip feedback if no execution occurred
     if not execution_results:
         return {}
-    
+
     # Analyze outcome
     outcome = analyze_outcome(execution_results, validation_results)
-    
+
     # Update beliefs
     belief_updates = await update_beliefs_from_outcome(state, outcome)
-    
+
     # Create memory if significant
     memory = create_memory_from_outcome(state, outcome)
-    
+
     # Create feedback event
     feedback_event = create_feedback_event(state, outcome, belief_updates)
-    
+
     # Build state updates
-    updates = {
-        "feedback_events": state.get("feedback_events", []) + [feedback_event]
-    }
-    
+    updates = {"feedback_events": state.get("feedback_events", []) + [feedback_event]}
+
     if memory:
         updates["memories"] = state.get("memories", []) + [memory]
-    
+
     # Store outcome for response generation
     updates["execution_outcome"] = outcome
-    
+
     return updates

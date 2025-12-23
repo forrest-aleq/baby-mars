@@ -60,16 +60,18 @@ def _seed_pack_beliefs(graph, pack: str, org_id: str) -> None:
     beliefs = BELIEF_PACKS.get(pack, [])
 
     for belief_id, statement, category, strength in beliefs:
-        graph.add_belief({
-            "belief_id": f"{org_id}_{belief_id}",
-            "category": category,
-            "statement": statement,
-            "scope": f"org:{org_id}|*|*",
-            "strength": strength,
-            "immutable": False,
-            "invalidatable": True,
-            "tags": [category, "industry_belief", pack],
-        })
+        graph.add_belief(
+            {
+                "belief_id": f"{org_id}_{belief_id}",
+                "category": category,
+                "statement": statement,
+                "scope": f"org:{org_id}|*|*",
+                "strength": strength,
+                "immutable": False,
+                "invalidatable": True,
+                "tags": [category, "industry_belief", pack],
+            }
+        )
 
 
 # ============================================================
@@ -82,49 +84,82 @@ BELIEF_PACKS = {
     # SaaS-specific beliefs (uncertain claims about SaaS orgs)
     "saas_beliefs": [
         # Competence beliefs about processes
-        ("saas_revenue_correct", "Revenue recognition follows proper ASC 606 allocation", "competence", 0.7),
-        ("saas_deferred_accurate", "Deferred revenue is accurately tracked and released", "competence", 0.7),
+        (
+            "saas_revenue_correct",
+            "Revenue recognition follows proper ASC 606 allocation",
+            "competence",
+            0.7,
+        ),
+        (
+            "saas_deferred_accurate",
+            "Deferred revenue is accurately tracked and released",
+            "competence",
+            0.7,
+        ),
         ("saas_metrics_reliable", "ARR/MRR metrics are accurately calculated", "competence", 0.65),
         # Technical beliefs about systems
-        ("saas_billing_integrated", "Billing system is properly integrated with GL", "technical", 0.6),
+        (
+            "saas_billing_integrated",
+            "Billing system is properly integrated with GL",
+            "technical",
+            0.6,
+        ),
     ],
-
     "recurring_revenue_beliefs": [
         ("rr_churn_tracked", "Customer churn is actively monitored", "competence", 0.6),
         ("rr_cohort_analysis", "Cohort analysis is used for forecasting", "competence", 0.5),
     ],
-
     # Investment management beliefs
     "investment_beliefs": [
         ("inv_nav_accurate", "NAV calculations are accurate and timely", "competence", 0.7),
-        ("inv_custody_reconciled", "Custody accounts reconcile without material breaks", "competence", 0.7),
-        ("inv_valuations_fair", "Investment valuations follow fair value hierarchy", "competence", 0.65),
+        (
+            "inv_custody_reconciled",
+            "Custody accounts reconcile without material breaks",
+            "competence",
+            0.7,
+        ),
+        (
+            "inv_valuations_fair",
+            "Investment valuations follow fair value hierarchy",
+            "competence",
+            0.65,
+        ),
     ],
-
     "regulatory_beliefs": [
         ("reg_filings_timely", "Regulatory filings are submitted on time", "competence", 0.7),
-        ("reg_compliance_monitored", "Compliance requirements are actively monitored", "competence", 0.65),
+        (
+            "reg_compliance_monitored",
+            "Compliance requirements are actively monitored",
+            "competence",
+            0.65,
+        ),
     ],
-
     # Real estate beliefs
     "real_estate_beliefs": [
         ("re_cam_accurate", "CAM reconciliations are accurate", "competence", 0.65),
-        ("re_depreciation_correct", "Depreciation schedules are properly maintained", "competence", 0.7),
+        (
+            "re_depreciation_correct",
+            "Depreciation schedules are properly maintained",
+            "competence",
+            0.7,
+        ),
         ("re_lease_compliant", "Lease accounting follows ASC 842", "competence", 0.6),
     ],
-
     "lease_beliefs": [
         ("lease_rou_tracked", "Right-of-use assets are properly tracked", "competence", 0.6),
-        ("lease_liability_accurate", "Lease liabilities are accurately measured", "competence", 0.6),
+        (
+            "lease_liability_accurate",
+            "Lease liabilities are accurately measured",
+            "competence",
+            0.6,
+        ),
     ],
-
     # Manufacturing beliefs
     "manufacturing_beliefs": [
         ("mfg_inventory_accurate", "Inventory counts are accurate", "competence", 0.65),
         ("mfg_costing_reliable", "Product costing is reliable", "competence", 0.6),
         ("mfg_variance_analyzed", "Cost variances are analyzed timely", "competence", 0.55),
     ],
-
     # General accounting beliefs (everyone gets these)
     "general_accounting_beliefs": [
         # Process beliefs
@@ -136,7 +171,12 @@ BELIEF_PACKS = {
         ("segregation_proper", "Duties are properly segregated", "competence", 0.55),
         # Accuracy beliefs
         ("tb_balanced", "Trial balance is balanced", "competence", 0.8),
-        ("interco_eliminated", "Intercompany transactions are properly eliminated", "competence", 0.6),
+        (
+            "interco_eliminated",
+            "Intercompany transactions are properly eliminated",
+            "competence",
+            0.6,
+        ),
     ],
 }
 
@@ -171,16 +211,18 @@ def seed_authority_beliefs(graph, title: str, authority: float, person_id: str) 
         ]
 
     for belief_id, statement, strength in beliefs:
-        graph.add_belief({
-            "belief_id": f"{person_id}_{belief_id}",
-            "category": "competence",
-            "statement": statement,
-            "scope": f"person:{person_id}|*|*",
-            "strength": strength,
-            "immutable": False,
-            "invalidatable": True,
-            "tags": ["competence", "authority", "person"],
-        })
+        graph.add_belief(
+            {
+                "belief_id": f"{person_id}_{belief_id}",
+                "category": "competence",
+                "statement": statement,
+                "scope": f"person:{person_id}|*|*",
+                "strength": strength,
+                "immutable": False,
+                "invalidatable": True,
+                "tags": ["competence", "authority", "person"],
+            }
+        )
 
 
 def seed_preference_beliefs(graph, person_id: str, apollo_data: Optional[dict] = None) -> None:
@@ -208,16 +250,18 @@ def seed_preference_beliefs(graph, person_id: str, apollo_data: Optional[dict] =
             ]
 
     for belief_id, statement, strength in beliefs:
-        graph.add_belief({
-            "belief_id": f"{person_id}_{belief_id}",
-            "category": "preference",
-            "statement": statement,
-            "scope": f"person:{person_id}|*|*",
-            "strength": strength,
-            "immutable": False,
-            "invalidatable": True,
-            "tags": ["preference", "communication", "person"],
-        })
+        graph.add_belief(
+            {
+                "belief_id": f"{person_id}_{belief_id}",
+                "category": "preference",
+                "statement": statement,
+                "scope": f"person:{person_id}|*|*",
+                "strength": strength,
+                "immutable": False,
+                "invalidatable": True,
+                "tags": ["preference", "communication", "person"],
+            }
+        )
 
 
 def infer_goals_from_role(title: str, authority: float) -> list[dict]:

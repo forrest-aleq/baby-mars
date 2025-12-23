@@ -52,7 +52,7 @@ When belief strength is moderate (0.4-0.7), propose an action for confirmation.
 
 **Action**: Assign GL code 5210 (Office Supplies), route to standard AP workflow
 
-**Reasoning**: 
+**Reasoning**:
 - Similar invoices from this vendor have used 5210
 - Amount ($850) is within standard processing limits
 - Items are consumable supplies, not capital equipment

@@ -117,8 +117,7 @@ def check_file_size(path: Path, lines: list[str]) -> list[str]:
     limit = _get_file_limit(path)
     if len(lines) > limit:
         return [
-            f"{path}: File has {len(lines)} lines (max {limit}). "
-            "Split into smaller modules."
+            f"{path}: File has {len(lines)} lines (max {limit}). " "Split into smaller modules."
         ]
     return []
 
@@ -153,9 +152,7 @@ def check_lazy_typing(path: Path, content: str) -> list[str]:
         violations.append(f"{path}: Contains '# type: ignore'. Fix the types properly.")
     has_any_import = "from typing import Any" in content or "import Any" in content
     if has_any_import and not _is_any_typing_allowed(path):
-        violations.append(
-            f"{path}: Imports 'Any'. Use explicit types or Pydantic models."
-        )
+        violations.append(f"{path}: Imports 'Any'. Use explicit types or Pydantic models.")
     return violations
 
 
@@ -166,10 +163,7 @@ def check_mocks_in_production(path: Path, content: str) -> list[str]:
     lowered = content.lower()
     for token in PROD_BANNED_TOKENS:
         if token in lowered:
-            return [
-                f"{path}: Contains '{token}' in production code. "
-                "Move test data to tests/."
-            ]
+            return [f"{path}: Contains '{token}' in production code. " "Move test data to tests/."]
     return []
 
 
@@ -209,9 +203,7 @@ def check_sync_redis(path: Path, content: str) -> list[str]:
         ]
 
     if has_sync:
-        violations.append(
-            f"{path}: Imports sync Redis. Use 'from redis.asyncio import Redis'."
-        )
+        violations.append(f"{path}: Imports sync Redis. Use 'from redis.asyncio import Redis'.")
 
     return violations
 
@@ -286,9 +278,7 @@ def check_file(path: Path) -> list[str]:
     return violations
 
 
-def check_function_size(
-    path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef
-) -> list[str]:
+def check_function_size(path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     """RULE 2: Function size (50 lines max)."""
     start_line = node.lineno
     end_line = getattr(node, "end_lineno", start_line)
@@ -307,9 +297,7 @@ def _is_sync_allowed_module(path: Path) -> bool:
     return any(pattern in path_str for pattern in SYNC_ALLOWED_IN_ASYNC_ZONES)
 
 
-def check_async_only_zone(
-    path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef
-) -> list[str]:
+def check_async_only_zone(path: Path, node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     """RULE 3: Async-only in loop/brain (except pure math modules)."""
     if not is_async_only_zone(path) or isinstance(node, ast.AsyncFunctionDef):
         return []
@@ -326,8 +314,7 @@ def check_async_only_zone(
         return []
 
     return [
-        f"{path}:{node.lineno}: Sync function '{node.name}' in "
-        "async-only zone. Use 'async def'."
+        f"{path}:{node.lineno}: Sync function '{node.name}' in " "async-only zone. Use 'async def'."
     ]
 
 
@@ -343,18 +330,12 @@ def _get_decorator_name(dec: ast.expr) -> str:
 def _has_check_true(call: ast.Call) -> bool:
     """Detect check=True in a call keyword list."""
     for kw in call.keywords:
-        if (
-            kw.arg == "check"
-            and isinstance(kw.value, ast.Constant)
-            and kw.value.value is True
-        ):
+        if kw.arg == "check" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
             return True
     return False
 
 
-def check_sync_with_async_cm(
-    path: Path, node: ast.AsyncFunctionDef, content: str
-) -> list[str]:
+def check_sync_with_async_cm(path: Path, node: ast.AsyncFunctionDef, content: str) -> list[str]:
     """RULE 4: Ban sync `with` on async context managers."""
     start_line = node.lineno
     end_line = getattr(node, "end_lineno", start_line)
@@ -452,8 +433,7 @@ def check_long_strings(path: Path, tree: ast.AST) -> list[str]:
             continue
         if any(kw in node.value.lower() for kw in prompt_keywords):
             violations.append(
-                f"{path}:{node.lineno}: Long prompt string detected. "
-                "Move to prompts module."
+                f"{path}:{node.lineno}: Long prompt string detected. " "Move to prompts module."
             )
     return violations
 
@@ -479,9 +459,7 @@ def _check_org_id_in_cypher(path: Path, content: str) -> list[str]:
     # Skip "ON CREATE SET" and "ON MATCH SET" clauses (part of MERGE)
     on_clause = re.compile(r"\bON\s+(CREATE|MATCH)\b", re.IGNORECASE)
     # Skip relationship patterns
-    relationship_pattern = re.compile(
-        r"\b(MERGE|CREATE)\s*\([a-z0-9_]*\)\s*-\[", re.IGNORECASE
-    )
+    relationship_pattern = re.compile(r"\b(MERGE|CREATE)\s*\([a-z0-9_]*\)\s*-\[", re.IGNORECASE)
     lines = content.splitlines()
     for i, line in enumerate(lines, 1):
         if not cypher_query_start.search(line):

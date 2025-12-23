@@ -10,8 +10,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request
 
-from ..schemas.common import HealthResponse
 from ...persistence.database import get_pool
+from ..schemas.common import HealthResponse
 
 logger = logging.getLogger("baby_mars.api.health")
 
@@ -57,6 +57,7 @@ async def health(request: Request):
     # Claude (check if client is configured)
     try:
         from ...claude_client import get_client
+
         client = get_client()
         services["claude"] = "healthy" if client else "unavailable"
     except Exception:

@@ -6,15 +6,14 @@ Simple API key authentication for production use.
 Can be extended to support OAuth, JWT, etc.
 """
 
-import os
 import hashlib
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import HTTPException, Security, Request, Depends
+from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader, APIKeyQuery
-
 
 # ============================================================
 # API KEY AUTH
@@ -64,14 +63,11 @@ async def verify_api_key(
     if not provided_key:
         raise HTTPException(
             status_code=401,
-            detail="API key required. Provide X-API-Key header or api_key query parameter."
+            detail="API key required. Provide X-API-Key header or api_key query parameter.",
         )
 
     if provided_key not in valid_keys:
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid API key"
-        )
+        raise HTTPException(status_code=403, detail="Invalid API key")
 
     return provided_key
 
@@ -84,6 +80,7 @@ def generate_api_key() -> str:
 # ============================================================
 # ORG-SCOPED AUTH
 # ============================================================
+
 
 class OrgAuth:
     """
@@ -124,6 +121,7 @@ def get_org_auth() -> OrgAuth:
 # RATE LIMITING
 # ============================================================
 
+
 class RateLimiter:
     """
     Simple in-memory rate limiter.
@@ -145,10 +143,7 @@ class RateLimiter:
             self._requests[key] = []
 
         # Filter old requests
-        self._requests[key] = [
-            t for t in self._requests[key]
-            if t > cutoff
-        ]
+        self._requests[key] = [t for t in self._requests[key] if t > cutoff]
 
         # Check limit
         if len(self._requests[key]) >= self.rpm:
@@ -197,8 +192,8 @@ async def check_rate_limit(
         remaining = limiter.get_remaining(key)
         raise HTTPException(
             status_code=429,
-            detail=f"Rate limit exceeded. Try again in 60 seconds.",
-            headers={"X-RateLimit-Remaining": str(remaining)}
+            detail="Rate limit exceeded. Try again in 60 seconds.",
+            headers={"X-RateLimit-Remaining": str(remaining)},
         )
 
     return api_key
@@ -234,10 +229,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # If keys are configured, require auth
         if valid_keys and api_key not in valid_keys:
             from fastapi.responses import JSONResponse
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid or missing API key"}
-            )
+
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
 
         # Store key in request state for later use
         request.state.api_key = api_key or "dev-mode"

@@ -7,19 +7,19 @@ Per API_CONTRACT_V0.md section 2
 """
 
 import logging
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from ..schemas.tasks import (
-    TaskSummary,
-    TaskDetail,
-    TaskTimeline,
-    TaskListResponse,
-    TaskTimelineEntry,
     TaskDecision,
+    TaskDetail,
+    TaskListResponse,
     TaskStatus,
+    TaskSummary,
+    TaskTimeline,
+    TaskTimelineEntry,
 )
 
 logger = logging.getLogger("baby_mars.api.tasks")
@@ -43,7 +43,7 @@ def _get_task_or_404(task_id: str) -> dict:
                     "message": f"Task {task_id} not found",
                     "severity": "warning",
                 }
-            }
+            },
         )
     return task
 
@@ -82,7 +82,7 @@ async def list_tasks(
     tasks.sort(key=lambda t: (-t.get("priority", 0), t.get("created_at", "")), reverse=False)
 
     total = len(tasks)
-    tasks = tasks[offset:offset + limit]
+    tasks = tasks[offset : offset + limit]
 
     return TaskListResponse(
         tasks=[
@@ -126,17 +126,11 @@ async def get_task(task_id: str):
         priority=task["priority"],
         difficulty=task.get("difficulty", 2),
         parent_id=task.get("parent_id"),
-        subtasks=[
-            TaskSummary(**st) for st in task.get("subtasks", [])
-        ],
+        subtasks=[TaskSummary(**st) for st in task.get("subtasks", [])],
         progress=task.get("progress"),
         current_step=task.get("current_step"),
-        decisions=[
-            TaskDecision(**d) for d in task.get("decisions", [])
-        ],
-        timeline=[
-            TaskTimelineEntry(**e) for e in task.get("timeline", [])
-        ],
+        decisions=[TaskDecision(**d) for d in task.get("decisions", [])],
+        timeline=[TaskTimelineEntry(**e) for e in task.get("timeline", [])],
         created_at=task["created_at"],
         updated_at=task["updated_at"],
         started_at=task.get("started_at"),
@@ -157,9 +151,7 @@ async def get_task_timeline(task_id: str):
 
     return TaskTimeline(
         task_id=task["task_id"],
-        timeline=[
-            TaskTimelineEntry(**e) for e in task.get("timeline", [])
-        ],
+        timeline=[TaskTimelineEntry(**e) for e in task.get("timeline", [])],
         status=task["status"],
         progress=task.get("progress"),
     )
@@ -183,17 +175,19 @@ async def pause_task(task_id: str):
                     "message": f"Cannot pause task in {task['status']} state",
                     "severity": "info",
                 }
-            }
+            },
         )
 
     task["previous_status"] = task["status"]
     task["status"] = "paused"
     task["updated_at"] = datetime.now().isoformat()
-    task["timeline"].append({
-        "timestamp": datetime.now().isoformat(),
-        "event": "Task paused",
-        "actor": "user",
-    })
+    task["timeline"].append(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "event": "Task paused",
+            "actor": "user",
+        }
+    )
 
     logger.info(f"Task paused: {task_id}")
 
@@ -216,16 +210,18 @@ async def resume_task(task_id: str):
                     "message": "Task is not paused",
                     "severity": "info",
                 }
-            }
+            },
         )
 
     task["status"] = task.get("previous_status", "running")
     task["updated_at"] = datetime.now().isoformat()
-    task["timeline"].append({
-        "timestamp": datetime.now().isoformat(),
-        "event": "Task resumed",
-        "actor": "user",
-    })
+    task["timeline"].append(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "event": "Task resumed",
+            "actor": "user",
+        }
+    )
 
     logger.info(f"Task resumed: {task_id}")
 
@@ -307,11 +303,13 @@ def update_task_status(
         task["current_step"] = current_step
 
     event = message or f"Status changed to {status}"
-    task["timeline"].append({
-        "timestamp": datetime.now().isoformat(),
-        "event": event,
-        "actor": actor,
-    })
+    task["timeline"].append(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "event": event,
+            "actor": actor,
+        }
+    )
 
     if status == "completed":
         task["completed_at"] = datetime.now().isoformat()

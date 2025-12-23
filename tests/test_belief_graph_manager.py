@@ -13,8 +13,9 @@ Note: Some async tests are skipped on Python 3.14 due to pytest-asyncio compatib
 """
 
 import sys
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 # Skip async tests on Python 3.14 due to pytest-asyncio compatibility issues
 SKIP_ASYNC = sys.version_info >= (3, 14)
@@ -53,8 +54,9 @@ class TestCacheOperations:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.return_value = BeliefGraph()
 
             graph = await manager.get_graph("org-1")
@@ -70,8 +72,9 @@ class TestCacheOperations:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.return_value = BeliefGraph()
 
             # First access - cache miss
@@ -92,8 +95,9 @@ class TestCacheOperations:
 
         manager = BeliefGraphManager(max_size=2)
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.return_value = BeliefGraph()
 
             # Fill cache
@@ -121,8 +125,9 @@ class TestCacheOperations:
 
         manager = BeliefGraphManager(max_size=3)
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.return_value = BeliefGraph()
 
             # Add orgs in order
@@ -150,8 +155,9 @@ class TestOrgIsolation:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.side_effect = lambda org_id: BeliefGraph()
 
             graph1 = await manager.get_graph("org-1")
@@ -169,8 +175,9 @@ class TestOrgIsolation:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.side_effect = lambda org_id: BeliefGraph()
 
             graph1 = await manager.get_graph("org-1")
@@ -195,8 +202,9 @@ class TestInvalidation:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.return_value = BeliefGraph()
 
             await manager.get_graph("org-1")
@@ -214,8 +222,9 @@ class TestInvalidation:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_load.return_value = BeliefGraph()
 
             await manager.get_graph("org-1")
@@ -233,12 +242,15 @@ class TestDatabaseLoading:
     def test_load_empty_org(self):
         """Loading org with no beliefs should return empty graph."""
         import asyncio
+
         from src.graphs.belief_graph_manager import BeliefGraphManager
 
         manager = BeliefGraphManager()
 
         async def run():
-            with patch('src.graphs.belief_graph_manager.load_beliefs_for_org', new_callable=AsyncMock) as mock_load:
+            with patch(
+                "src.graphs.belief_graph_manager.load_beliefs_for_org", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.return_value = []
                 return await manager._load_graph_from_db("org-1")
 
@@ -248,6 +260,7 @@ class TestDatabaseLoading:
     def test_load_with_beliefs(self):
         """Loading org with beliefs should populate graph."""
         import asyncio
+
         from src.graphs.belief_graph_manager import BeliefGraphManager
         from src.state.schema import create_belief
 
@@ -255,7 +268,9 @@ class TestDatabaseLoading:
         test_belief = create_belief("Test", "competence")
 
         async def run():
-            with patch('src.graphs.belief_graph_manager.load_beliefs_for_org', new_callable=AsyncMock) as mock_load:
+            with patch(
+                "src.graphs.belief_graph_manager.load_beliefs_for_org", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.return_value = [test_belief]
                 return await manager._load_graph_from_db("org-1")
 
@@ -265,6 +280,7 @@ class TestDatabaseLoading:
     def test_load_with_support_relationships(self):
         """Loading should rebuild support relationships."""
         import asyncio
+
         from src.graphs.belief_graph_manager import BeliefGraphManager
         from src.state.schema import create_belief
 
@@ -277,7 +293,9 @@ class TestDatabaseLoading:
         derived["support_weights"] = {foundation["belief_id"]: 0.8}
 
         async def run():
-            with patch('src.graphs.belief_graph_manager.load_beliefs_for_org', new_callable=AsyncMock) as mock_load:
+            with patch(
+                "src.graphs.belief_graph_manager.load_beliefs_for_org", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.return_value = [foundation, derived]
                 return await manager._load_graph_from_db("org-1")
 
@@ -287,12 +305,15 @@ class TestDatabaseLoading:
     def test_load_handles_db_error(self):
         """Should return empty graph on DB error."""
         import asyncio
+
         from src.graphs.belief_graph_manager import BeliefGraphManager
 
         manager = BeliefGraphManager()
 
         async def run():
-            with patch('src.graphs.belief_graph_manager.load_beliefs_for_org', new_callable=AsyncMock) as mock_load:
+            with patch(
+                "src.graphs.belief_graph_manager.load_beliefs_for_org", new_callable=AsyncMock
+            ) as mock_load:
                 mock_load.side_effect = Exception("DB connection failed")
                 return await manager._load_graph_from_db("org-1")
 
@@ -313,7 +334,9 @@ class TestSaving:
         manager = BeliefGraphManager()
         belief = create_belief("Test", "competence")
 
-        with patch('src.graphs.belief_graph_manager.save_belief', new_callable=AsyncMock) as mock_save:
+        with patch(
+            "src.graphs.belief_graph_manager.save_belief", new_callable=AsyncMock
+        ) as mock_save:
             await manager.save_belief("org-1", belief)
 
             mock_save.assert_called_once_with("org-1", belief)
@@ -327,8 +350,9 @@ class TestSaving:
 
         manager = BeliefGraphManager()
 
-        with patch.object(manager, '_load_graph_from_db', new_callable=AsyncMock) as mock_load:
+        with patch.object(manager, "_load_graph_from_db", new_callable=AsyncMock) as mock_load:
             from src.graphs.belief_graph import BeliefGraph
+
             graph = BeliefGraph()
             belief1 = create_belief("B1", "competence")
             belief2 = create_belief("B2", "technical")
@@ -338,7 +362,9 @@ class TestSaving:
 
             await manager.get_graph("org-1")
 
-            with patch('src.graphs.belief_graph_manager.save_beliefs_batch', new_callable=AsyncMock) as mock_save:
+            with patch(
+                "src.graphs.belief_graph_manager.save_beliefs_batch", new_callable=AsyncMock
+            ) as mock_save:
                 await manager.save_all_beliefs("org-1")
 
                 mock_save.assert_called_once()
@@ -351,7 +377,10 @@ class TestSingleton:
 
     def test_get_belief_graph_manager_singleton(self):
         """get_belief_graph_manager should return same instance."""
-        from src.graphs.belief_graph_manager import get_belief_graph_manager, reset_belief_graph_manager
+        from src.graphs.belief_graph_manager import (
+            get_belief_graph_manager,
+            reset_belief_graph_manager,
+        )
 
         reset_belief_graph_manager()
 
@@ -362,7 +391,10 @@ class TestSingleton:
 
     def test_reset_belief_graph_manager(self):
         """reset should clear the singleton."""
-        from src.graphs.belief_graph_manager import get_belief_graph_manager, reset_belief_graph_manager
+        from src.graphs.belief_graph_manager import (
+            get_belief_graph_manager,
+            reset_belief_graph_manager,
+        )
 
         manager1 = get_belief_graph_manager()
         reset_belief_graph_manager()
@@ -378,12 +410,13 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_get_org_belief_graph(self):
         """get_org_belief_graph should use manager."""
-        from src.graphs.belief_graph_manager import get_org_belief_graph, get_belief_graph_manager
+        from src.graphs.belief_graph_manager import get_belief_graph_manager, get_org_belief_graph
 
         manager = get_belief_graph_manager()
 
-        with patch.object(manager, 'get_graph', new_callable=AsyncMock) as mock_get:
+        with patch.object(manager, "get_graph", new_callable=AsyncMock) as mock_get:
             from src.graphs.belief_graph import BeliefGraph
+
             mock_get.return_value = BeliefGraph()
 
             await get_org_belief_graph("org-1")
@@ -394,13 +427,13 @@ class TestConvenienceFunctions:
     @pytest.mark.asyncio
     async def test_save_org_belief(self):
         """save_org_belief should use manager."""
-        from src.graphs.belief_graph_manager import save_org_belief, get_belief_graph_manager
+        from src.graphs.belief_graph_manager import get_belief_graph_manager, save_org_belief
         from src.state.schema import create_belief
 
         manager = get_belief_graph_manager()
         belief = create_belief("Test", "competence")
 
-        with patch.object(manager, 'save_belief', new_callable=AsyncMock) as mock_save:
+        with patch.object(manager, "save_belief", new_callable=AsyncMock) as mock_save:
             await save_org_belief("org-1", belief)
 
             mock_save.assert_called_once_with("org-1", belief)

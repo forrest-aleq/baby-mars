@@ -6,26 +6,26 @@ Production FastAPI server for Baby MARS cognitive architecture.
 Restructured into modular routes per API_CONTRACT_V0.md.
 """
 
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .routes import register_routes
-from .schemas.common import APIError, ErrorResponse
-from .auth import add_auth_middleware
-from ..persistence.database import init_database, close_pool
-from ..cognitive_loop.graph import create_graph_with_postgres, create_graph_in_memory
+from ..cognitive_loop.graph import create_graph_in_memory, create_graph_with_postgres
 from ..graphs.belief_graph_manager import reset_belief_graph_manager
+from ..persistence.database import close_pool, init_database
+from .auth import add_auth_middleware
+from .routes import register_routes
+from .schemas.common import APIError
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("baby_mars")
 
@@ -33,6 +33,7 @@ logger = logging.getLogger("baby_mars")
 # ============================================================
 # LIFESPAN - Startup/Shutdown
 # ============================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -94,10 +95,9 @@ app = FastAPI(
 # ============================================================
 
 # CORS for frontend
-CORS_ORIGINS = os.environ.get(
-    "CORS_ORIGINS",
-    "http://localhost:3000,http://localhost:5173"
-).split(",")
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(
+    ","
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -115,6 +115,7 @@ add_auth_middleware(app)
 # ============================================================
 # EXCEPTION HANDLERS
 # ============================================================
+
 
 @app.exception_handler(APIError)
 async def api_error_handler(request: Request, exc: APIError):
@@ -138,16 +139,12 @@ async def general_exception_handler(request: Request, exc: Exception):
                 "severity": "error",
                 "recoverable": True,
                 "retryable": True,
-                "retry": {
-                    "after_seconds": 5,
-                    "max_attempts": 3,
-                    "strategy": "exponential"
-                },
+                "retry": {"after_seconds": 5, "max_attempts": 3, "strategy": "exponential"},
                 "actions": [
                     {"label": "Try again", "action": "retry"},
-                ]
+                ],
             }
-        }
+        },
     )
 
 
@@ -162,9 +159,11 @@ register_routes(app)
 # RUN SERVER
 # ============================================================
 
+
 def run_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
     """Run the server"""
     import uvicorn
+
     uvicorn.run(
         "src.api.server:app",
         host=host,

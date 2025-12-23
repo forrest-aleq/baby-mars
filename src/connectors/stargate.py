@@ -15,14 +15,15 @@ Stargate provides 295 capabilities across 20+ platforms:
 """
 
 import os
-import uuid
 import time
-import httpx
-from typing import Optional, Any
+import uuid
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
-from ..observability import get_logger, get_metrics, traced, timed
+import httpx
+
+from ..observability import get_logger, get_metrics, timed, traced
 
 logger = get_logger("stargate")
 metrics = get_metrics()
@@ -32,8 +33,10 @@ metrics = get_metrics()
 # CONTRACT: Error Taxonomy (from Stargate Integration Contract v1.1)
 # ============================================================
 
+
 class RetryStrategy(Enum):
     """Stargate retry strategies."""
+
     DO_NOT_RETRY = "DO_NOT_RETRY"
     RETRY_AFTER_DELAY = "RETRY_AFTER_DELAY"
     RETRY_WITH_BACKOFF = "RETRY_WITH_BACKOFF"
@@ -56,9 +59,11 @@ ERROR_RETRY_MAP = {
 # CONFIGURATION
 # ============================================================
 
+
 @dataclass
 class StargateConfig:
     """Stargate connection configuration."""
+
     base_url: str
     api_key: str
     timeout: float = 30.0
@@ -111,7 +116,6 @@ CAPABILITY_MAP = {
     ("erp", "create_customer"): "qb.customer.create",
     ("erp", "get_customer"): "qb.customer.get",
     ("erp", "list_customers"): "qb.customer.list",
-
     # === Stripe (stripe.*) ===
     ("stripe", "create_payment"): "stripe.payment.create",
     ("stripe", "create_customer"): "stripe.customer.create",
@@ -121,63 +125,53 @@ CAPABILITY_MAP = {
     ("stripe", "create_invoice"): "stripe.invoice.create",
     ("stripe", "create_subscription"): "stripe.subscription.create",
     ("stripe", "list_payouts"): "stripe.payout.list",
-
     # === Bill.com (billcom.*) ===
     ("billcom", "create_bill"): "billcom.bill.create",
     ("billcom", "send_payment"): "billcom.payment.send",
     ("billcom", "approve_bill"): "billcom.bill.approve",
     ("billcom", "create_vendor"): "billcom.vendor.create",
-
     # === NetSuite (netsuite.*) ===
     ("netsuite", "query"): "netsuite.query",
     ("netsuite", "create_journal"): "netsuite.journal.create",
     ("netsuite", "create_vendor"): "netsuite.vendor.create",
     ("netsuite", "create_bill"): "netsuite.bill.create",
-
     # === Banking ===
     ("bank", "process_payment"): "qb.payment.create",
     ("bank", "reconcile_account"): "qb.query",
     ("bank", "get_balance"): "plaid.balance.get",
     ("bank", "list_transactions"): "plaid.transaction.list",
     ("bank", "initiate_transfer"): "mercury.transfer.create",
-
     # === Documents / OCR ===
     ("documents", "extract_data"): "ocr.extract",
     ("documents", "validate_document"): "ocr.validate",
     ("documents", "upload"): "gdrive.file.upload",
     ("documents", "download"): "gdrive.file.download",
     ("documents", "list"): "gdrive.file.list",
-
     # === Email (Gmail) ===
     ("email", "send_notification"): "gmail.send",
     ("email", "send"): "gmail.send",
     ("email", "read"): "gmail.read",
     ("email", "draft"): "gmail.draft",
-
     # === Slack ===
     ("slack", "send_message"): "slack.message.send",
     ("slack", "send_dm"): "slack.message.direct",
     ("slack", "upload_file"): "slack.file.upload",
     ("slack", "create_channel"): "slack.channel.create",
-
     # === CRM (HubSpot) ===
     ("crm", "create_contact"): "hubspot.contact.create",
     ("crm", "get_contact"): "hubspot.contact.get",
     ("crm", "update_contact"): "hubspot.contact.update",
     ("crm", "create_deal"): "hubspot.deal.create",
     ("crm", "create_company"): "hubspot.company.create",
-
     # === Project Management ===
     ("linear", "create_issue"): "linear.issue.create",
     ("asana", "create_task"): "asana.task.create",
     ("clickup", "create_task"): "clickup.task.create",
     ("notion", "create_page"): "notion.page.create",
-
     # === Workflow (internal) ===
     ("workflow", "approve_transaction"): "qb.payment.create",
     ("workflow", "escalate_issue"): "slack.message.send",
     ("workflow", "query_records"): "qb.query",
-
     # === Browser Automation ===
     ("browser", "navigate"): "browser.navigate",
     ("browser", "click"): "browser.click",
@@ -212,6 +206,7 @@ def map_work_unit_to_capability(tool: str, verb: str) -> str:
 # CONTRACT: Stargate Client (per Integration Contract v1.1)
 # ============================================================
 
+
 class StargateClient:
     """
     HTTP client for Stargate Lite.
@@ -236,7 +231,7 @@ class StargateClient:
                 headers={
                     "X-API-Key": self.config.api_key,
                     "Content-Type": "application/json",
-                }
+                },
             )
         return self._client
 
@@ -352,7 +347,7 @@ class StargateClient:
                 # RETRY_WITH_BACKOFF - transient error
                 if retry_strategy == RetryStrategy.RETRY_WITH_BACKOFF:
                     if attempt < self.config.max_retries - 1:
-                        wait_time = backoff ** attempt
+                        wait_time = backoff**attempt
                         logger.info(f"Retrying with backoff: {wait_time}s")
                         time.sleep(wait_time)
                         continue
@@ -367,7 +362,7 @@ class StargateClient:
                 metrics.increment("stargate_errors", type="http")
 
                 if attempt < self.config.max_retries - 1:
-                    time.sleep(backoff ** attempt)
+                    time.sleep(backoff**attempt)
                     continue
 
                 return {
@@ -378,7 +373,7 @@ class StargateClient:
                         "error_code": "HTTP_ERROR",
                         "message": f"HTTP {e.response.status_code}",
                         "retry_strategy": "RETRY_WITH_BACKOFF",
-                    }
+                    },
                 }
 
             except httpx.RequestError as e:
@@ -390,7 +385,7 @@ class StargateClient:
                 metrics.increment("stargate_errors", type="connection")
 
                 if attempt < self.config.max_retries - 1:
-                    time.sleep(backoff ** attempt)
+                    time.sleep(backoff**attempt)
                     continue
 
                 return {
@@ -401,7 +396,7 @@ class StargateClient:
                         "error_code": "CONNECTION_ERROR",
                         "message": str(e),
                         "retry_strategy": "RETRY_WITH_BACKOFF",
-                    }
+                    },
                 }
 
         # Should not reach here
@@ -412,7 +407,7 @@ class StargateClient:
                 "error_type": "ExecutionError",
                 "error_code": "MAX_RETRIES",
                 "message": "Max retries exceeded",
-            }
+            },
         }
 
     async def health_check(self) -> dict:
@@ -462,6 +457,7 @@ async def reset_stargate_client():
 # ============================================================
 # EXECUTION LAYER
 # ============================================================
+
 
 class StargateExecutor:
     """
@@ -548,12 +544,14 @@ class StargateExecutor:
             wu_turn_id = f"{turn_id}:{i}" if turn_id else None
 
             result = await self.execute(wu, org_id, user_id, wu_turn_id)
-            results.append({
-                "unit_id": wu.get("unit_id", f"wu_{i}"),
-                "tool": wu.get("tool", "unknown"),
-                "verb": wu.get("verb", "unknown"),
-                **result,
-            })
+            results.append(
+                {
+                    "unit_id": wu.get("unit_id", f"wu_{i}"),
+                    "tool": wu.get("tool", "unknown"),
+                    "verb": wu.get("verb", "unknown"),
+                    **result,
+                }
+            )
 
             # Stop on failure (unless retryable)
             if not result.get("success", False):
@@ -567,6 +565,7 @@ class StargateExecutor:
 # ============================================================
 # CONVENIENCE FUNCTIONS
 # ============================================================
+
 
 async def execute_work_unit(
     work_unit: dict,

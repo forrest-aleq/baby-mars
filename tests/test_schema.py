@@ -9,9 +9,10 @@ Tests for the Baby MARS state schema including:
 - Relationship value computation
 """
 
-import pytest
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
+
+import pytest
 
 
 class TestUUIDGeneration:
@@ -92,9 +93,7 @@ class TestTaskReducer:
         from src.state.schema import task_reducer
 
         # Create 5 tasks with priorities 0.0, 0.1, 0.2, 0.3, 0.4
-        existing = [
-            {"task_id": f"t{i}", "priority": i * 0.1} for i in range(5)
-        ]
+        existing = [{"task_id": f"t{i}", "priority": i * 0.1} for i in range(5)]
         # Add one more with priority 0.6
         new = [
             {"task_id": "t5", "priority": 0.6},
@@ -168,8 +167,8 @@ class TestNoteReducer:
 
     def test_note_reducer_handles_invalid_dates(self, monkeypatch):
         """Invalid date notes should be handled gracefully."""
+
         from src.state.schema import note_reducer
-        import os
 
         # Not in production - keep invalid notes
         monkeypatch.setenv("ENVIRONMENT", "development")
@@ -210,9 +209,7 @@ class TestRelationshipValue:
 
         # Formula: 0.6*authority + 0.2*interaction + 0.2*context
         result = compute_relationship_value(
-            authority=1.0,
-            interaction_strength=0.5,
-            context_relevance=0.5
+            authority=1.0, interaction_strength=0.5, context_relevance=0.5
         )
 
         expected = 0.6 * 1.0 + 0.2 * 0.5 + 0.2 * 0.5
@@ -234,7 +231,7 @@ class TestRelationshipValue:
 
     def test_create_person_uses_compute_function(self):
         """Ensure create_person uses the compute function."""
-        from src.state.schema import create_person, compute_relationship_value
+        from src.state.schema import compute_relationship_value, create_person
 
         person = create_person("Test", "Role", authority=0.8)
 
@@ -249,10 +246,7 @@ class TestCreateBelief:
         """Test that create_belief sets all required fields."""
         from src.state.schema import create_belief
 
-        belief = create_belief(
-            statement="Test statement",
-            category="competence"
-        )
+        belief = create_belief(statement="Test statement", category="competence")
 
         assert belief["statement"] == "Test statement"
         assert belief["category"] == "competence"
@@ -266,7 +260,7 @@ class TestCreateBelief:
 
     def test_create_belief_respects_category_threshold(self):
         """Different categories should have different invalidation thresholds."""
-        from src.state.schema import create_belief, INVALIDATION_THRESHOLDS
+        from src.state.schema import INVALIDATION_THRESHOLDS, create_belief
 
         moral = create_belief("Moral belief", "moral")
         technical = create_belief("Technical belief", "technical")
@@ -281,10 +275,7 @@ class TestCreateBelief:
         from src.state.schema import create_belief
 
         belief = create_belief(
-            statement="Test",
-            category="competence",
-            initial_strength=0.8,
-            context_key="test|*|*"
+            statement="Test", category="competence", initial_strength=0.8, context_key="test|*|*"
         )
 
         assert "test|*|*" in belief["context_states"]
@@ -301,11 +292,7 @@ class TestCreateInitialState:
         """Should set all ID fields."""
         from src.state.schema import create_initial_state
 
-        state = create_initial_state(
-            thread_id="thread-1",
-            org_id="org-1",
-            user_id="user-1"
-        )
+        state = create_initial_state(thread_id="thread-1", org_id="org-1", user_id="user-1")
 
         assert state["thread_id"] == "thread-1"
         assert state["org_id"] == "org-1"

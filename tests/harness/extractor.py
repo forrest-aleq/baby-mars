@@ -8,23 +8,25 @@ Generates YAML test specs for review and modification.
 Supports both direct Anthropic API and Azure AI Foundry.
 """
 
+import json
 import os
 import re
-import json
-import yaml
 from pathlib import Path
 from typing import Optional
+
 import anthropic
+import yaml
 from anthropic import AnthropicFoundry
 
 # Load .env file if present
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
 
-from .schema import PersonaSpec, TestCase, ExpectedOutput, ExpectedWorkUnit, ValidationRule, PersonaMetadata
+from .schema import ExpectedOutput, ExpectedWorkUnit, PersonaMetadata, PersonaSpec, TestCase
 
 
 def get_claude_client():
@@ -122,10 +124,7 @@ class ScenarioExtractor:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=4096,
-            messages=[{
-                "role": "user",
-                "content": EXTRACTION_PROMPT.format(content=content)
-            }]
+            messages=[{"role": "user", "content": EXTRACTION_PROMPT.format(content=content)}],
         )
 
         # Parse JSON from response
@@ -145,10 +144,7 @@ class ScenarioExtractor:
         test_cases = []
         for tc in data.get("test_cases", []):
             expected_data = tc.get("expected", {})
-            work_units = [
-                ExpectedWorkUnit(**wu)
-                for wu in expected_data.get("work_units", [])
-            ]
+            work_units = [ExpectedWorkUnit(**wu) for wu in expected_data.get("work_units", [])]
 
             expected = ExpectedOutput(
                 supervision_mode=expected_data.get("supervision_mode", "autonomous"),
@@ -240,12 +236,14 @@ class ScenarioExtractor:
                 if md_file.name.lower() == "readme.md":
                     continue
 
-                scenarios.append({
-                    "company": company_dir.name,
-                    "file": md_file.name,
-                    "persona": md_file.stem,
-                    "path": str(md_file),
-                })
+                scenarios.append(
+                    {
+                        "company": company_dir.name,
+                        "file": md_file.name,
+                        "persona": md_file.stem,
+                        "path": str(md_file),
+                    }
+                )
 
         return scenarios
 

@@ -10,12 +10,12 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Request, HTTPException
-
+from fastapi import HTTPException, Request
 
 # ============================================================
 # REDIS RATE LIMITER
 # ============================================================
+
 
 class RedisRateLimiter:
     """
@@ -24,11 +24,7 @@ class RedisRateLimiter:
     Uses sliding window with Redis INCR and EXPIRE for atomic counting.
     """
 
-    def __init__(
-        self,
-        redis_url: Optional[str] = None,
-        requests_per_minute: int = 60
-    ):
+    def __init__(self, redis_url: Optional[str] = None, requests_per_minute: int = 60):
         self.redis_url = redis_url or os.environ.get("REDIS_URL", "redis://localhost:6379")
         self.rpm = requests_per_minute
         self._redis = None
@@ -39,6 +35,7 @@ class RedisRateLimiter:
         if self._redis is None:
             try:
                 import redis.asyncio as redis
+
                 self._redis = redis.from_url(self.redis_url, decode_responses=True)
                 # Test connection
                 await self._redis.ping()
@@ -99,6 +96,7 @@ class RedisRateLimiter:
 # ============================================================
 # IN-MEMORY FALLBACK
 # ============================================================
+
 
 class InMemoryRateLimiter:
     """
@@ -168,14 +166,16 @@ async def check_rate_limit(request: Request, api_key: str = "anonymous") -> bool
     limiter = get_rate_limiter()
 
     # Use API key or client IP
-    key = api_key if api_key != "dev-mode" else (request.client.host if request.client else "unknown")
+    key = (
+        api_key if api_key != "dev-mode" else (request.client.host if request.client else "unknown")
+    )
 
     if not await limiter.is_allowed(key):
         remaining = await limiter.get_remaining(key)
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded. Try again in 60 seconds.",
-            headers={"X-RateLimit-Remaining": str(remaining)}
+            headers={"X-RateLimit-Remaining": str(remaining)},
         )
 
     return True

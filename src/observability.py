@@ -5,23 +5,22 @@ Baby MARS Observability
 Structured logging, metrics, and tracing for production.
 """
 
-import os
-import sys
-import json
-import time
-import logging
-import functools
 import asyncio
-from datetime import datetime
-from typing import Any, Optional, Callable
-from contextlib import contextmanager
-from dataclasses import dataclass, field, asdict
+import functools
+import json
+import logging
+import sys
+import time
 import uuid
-
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Callable, Optional
 
 # ============================================================
 # STRUCTURED LOGGER
 # ============================================================
+
 
 class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
@@ -104,10 +103,11 @@ def setup_logging(
     if json_format:
         console.setFormatter(StructuredFormatter())
     else:
-        console.setFormatter(logging.Formatter(
-            "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        ))
+        console.setFormatter(
+            logging.Formatter(
+                "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            )
+        )
     root.addHandler(console)
 
     # File handler
@@ -128,9 +128,11 @@ def get_logger(name: str) -> StructuredLogger:
 # METRICS
 # ============================================================
 
+
 @dataclass
 class Metric:
     """A single metric measurement."""
+
     name: str
     value: float
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -148,23 +150,15 @@ class MetricsCollector:
 
     def gauge(self, name: str, value: float, **tags):
         """Record a gauge metric (point-in-time value)."""
-        self._metrics.append(Metric(
-            name=name,
-            value=value,
-            tags=tags,
-            metric_type="gauge"
-        ))
+        self._metrics.append(Metric(name=name, value=value, tags=tags, metric_type="gauge"))
 
     def increment(self, name: str, value: float = 1.0, **tags):
         """Increment a counter."""
         key = f"{name}:{json.dumps(tags, sort_keys=True)}"
         self._counters[key] = self._counters.get(key, 0) + value
-        self._metrics.append(Metric(
-            name=name,
-            value=self._counters[key],
-            tags=tags,
-            metric_type="counter"
-        ))
+        self._metrics.append(
+            Metric(name=name, value=self._counters[key], tags=tags, metric_type="counter")
+        )
 
     def histogram(self, name: str, value: float, **tags):
         """Record a histogram value."""
@@ -172,12 +166,7 @@ class MetricsCollector:
         if key not in self._histograms:
             self._histograms[key] = []
         self._histograms[key].append(value)
-        self._metrics.append(Metric(
-            name=name,
-            value=value,
-            tags=tags,
-            metric_type="histogram"
-        ))
+        self._metrics.append(Metric(name=name, value=value, tags=tags, metric_type="histogram"))
 
     @contextmanager
     def timer(self, name: str, **tags):
@@ -230,9 +219,11 @@ def get_metrics() -> MetricsCollector:
 # TRACING
 # ============================================================
 
+
 @dataclass
 class Span:
     """A trace span."""
+
     trace_id: str
     span_id: str
     parent_id: Optional[str]
@@ -295,11 +286,13 @@ class Tracer:
         """Add an event to the current span."""
         for span in reversed(self._spans):
             if span.span_id == self._current_span:
-                span.events.append({
-                    "name": name,
-                    "timestamp": time.perf_counter(),
-                    "attributes": attributes,
-                })
+                span.events.append(
+                    {
+                        "name": name,
+                        "timestamp": time.perf_counter(),
+                        "attributes": attributes,
+                    }
+                )
                 break
 
     @contextmanager
@@ -338,8 +331,10 @@ def get_tracer() -> Tracer:
 # DECORATORS
 # ============================================================
 
+
 def traced(name: Optional[str] = None):
     """Decorator to trace a function."""
+
     def decorator(func: Callable):
         span_name = name or f"{func.__module__}.{func.__name__}"
 
@@ -364,6 +359,7 @@ def traced(name: Optional[str] = None):
 
 def timed(name: Optional[str] = None):
     """Decorator to time a function."""
+
     def decorator(func: Callable):
         metric_name = name or f"{func.__module__}.{func.__name__}"
 
@@ -390,6 +386,7 @@ def timed(name: Optional[str] = None):
 # COGNITIVE LOOP INSTRUMENTATION
 # ============================================================
 
+
 class CognitiveLoopInstrumentation:
     """Instrumentation for the cognitive loop."""
 
@@ -414,9 +411,7 @@ class CognitiveLoopInstrumentation:
         self.tracer.end_span()
         self.metrics.increment("node_processed", node=node_name)
         self.logger.debug(
-            f"Node completed: {node_name}",
-            node=node_name,
-            update_keys=list(updates.keys())
+            f"Node completed: {node_name}", node=node_name, update_keys=list(updates.keys())
         )
 
     def on_claude_call(self, node_name: str, tokens_in: int, tokens_out: int, latency_ms: float):
@@ -429,10 +424,12 @@ class CognitiveLoopInstrumentation:
             node=node_name,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
-            latency_ms=latency_ms
+            latency_ms=latency_ms,
         )
 
-    def on_belief_update(self, belief_id: str, old_strength: float, new_strength: float, category: str):
+    def on_belief_update(
+        self, belief_id: str, old_strength: float, new_strength: float, category: str
+    ):
         """Called when a belief is updated."""
         delta = new_strength - old_strength
         self.metrics.histogram("belief_strength_delta", delta, category=category)
@@ -443,29 +440,21 @@ class CognitiveLoopInstrumentation:
             old_strength=old_strength,
             new_strength=new_strength,
             delta=delta,
-            category=category
+            category=category,
         )
 
     def on_supervision_mode(self, mode: str, strength: float):
         """Called when supervision mode is determined."""
         self.metrics.increment("supervision_mode", mode=mode)
         self.tracer.add_event("supervision_mode", mode=mode, strength=strength)
-        self.logger.info(
-            "Supervision mode determined",
-            mode=mode,
-            belief_strength=strength
-        )
+        self.logger.info("Supervision mode determined", mode=mode, belief_strength=strength)
 
     def on_loop_end(self, outcome: str, duration_ms: float):
         """Called when cognitive loop completes."""
         self.tracer.end_span()
         self.metrics.histogram("cognitive_loop_duration_ms", duration_ms)
         self.metrics.increment("cognitive_loop_completed", outcome=outcome)
-        self.logger.info(
-            "Cognitive loop completed",
-            outcome=outcome,
-            duration_ms=duration_ms
-        )
+        self.logger.info("Cognitive loop completed", outcome=outcome, duration_ms=duration_ms)
 
     def on_error(self, error: Exception, node: Optional[str] = None):
         """Called on error."""
@@ -474,7 +463,7 @@ class CognitiveLoopInstrumentation:
             f"Error in cognitive loop: {error}",
             node=node,
             error_type=type(error).__name__,
-            error_message=str(error)
+            error_message=str(error),
         )
 
 

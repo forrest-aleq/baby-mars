@@ -8,26 +8,28 @@ Uses real Claude API and real Stargate for integration tests.
 
 import asyncio
 import time
-import yaml
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass
 
+import yaml
+
+from .extractor import ScenarioExtractor
 from .schema import (
+    CompanyResult,
+    HarnessReport,
+    PersonaResult,
     PersonaSpec,
     TestCase,
     TestCaseResult,
-    PersonaResult,
-    CompanyResult,
-    HarnessReport,
 )
 from .scorer import Scorer
-from .extractor import ScenarioExtractor
 
 
 @dataclass
 class RunConfig:
     """Configuration for test runs."""
+
     use_real_api: bool = True  # Use real Claude API
     use_real_stargate: bool = True  # Use real Stargate
     pass_threshold: float = 96.0
@@ -63,8 +65,11 @@ class HarnessRunner:
         """Run a single test case through the cognitive loop."""
         from src.birth import quick_birth
         from src.cognitive_loop.graph import create_graph_in_memory, invoke_cognitive_loop
-        from src.graphs.belief_graph import reset_belief_graph, get_belief_graph
-        from src.graphs.belief_graph_manager import get_belief_graph_manager, reset_belief_graph_manager
+        from src.graphs.belief_graph import get_belief_graph, reset_belief_graph
+        from src.graphs.belief_graph_manager import (
+            get_belief_graph_manager,
+            reset_belief_graph_manager,
+        )
 
         # Reset both the in-memory graph AND the manager cache
         reset_belief_graph()
@@ -126,9 +131,8 @@ class HarnessRunner:
         actual_appraisal = result.get("appraisal", {})
 
         # Check if agent escalated
-        did_escalate = (
-            actual_supervision_mode == "guidance_seeking" or
-            result.get("gate_violation_detected", False)
+        did_escalate = actual_supervision_mode == "guidance_seeking" or result.get(
+            "gate_violation_detected", False
         )
 
         # Check if exceptions were flagged
@@ -204,8 +208,8 @@ class HarnessRunner:
         companies = [d.name for d in self.scenarios_dir.iterdir() if d.is_dir()]
 
         if self.config.verbose:
-            print(f"\nBaby MARS Scenario Test Harness")
-            print(f"================================")
+            print("\nBaby MARS Scenario Test Harness")
+            print("================================")
             print(f"Companies: {', '.join(companies)}")
             print(f"Pass threshold: {self.config.pass_threshold}%")
             print(f"Real API: {self.config.use_real_api}")
@@ -238,32 +242,40 @@ def print_report(report: HarnessReport):
         False: "FAIL",
     }
 
-    score_emoji = lambda s: "READY" if s >= 96 else ("PARTIAL" if s >= 70 else ("LIMITED" if s >= 50 else "NOT READY"))
+    score_emoji = (
+        lambda s: "READY"
+        if s >= 96
+        else ("PARTIAL" if s >= 70 else ("LIMITED" if s >= 50 else "NOT READY"))
+    )
 
     print(f"\n{'='*60}")
-    print(f"Baby MARS Readiness Report")
+    print("Baby MARS Readiness Report")
     print(f"{'='*60}")
     print(f"\nOverall Score: {report.overall_score:.1f}% {score_emoji(report.overall_score)}")
     print(f"Status: {status_emoji[report.passed]} (threshold: {report.pass_threshold}%)")
-    print(f"\nBy Company:")
+    print("\nBy Company:")
 
     for cr in report.company_results:
-        print(f"  {cr.company:20} {cr.score:5.1f}% {score_emoji(cr.score)} ({cr.total_personas} personas)")
+        print(
+            f"  {cr.company:20} {cr.score:5.1f}% {score_emoji(cr.score)} ({cr.total_personas} personas)"
+        )
 
     if report.top_failures:
-        print(f"\nTop Failures:")
+        print("\nTop Failures:")
         for f in report.top_failures[:5]:
             print(f"  X {f['persona']}/{f['test_case']} - {f['score']:.1f}%")
             for err in f.get("errors", [])[:1]:
                 print(f"      {err}")
 
     if report.recommendations:
-        print(f"\nRecommendations:")
+        print("\nRecommendations:")
         for i, rec in enumerate(report.recommendations, 1):
             print(f"  {i}. {rec}")
 
     print(f"\nExecution Time: {report.execution_time_ms/1000:.1f}s")
-    print(f"Total: {report.total_tests} tests, {report.passed_tests} passed, {report.failed_tests} failed")
+    print(
+        f"Total: {report.total_tests} tests, {report.passed_tests} passed, {report.failed_tests} failed"
+    )
     print(f"{'='*60}\n")
 
 
@@ -275,7 +287,9 @@ async def main():
     parser.add_argument("--all", action="store_true", help="Run all personas")
     parser.add_argument("--company", help="Run all personas for a company")
     parser.add_argument("--persona", help="Run a single persona")
-    parser.add_argument("--threshold", type=float, default=96.0, help="Pass threshold (default: 96)")
+    parser.add_argument(
+        "--threshold", type=float, default=96.0, help="Pass threshold (default: 96)"
+    )
     parser.add_argument("--quiet", action="store_true", help="Quiet mode")
     parser.add_argument("--extract", action="store_true", help="Extract test cases first")
     parser.add_argument("--list", action="store_true", help="List available personas")
@@ -309,11 +323,15 @@ async def main():
     # Run tests
     if args.persona:
         result = await runner.run_single_persona(args.persona)
-        print(f"\n{result.persona_name}: {result.score:.1f}% ({result.passed_tests}/{result.total_tests} passed)")
+        print(
+            f"\n{result.persona_name}: {result.score:.1f}% ({result.passed_tests}/{result.total_tests} passed)"
+        )
 
     elif args.company:
         result = await runner.run_company(args.company)
-        print(f"\n{result.company}: {result.score:.1f}% ({result.passed_tests}/{result.total_tests} passed)")
+        print(
+            f"\n{result.company}: {result.score:.1f}% ({result.passed_tests}/{result.total_tests} passed)"
+        )
 
     elif args.all:
         report = await runner.run_all()

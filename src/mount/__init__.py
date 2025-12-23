@@ -8,14 +8,14 @@ ActiveSubgraph is what the loop works with.
 
 from .active_subgraph import (
     ActiveSubgraph,
-    mount_active_subgraph,
-    subgraph_to_state_updates,
     CapabilityNode,
-    RelationshipEdge,
-    KnowledgeNode,
     GoalNode,
+    KnowledgeNode,
+    RelationshipEdge,
     StyleConfiguration,
     TemporalContext,
+    mount_active_subgraph,
+    subgraph_to_state_updates,
 )
 
 __all__ = [

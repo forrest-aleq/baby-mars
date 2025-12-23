@@ -7,14 +7,14 @@ All route modules for Baby MARS API.
 
 from fastapi import APIRouter
 
-from .health import router as health_router
+from .beliefs import router as beliefs_router
 from .birth import router as birth_router
 from .chat import router as chat_router
-from .sessions import router as sessions_router
-from .beliefs import router as beliefs_router
-from .tasks import router as tasks_router
 from .decisions import router as decisions_router
 from .events import router as events_router
+from .health import router as health_router
+from .sessions import router as sessions_router
+from .tasks import router as tasks_router
 
 
 def register_routes(app):

@@ -12,16 +12,15 @@ Architecture:
 """
 
 import asyncio
-from typing import Optional
 from collections import OrderedDict
-from datetime import datetime
+from typing import Optional
 
-from .belief_graph import BeliefGraph
 from ..persistence.beliefs import (
     load_beliefs_for_org,
     save_belief,
     save_beliefs_batch,
 )
+from .belief_graph import BeliefGraph
 
 
 class BeliefGraphManager:
@@ -103,9 +102,7 @@ class BeliefGraphManager:
                         weight = belief.get("support_weights", {}).get(supporter_id, 0.8)
                         try:
                             graph.add_support_relationship(
-                                supporter_id,
-                                belief["belief_id"],
-                                weight
+                                supporter_id, belief["belief_id"], weight
                             )
                         except ValueError:
                             # Relationship may already exist
@@ -184,6 +181,7 @@ def reset_belief_graph_manager() -> None:
 # ============================================================
 # CONVENIENCE FUNCTIONS
 # ============================================================
+
 
 async def get_org_belief_graph(org_id: str) -> BeliefGraph:
     """

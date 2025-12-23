@@ -10,9 +10,16 @@ Usage:
     python -m tests.harness.runner --company storagecorner
 """
 
-from .schema import TestCase, PersonaSpec, ExpectedOutput, ValidationRule, TestCaseResult, PersonaResult
-from .scorer import Scorer
 from .runner import HarnessRunner
+from .schema import (
+    ExpectedOutput,
+    PersonaResult,
+    PersonaSpec,
+    TestCase,
+    TestCaseResult,
+    ValidationRule,
+)
+from .scorer import Scorer
 
 __all__ = [
     "TestCase",

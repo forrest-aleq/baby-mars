@@ -17,26 +17,24 @@ Mount happens EVERY message - use mount() instead.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
-from ..state.schema import BabyMARSState, PersonObject
 from ..graphs.belief_graph import get_belief_graph, reset_belief_graph
 from ..graphs.belief_graph_manager import get_belief_graph_manager
-
-from .defaults import DEFAULT_CAPABILITIES, DEFAULT_STYLE
+from ..state.schema import BabyMARSState, PersonObject
 from .beliefs import IMMUTABLE_BELIEFS, seed_global_beliefs
+from .defaults import DEFAULT_CAPABILITIES, DEFAULT_STYLE
 from .knowledge import (
     GLOBAL_KNOWLEDGE_FACTS,
-    load_industry_knowledge,
     create_org_knowledge,
     create_person_knowledge,
     facts_to_dicts,
+    load_industry_knowledge,
 )
 from .knowledge_packs import (
-    seed_industry_beliefs,
-    seed_authority_beliefs,
-    seed_preference_beliefs,
     infer_goals_from_role,
+    seed_authority_beliefs,
+    seed_industry_beliefs,
+    seed_preference_beliefs,
 )
 
 
@@ -67,15 +65,18 @@ async def birth_from_apollo(
     Returns:
         BabyMARSState ready for cognitive loop
     """
-    from .enrichment import (
-        enrich_from_apollo,
-        map_industry_to_knowledge_pack,
-        infer_authority_from_role,
-        determine_org_size,
+    from .birth_system import (
+        calculate_salience,
+        determine_birth_mode,
+        quick_birth,
     )
-    from .birth_system import calculate_salience, determine_birth_mode, create_initial_state, quick_birth
-    from .persist import check_person_exists, persist_birth
+    from .enrichment import (
+        determine_org_size,
+        enrich_from_apollo,
+        infer_authority_from_role,
+    )
     from .mount import mount
+    from .persist import check_person_exists, persist_birth
 
     # Step 0: Idempotency check
     if persist:
@@ -107,14 +108,14 @@ async def birth_from_apollo(
     org_size = determine_org_size(apollo.company.employee_count)
     authority = infer_authority_from_role(apollo.person.title, apollo.person.seniority)
     salience = calculate_salience(
-        role=apollo.person.title,
-        org_size=org_size,
-        is_decision_maker=(authority >= 0.7)
+        role=apollo.person.title, org_size=org_size, is_decision_maker=(authority >= 0.7)
     )
     birth_mode = determine_birth_mode(salience)
 
     # Step 3: Create IDs
-    person_id = f"person_{apollo.person.id[:8]}" if apollo.person.id else f"person_{uuid.uuid4().hex[:8]}"
+    person_id = (
+        f"person_{apollo.person.id[:8]}" if apollo.person.id else f"person_{uuid.uuid4().hex[:8]}"
+    )
     org_id = f"org_{apollo.company.id[:8]}" if apollo.company.id else f"org_{uuid.uuid4().hex[:8]}"
 
     industry = apollo.company.industry or "general"
@@ -133,38 +134,42 @@ async def birth_from_apollo(
     knowledge_facts.extend(load_industry_knowledge(industry))
 
     # Org-specific knowledge from Apollo
-    knowledge_facts.extend(create_org_knowledge(
-        org_id=org_id,
-        org_name=apollo.company.name or "Unknown",
-        industry=industry,
-        size=org_size,
-        apollo_data={
-            "company": {
-                "name": apollo.company.name,
-                "industry": apollo.company.industry,
-                "keywords": apollo.company.keywords,
-            }
-        },
-    ))
+    knowledge_facts.extend(
+        create_org_knowledge(
+            org_id=org_id,
+            org_name=apollo.company.name or "Unknown",
+            industry=industry,
+            size=org_size,
+            apollo_data={
+                "company": {
+                    "name": apollo.company.name,
+                    "industry": apollo.company.industry,
+                    "keywords": apollo.company.keywords,
+                }
+            },
+        )
+    )
 
     # Person-specific knowledge from Apollo
-    knowledge_facts.extend(create_person_knowledge(
-        person_id=person_id,
-        org_id=org_id,
-        name=apollo.person.name or email.split("@")[0].title(),
-        email=email,
-        role=apollo.person.title or "User",
-        apollo_data={
-            "person": {
-                "name": apollo.person.name,
-                "title": apollo.person.title,
-                "seniority": apollo.person.seniority,
-                "timezone": apollo.person.timezone,
-                "location": f"{apollo.person.city}, {apollo.person.state}",
+    knowledge_facts.extend(
+        create_person_knowledge(
+            person_id=person_id,
+            org_id=org_id,
+            name=apollo.person.name or email.split("@")[0].title(),
+            email=email,
+            role=apollo.person.title or "User",
+            apollo_data={
+                "person": {
+                    "name": apollo.person.name,
+                    "title": apollo.person.title,
+                    "seniority": apollo.person.seniority,
+                    "timezone": apollo.person.timezone,
+                    "location": f"{apollo.person.city}, {apollo.person.state}",
+                },
+                "rapport_hooks": apollo.rapport_hooks,
             },
-            "rapport_hooks": apollo.rapport_hooks,
-        },
-    ))
+        )
+    )
 
     # Convert to dicts for storage
     knowledge = facts_to_dicts(knowledge_facts)
@@ -189,11 +194,15 @@ async def birth_from_apollo(
     seed_authority_beliefs(graph, apollo.person.title, authority, person_id)
 
     # Preference beliefs (uncertain claims about preferences, will learn)
-    seed_preference_beliefs(graph, person_id, {
-        "person": {
-            "seniority": apollo.person.seniority,
-        }
-    })
+    seed_preference_beliefs(
+        graph,
+        person_id,
+        {
+            "person": {
+                "seniority": apollo.person.seniority,
+            }
+        },
+    )
 
     # ============================================================
     # OTHER 4 THINGS
@@ -204,6 +213,7 @@ async def birth_from_apollo(
 
     # Relationships (org structure facts)
     from .defaults import ROLE_HIERARCHY
+
     role_info = ROLE_HIERARCHY.get(apollo.person.title, {})
     relationships = {
         "reports_to": role_info.get("reports_to"),
@@ -326,7 +336,6 @@ async def birth_from_apollo(
         "messages": [{"role": "user", "content": message}],
         "org_id": org_id,
         "person": person,
-
         # The 6 Things
         "capabilities": capabilities,
         "relationships": relationships,
@@ -334,21 +343,22 @@ async def birth_from_apollo(
         "activated_beliefs": list(graph.beliefs.values()),  # Claims (with strength)
         "active_goals": goals,
         "style": style,
-
         # Temporal (computed fresh)
         "temporal": {
             "current_time": now.isoformat(),
             "day_of_week": now.strftime("%A"),
-            "time_of_day": "morning" if now.hour < 12 else ("afternoon" if now.hour < 17 else "evening"),
-            "month_phase": "month-start" if now.day <= 5 else ("month-end" if now.day >= 25 else "mid-month"),
+            "time_of_day": "morning"
+            if now.hour < 12
+            else ("afternoon" if now.hour < 17 else "evening"),
+            "month_phase": "month-start"
+            if now.day <= 5
+            else ("month-end" if now.day >= 25 else "mid-month"),
             "is_month_end": now.day >= 25,
             "is_quarter_end": now.month in (3, 6, 9, 12) and now.day >= 25,
             "is_year_end": now.month == 12 and now.day >= 25,
         },
-
         # Context
         "current_context_key": "*|*|*",
-
         # Working memory
         "working_memory": {
             "active_tasks": [
@@ -367,7 +377,6 @@ async def birth_from_apollo(
                 "beliefs_in_focus": [],
             },
         },
-
         # Cognitive loop state (initialized)
         "supervision_mode": None,
         "belief_strength_for_action": None,
@@ -378,7 +387,6 @@ async def birth_from_apollo(
         "turn_number": 1,
         "gate_violation_detected": False,
         "feedback_events": [],
-
         # Birth metadata
         "birth_mode": birth_mode,
         "birth_salience": salience,

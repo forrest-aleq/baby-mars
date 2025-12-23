@@ -9,8 +9,9 @@ Tests for the execution node including:
 - Singleton executor
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch
 
 
 class TestMockToolExecutorERP:
@@ -28,7 +29,7 @@ class TestMockToolExecutorERP:
             "tool": "erp",
             "verb": "process_invoice",
             "entities": {"invoice_id": "INV-123"},
-            "slots": {"gl_code": "5000", "amount": 1000}
+            "slots": {"gl_code": "5000", "amount": 1000},
         }
 
         result = await executor.execute(wu)
@@ -50,7 +51,7 @@ class TestMockToolExecutorERP:
             "tool": "erp",
             "verb": "create_record",
             "entities": {"record_type": "vendor"},
-            "slots": {}
+            "slots": {},
         }
 
         result = await executor.execute(wu)
@@ -71,7 +72,7 @@ class TestMockToolExecutorERP:
             "tool": "erp",
             "verb": "query_records",
             "entities": {},
-            "slots": {"filters": {"status": "open"}}
+            "slots": {"filters": {"status": "open"}},
         }
 
         result = await executor.execute(wu)
@@ -94,8 +95,8 @@ class TestMockToolExecutorERP:
             "entities": {},
             "slots": {
                 "debits": [{"account": "5000", "amount": 100}],
-                "credits": [{"account": "2000", "amount": 100}]
-            }
+                "credits": [{"account": "2000", "amount": 100}],
+            },
         }
 
         result = await executor.execute(wu)
@@ -121,7 +122,7 @@ class TestMockToolExecutorBank:
             "tool": "bank",
             "verb": "process_payment",
             "entities": {},
-            "slots": {"payment_date": "2024-01-15"}
+            "slots": {"payment_date": "2024-01-15"},
         }
 
         result = await executor.execute(wu)
@@ -142,7 +143,7 @@ class TestMockToolExecutorBank:
             "tool": "bank",
             "verb": "reconcile_account",
             "entities": {},
-            "slots": {}
+            "slots": {},
         }
 
         result = await executor.execute(wu)
@@ -168,7 +169,7 @@ class TestMockToolExecutorDocuments:
             "tool": "documents",
             "verb": "extract_data",
             "entities": {},
-            "slots": {"fields_to_extract": ["vendor", "amount", "date"]}
+            "slots": {"fields_to_extract": ["vendor", "amount", "date"]},
         }
 
         result = await executor.execute(wu)
@@ -189,7 +190,7 @@ class TestMockToolExecutorDocuments:
             "tool": "documents",
             "verb": "validate_document",
             "entities": {},
-            "slots": {}
+            "slots": {},
         }
 
         result = await executor.execute(wu)
@@ -214,7 +215,7 @@ class TestMockToolExecutorEmail:
             "tool": "email",
             "verb": "send_notification",
             "entities": {"recipient_id": "user@example.com"},
-            "slots": {}
+            "slots": {},
         }
 
         result = await executor.execute(wu)
@@ -239,7 +240,7 @@ class TestMockToolExecutorWorkflow:
             "tool": "workflow",
             "verb": "approve_transaction",
             "entities": {},
-            "slots": {}
+            "slots": {},
         }
 
         result = await executor.execute(wu)
@@ -260,7 +261,7 @@ class TestMockToolExecutorWorkflow:
             "tool": "workflow",
             "verb": "escalate_issue",
             "entities": {},
-            "slots": {"severity": "high"}
+            "slots": {"severity": "high"},
         }
 
         result = await executor.execute(wu)
@@ -285,7 +286,7 @@ class TestMockToolExecutorUnknown:
             "tool": "unknown_tool",
             "verb": "do_something",
             "entities": {},
-            "slots": {}
+            "slots": {},
         }
 
         result = await executor.execute(wu)
@@ -309,6 +310,7 @@ class TestGetExecutor:
     def test_executor_is_thread_safe(self):
         """Executor should be thread-safe."""
         import threading
+
         from src.cognitive_loop.nodes.execution import get_executor
 
         executors = []
@@ -351,7 +353,7 @@ class TestProcessFunction:
             "action_type": "test",
             "work_units": [],
             "requires_tools": [],
-            "estimated_difficulty": 1
+            "estimated_difficulty": 1,
         }
 
         result = await process(sample_state)
@@ -365,13 +367,15 @@ class TestProcessFunction:
         from src.cognitive_loop.nodes.execution import process
 
         # Add second work unit
-        sample_state_with_action["selected_action"]["work_units"].append({
-            "unit_id": "wu-2",
-            "tool": "bank",
-            "verb": "process_payment",
-            "entities": {},
-            "slots": {}
-        })
+        sample_state_with_action["selected_action"]["work_units"].append(
+            {
+                "unit_id": "wu-2",
+                "tool": "bank",
+                "verb": "process_payment",
+                "entities": {},
+                "slots": {},
+            }
+        )
 
         result = await process(sample_state_with_action)
 
@@ -385,20 +389,14 @@ class TestProcessFunction:
 
         # Add unknown tool work unit first
         sample_state_with_action["selected_action"]["work_units"] = [
-            {
-                "unit_id": "wu-1",
-                "tool": "unknown",
-                "verb": "fail",
-                "entities": {},
-                "slots": {}
-            },
+            {"unit_id": "wu-1", "tool": "unknown", "verb": "fail", "entities": {}, "slots": {}},
             {
                 "unit_id": "wu-2",
                 "tool": "erp",
                 "verb": "process_invoice",
                 "entities": {},
-                "slots": {}
-            }
+                "slots": {},
+            },
         ]
 
         result = await process(sample_state_with_action)
@@ -422,10 +420,10 @@ class TestProcessFunction:
     @pytest.mark.asyncio
     async def test_handles_execution_exception(self, sample_state_with_action):
         """Should handle exceptions during execution."""
-        from src.cognitive_loop.nodes.execution import process, get_executor
+        from src.cognitive_loop.nodes.execution import get_executor, process
 
         # Mock executor to raise exception
-        with patch.object(get_executor(), 'execute', side_effect=Exception("Execution error")):
+        with patch.object(get_executor(), "execute", side_effect=Exception("Execution error")):
             result = await process(sample_state_with_action)
 
         assert result["execution_results"][0]["success"] == False

@@ -14,16 +14,14 @@ Requires:
 """
 
 import uuid
-from typing import Optional
 
-from ...state.schema import BabyMARSState, WorkUnit
 from ...connectors.stargate import (
     StargateExecutor,
     get_stargate_client,
-    is_stargate_available,
     map_work_unit_to_capability,
 )
 from ...observability import get_logger, get_metrics
+from ...state.schema import BabyMARSState, WorkUnit
 
 logger = get_logger("execution")
 metrics = get_metrics()
@@ -32,6 +30,7 @@ metrics = get_metrics()
 # ============================================================
 # MAIN PROCESS FUNCTION
 # ============================================================
+
 
 async def process(state: BabyMARSState) -> dict:
     """
@@ -54,11 +53,13 @@ async def process(state: BabyMARSState) -> dict:
     if not selected_action:
         logger.warning("No action selected for execution")
         return {
-            "execution_results": [{
-                "success": False,
-                "message": "No action selected for execution",
-                "error_type": "ValidationError",
-            }]
+            "execution_results": [
+                {
+                    "success": False,
+                    "message": "No action selected for execution",
+                    "error_type": "ValidationError",
+                }
+            ]
         }
 
     work_units = selected_action.get("work_units", [])
@@ -66,10 +67,12 @@ async def process(state: BabyMARSState) -> dict:
     if not work_units:
         logger.info("No work units to execute")
         return {
-            "execution_results": [{
-                "success": True,
-                "message": "No work units to execute",
-            }]
+            "execution_results": [
+                {
+                    "success": True,
+                    "message": "No work units to execute",
+                }
+            ]
         }
 
     # Get org and user IDs
@@ -122,6 +125,7 @@ async def process(state: BabyMARSState) -> dict:
 # HEALTH CHECK
 # ============================================================
 
+
 async def check_stargate_health() -> dict:
     """Check if Stargate is available and healthy."""
     try:
@@ -149,6 +153,7 @@ async def check_stargate_health() -> dict:
 # ============================================================
 # CAPABILITY INFO
 # ============================================================
+
 
 def get_capability_for_work_unit(work_unit: WorkUnit) -> str:
     """Get the Stargate capability key for a work unit."""

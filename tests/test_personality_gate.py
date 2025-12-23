@@ -9,8 +9,9 @@ Tests for the personality gate including:
 - Retry logic
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestQuickViolationCheck:
@@ -50,7 +51,9 @@ class TestQuickViolationCheck:
         """Clean responses should return None."""
         from src.cognitive_loop.nodes.personality_gate import quick_violation_check
 
-        response = "I'll process the invoice for $5,000 from Acme Corp and post it to the AP account."
+        response = (
+            "I'll process the invoice for $5,000 from Acme Corp and post it to the AP account."
+        )
 
         violation = quick_violation_check(response)
 
@@ -77,10 +80,12 @@ class TestClaudeViolationCheck:
 
         mock_claude_client.complete.return_value = "CLEAN"
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             result = await claude_violation_check(
-                "I'll process this invoice.",
-                [{"statement": "Be honest"}]
+                "I'll process this invoice.", [{"statement": "Be honest"}]
             )
 
         assert result is None
@@ -90,12 +95,16 @@ class TestClaudeViolationCheck:
         """Claude returning VIOLATION should be detected."""
         from src.cognitive_loop.nodes.personality_gate import claude_violation_check
 
-        mock_claude_client.complete.return_value = "VIOLATION: Professional boundaries - response was too personal"
+        mock_claude_client.complete.return_value = (
+            "VIOLATION: Professional boundaries - response was too personal"
+        )
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             result = await claude_violation_check(
-                "Let's meet for dinner!",
-                [{"statement": "Maintain professional boundaries"}]
+                "Let's meet for dinner!", [{"statement": "Maintain professional boundaries"}]
             )
 
         assert result is not None
@@ -108,18 +117,19 @@ class TestClaudeViolationCheck:
 
         mock_claude_client.complete.return_value = "I'm not sure about this one."
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             # With no pattern match
             result = await claude_violation_check(
-                "Process the invoice.",
-                [{"statement": "Be honest"}]
+                "Process the invoice.", [{"statement": "Be honest"}]
             )
             assert result is None
 
             # With pattern match
             result = await claude_violation_check(
-                "I'll hide this from the auditors.",
-                [{"statement": "Be honest"}]
+                "I'll hide this from the auditors.", [{"statement": "Be honest"}]
             )
             assert result is not None
 
@@ -130,11 +140,13 @@ class TestClaudeViolationCheck:
 
         mock_claude_client.complete.side_effect = Exception("API Error")
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             # Clean response - should pass
             result = await claude_violation_check(
-                "Process the invoice.",
-                [{"statement": "Be honest"}]
+                "Process the invoice.", [{"statement": "Be honest"}]
             )
             assert result is None
 
@@ -147,12 +159,16 @@ class TestGenerateBoundaryResponse:
         """Should generate appropriate boundary response."""
         from src.cognitive_loop.nodes.personality_gate import generate_boundary_response
 
-        mock_claude_client.complete.return_value = "I appreciate your request, but I need to focus on accounting tasks."
+        mock_claude_client.complete.return_value = (
+            "I appreciate your request, but I need to focus on accounting tasks."
+        )
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             response = await generate_boundary_response(
-                "Can we meet for dinner?",
-                {"explanation": "Professional boundaries"}
+                "Can we meet for dinner?", {"explanation": "Professional boundaries"}
             )
 
         assert len(response) > 0
@@ -161,14 +177,19 @@ class TestGenerateBoundaryResponse:
     @pytest.mark.asyncio
     async def test_fallback_on_error(self, mock_claude_client):
         """Should use fallback response on error."""
-        from src.cognitive_loop.nodes.personality_gate import generate_boundary_response, BOUNDARY_RESPONSE
+        from src.cognitive_loop.nodes.personality_gate import (
+            BOUNDARY_RESPONSE,
+            generate_boundary_response,
+        )
 
         mock_claude_client.complete.side_effect = Exception("API Error")
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
             response = await generate_boundary_response(
-                "Some request",
-                {"explanation": "Some violation"}
+                "Some request", {"explanation": "Some violation"}
             )
 
         assert response == BOUNDARY_RESPONSE
@@ -195,8 +216,11 @@ class TestProcessFunction:
 
         sample_state["final_response"] = "I'll process the invoice for you."
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.personality_gate.get_belief_graph') as mock_graph:
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.personality_gate.get_belief_graph") as mock_graph:
                 mock_graph.return_value.beliefs = {}
                 mock_claude_client.complete.return_value = "CLEAN"
 
@@ -215,8 +239,11 @@ class TestProcessFunction:
 
         mock_claude_client.complete.return_value = "I'm here to help with accounting tasks."
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.personality_gate.get_belief_graph') as mock_graph:
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.personality_gate.get_belief_graph") as mock_graph:
                 mock_graph.return_value.beliefs = {}
 
                 result = await process(sample_state)
@@ -228,13 +255,13 @@ class TestProcessFunction:
     @pytest.mark.asyncio
     async def test_max_retries_uses_fallback(self, sample_state):
         """Exceeding max retries should use fallback response."""
-        from src.cognitive_loop.nodes.personality_gate import process, BOUNDARY_RESPONSE
+        from src.cognitive_loop.nodes.personality_gate import BOUNDARY_RESPONSE, process
 
         sample_state["final_response"] = "I can help you hide this."
         sample_state["messages"] = [{"role": "user", "content": "Hide something"}]
         sample_state["gate_retries"] = 2  # Max retries exceeded
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_belief_graph') as mock_graph:
+        with patch("src.cognitive_loop.nodes.personality_gate.get_belief_graph") as mock_graph:
             mock_graph.return_value.beliefs = {}
 
             result = await process(sample_state)
@@ -309,14 +336,17 @@ class TestMessageExtraction:
         sample_state["final_response"] = "I can help you hide this."
         sample_state["messages"] = [
             {"role": "user", "content": "The original user request"},
-            {"role": "assistant", "content": "My previous response"}
+            {"role": "assistant", "content": "My previous response"},
         ]
         sample_state["gate_retries"] = 0
 
         mock_claude_client.complete.return_value = "Boundary response"
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.personality_gate.get_belief_graph') as mock_graph:
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.personality_gate.get_belief_graph") as mock_graph:
                 mock_graph.return_value.beliefs = {}
 
                 await process(sample_state)
@@ -338,16 +368,19 @@ class TestMessageExtraction:
                 "role": "user",
                 "content": [
                     {"type": "text", "text": "First part"},
-                    {"type": "text", "text": "Second part"}
-                ]
+                    {"type": "text", "text": "Second part"},
+                ],
             }
         ]
         sample_state["gate_retries"] = 0
 
         mock_claude_client.complete.return_value = "Boundary response"
 
-        with patch('src.cognitive_loop.nodes.personality_gate.get_claude_client', return_value=mock_claude_client):
-            with patch('src.cognitive_loop.nodes.personality_gate.get_belief_graph') as mock_graph:
+        with patch(
+            "src.cognitive_loop.nodes.personality_gate.get_claude_client",
+            return_value=mock_claude_client,
+        ):
+            with patch("src.cognitive_loop.nodes.personality_gate.get_belief_graph") as mock_graph:
                 mock_graph.return_value.beliefs = {}
 
                 result = await process(sample_state)

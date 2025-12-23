@@ -5,15 +5,17 @@ Database Connection and Setup
 Single DATABASE_URL for both LangGraph checkpoints and belief storage.
 """
 
-import os
 import asyncio
-from typing import Optional
+import os
 from contextlib import asynccontextmanager
+from typing import Optional
+
 import asyncpg
 
 # Load .env file
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass

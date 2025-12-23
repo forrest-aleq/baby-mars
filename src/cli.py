@@ -11,23 +11,20 @@ Usage:
     baby-mars beliefs        # View/manage beliefs
 """
 
-import os
-import sys
 import asyncio
+import os
 from typing import Optional
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.table import Table
-from rich.live import Live
-from rich.spinner import Spinner
-from rich.text import Text
 
 # Load .env file if present
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -45,6 +42,7 @@ console = Console()
 # SERVE COMMAND
 # ============================================================
 
+
 @app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),
@@ -52,10 +50,9 @@ def serve(
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload"),
 ):
     """Start the Baby MARS API server."""
-    console.print(Panel.fit(
-        "[bold blue]Baby MARS[/bold blue] API Server",
-        subtitle="Cognitive Architecture"
-    ))
+    console.print(
+        Panel.fit("[bold blue]Baby MARS[/bold blue] API Server", subtitle="Cognitive Architecture")
+    )
 
     # Check for API key
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -65,6 +62,7 @@ def serve(
     console.print("Press [bold]Ctrl+C[/bold] to stop\n")
 
     import uvicorn
+
     uvicorn.run(
         "src.api.server:app",
         host=host,
@@ -78,6 +76,7 @@ def serve(
 # CHAT COMMAND
 # ============================================================
 
+
 @app.command()
 def chat(
     name: str = typer.Option("Demo User", "--name", "-n", help="Your name"),
@@ -86,10 +85,12 @@ def chat(
 ):
     """Start an interactive chat session."""
 
-    console.print(Panel.fit(
-        "[bold blue]Baby MARS[/bold blue] Interactive Chat",
-        subtitle=f"Role: {role} | Industry: {industry}"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold blue]Baby MARS[/bold blue] Interactive Chat",
+            subtitle=f"Role: {role} | Industry: {industry}",
+        )
+    )
 
     # Check for API key
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -126,13 +127,15 @@ async def _run_chat(name: str, role: str, industry: str):
                 break
 
             if user_input.strip().lower() == "/help":
-                console.print(Panel(
-                    "/quit - Exit chat\n"
-                    "/beliefs - Show activated beliefs\n"
-                    "/mode - Show current supervision mode\n"
-                    "/help - Show this help",
-                    title="Commands"
-                ))
+                console.print(
+                    Panel(
+                        "/quit - Exit chat\n"
+                        "/beliefs - Show activated beliefs\n"
+                        "/mode - Show current supervision mode\n"
+                        "/help - Show this help",
+                        title="Commands",
+                    )
+                )
                 continue
 
             if user_input.strip().lower() == "/beliefs":
@@ -145,7 +148,7 @@ async def _run_chat(name: str, role: str, industry: str):
                         table.add_row(
                             b.get("statement", "")[:50],
                             b.get("category", ""),
-                            f"{b.get('strength', 0):.2f}"
+                            f"{b.get('strength', 0):.2f}",
                         )
                     console.print(table)
                 else:
@@ -189,7 +192,9 @@ async def _run_chat(name: str, role: str, industry: str):
             }
             mode_color = mode_colors.get(mode, "white")
 
-            console.print(f"\n[bold magenta]Aleq[/bold magenta] [{mode_color}]({mode})[/{mode_color}]:")
+            console.print(
+                f"\n[bold magenta]Aleq[/bold magenta] [{mode_color}]({mode})[/{mode_color}]:"
+            )
             console.print(Panel(Markdown(response), border_style="dim"))
             console.print()
 
@@ -218,6 +223,7 @@ async def _run_chat(name: str, role: str, industry: str):
 # BIRTH COMMAND
 # ============================================================
 
+
 @app.command()
 def birth(
     name: str = typer.Argument(..., help="Person's name"),
@@ -228,9 +234,10 @@ def birth(
     org_size: str = typer.Option("mid_market", "--size", "-s", help="Org size"),
 ):
     """Birth a new person into Baby MARS."""
+    import uuid
+
     from .birth.birth_system import birth_person
     from .graphs.belief_graph import reset_belief_graph
-    import uuid
 
     console.print(Panel.fit(f"[bold]Birthing:[/bold] {name}"))
 
@@ -269,6 +276,7 @@ def birth(
     # Show beliefs summary
     console.print("\n[bold]Belief Categories:[/bold]")
     from .graphs.belief_graph import get_belief_graph
+
     graph = get_belief_graph()
 
     categories = {}
@@ -283,6 +291,7 @@ def birth(
 # ============================================================
 # BELIEFS COMMAND
 # ============================================================
+
 
 @app.command()
 def beliefs(
@@ -325,7 +334,7 @@ def beliefs(
             b.get("statement", "")[:50],
             b.get("category", ""),
             f"[{strength_color}]{strength:.2f}[/{strength_color}]",
-            immutable
+            immutable,
         )
 
     console.print(table)
@@ -338,16 +347,19 @@ def beliefs(
 # VERSION
 # ============================================================
 
+
 @app.command()
 def version():
     """Show version information."""
-    console.print(Panel.fit(
-        "[bold blue]Baby MARS[/bold blue]\n"
-        "Version: 0.1.0\n"
-        "Cognitive Architecture with a Rented Brain\n\n"
-        "[dim]Implementing Aleq's 20 Research Papers[/dim]",
-        title="About"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold blue]Baby MARS[/bold blue]\n"
+            "Version: 0.1.0\n"
+            "Cognitive Architecture with a Rented Brain\n\n"
+            "[dim]Implementing Aleq's 20 Research Papers[/dim]",
+            title="About",
+        )
+    )
 
 
 # ============================================================

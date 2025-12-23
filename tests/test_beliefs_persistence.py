@@ -9,10 +9,11 @@ Tests for the database persistence layer including:
 - Batch operations
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 import json
+from datetime import datetime
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 
 class TestPrepareBeliefParams:
@@ -158,7 +159,7 @@ class TestSaveBelief:
 
         belief = create_belief("Test", "competence")
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
             mock_ctx.return_value.__aexit__ = AsyncMock()
@@ -199,7 +200,7 @@ class TestSaveBeliefsBatch:
             create_belief("B2", "technical"),
         ]
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_transaction = AsyncMock()
             mock_conn.transaction.return_value.__aenter__ = AsyncMock()
@@ -224,7 +225,7 @@ class TestLoadBeliefs:
         """load_beliefs_for_org should query and convert rows."""
         from src.persistence.beliefs import load_beliefs_for_org
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_conn.fetch.return_value = [sample_belief_row]
 
@@ -246,7 +247,7 @@ class TestLoadBeliefs:
         """Should return empty list for org with no beliefs."""
         from src.persistence.beliefs import load_beliefs_for_org
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_conn.fetch.return_value = []
 
@@ -266,7 +267,7 @@ class TestGetBeliefsByCategory:
         """Should filter by category and minimum strength."""
         from src.persistence.beliefs import get_beliefs_by_category
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_conn.fetch.return_value = [sample_belief_row]
 
@@ -274,10 +275,7 @@ class TestGetBeliefsByCategory:
             mock_ctx.return_value.__aexit__ = AsyncMock()
 
             beliefs = await get_beliefs_by_category(
-                "org-1",
-                category="moral",
-                min_strength=0.5,
-                limit=10
+                "org-1", category="moral", min_strength=0.5, limit=10
             )
 
             # Check query parameters
@@ -300,7 +298,7 @@ class TestDeleteBelief:
         """delete_belief should return True on success."""
         from src.persistence.beliefs import delete_belief
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_conn.execute.return_value = "DELETE 1"
 
@@ -316,7 +314,7 @@ class TestDeleteBelief:
         """delete_belief should return False when not found."""
         from src.persistence.beliefs import delete_belief
 
-        with patch('src.persistence.beliefs.get_connection') as mock_ctx:
+        with patch("src.persistence.beliefs.get_connection") as mock_ctx:
             mock_conn = AsyncMock()
             mock_conn.execute.return_value = "DELETE 0"
 
@@ -336,11 +334,26 @@ class TestUpsertSQL:
         from src.persistence.beliefs import _UPSERT_SQL
 
         required_fields = [
-            "belief_id", "org_id", "statement", "category", "strength",
-            "context_key", "context_states", "supports", "supported_by",
-            "support_weights", "last_updated", "success_count", "failure_count",
-            "is_end_memory_influenced", "peak_intensity", "invalidation_threshold",
-            "is_distrusted", "moral_violation_count", "immutable", "tags"
+            "belief_id",
+            "org_id",
+            "statement",
+            "category",
+            "strength",
+            "context_key",
+            "context_states",
+            "supports",
+            "supported_by",
+            "support_weights",
+            "last_updated",
+            "success_count",
+            "failure_count",
+            "is_end_memory_influenced",
+            "peak_intensity",
+            "invalidation_threshold",
+            "is_distrusted",
+            "moral_violation_count",
+            "immutable",
+            "tags",
         ]
 
         for field in required_fields:

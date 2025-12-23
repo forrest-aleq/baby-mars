@@ -32,7 +32,7 @@ Compare the request against what you expected:
 - Request is clearer than usual
 - Opportunity for efficiency
 
-**Negative violations**: Worse than expected  
+**Negative violations**: Worse than expected
 - Missing required information
 - Request conflicts with policy
 - Unusual or suspicious patterns

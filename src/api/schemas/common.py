@@ -6,12 +6,14 @@ Shared models for errors, pagination, and base types.
 Per API_CONTRACT_V0.md section 8.1
 """
 
-from typing import Optional, Any, Literal
+from typing import Any, Literal, Optional
+
 from pydantic import BaseModel, Field
 
 
 class ErrorAction(BaseModel):
     """An action the user can take to recover from an error"""
+
     label: str = Field(..., description="Button/link text")
     action: Optional[str] = Field(None, description="Frontend action identifier")
     href: Optional[str] = Field(None, description="Link URL if navigating")
@@ -19,6 +21,7 @@ class ErrorAction(BaseModel):
 
 class RetryConfig(BaseModel):
     """Retry configuration for retryable errors"""
+
     after_seconds: int = Field(..., description="Wait this long before retrying")
     max_attempts: int = Field(3, description="Maximum retry attempts")
     strategy: Literal["fixed", "exponential"] = Field("exponential")
@@ -30,6 +33,7 @@ class ErrorDetail(BaseModel):
 
     Every error should be actionable - tell users what to do next.
     """
+
     code: str = Field(..., description="Machine-readable error code")
     message: str = Field(..., description="Human-readable explanation")
     details: Optional[dict[str, Any]] = Field(None, description="Additional context")
@@ -42,11 +46,13 @@ class ErrorDetail(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Wrapper for error responses"""
+
     error: ErrorDetail
 
 
 class PaginatedResponse(BaseModel):
     """Base for paginated list responses"""
+
     total: int = Field(..., description="Total count of items")
     limit: int = Field(..., description="Items per page")
     offset: int = Field(0, description="Current offset")
@@ -55,6 +61,7 @@ class PaginatedResponse(BaseModel):
 
 class HealthService(BaseModel):
     """Individual service health status"""
+
     status: Literal["healthy", "degraded", "unavailable"]
     latency_ms: Optional[int] = None
     message: Optional[str] = None
@@ -65,16 +72,13 @@ class HealthResponse(BaseModel):
     Health check response with capability matrix.
     Per API_CONTRACT_V0.md section 8.3
     """
+
     status: Literal["healthy", "degraded", "unavailable"]
     version: str
     timestamp: str
-    services: dict[str, str] = Field(
-        default_factory=dict,
-        description="Status of each dependency"
-    )
+    services: dict[str, str] = Field(default_factory=dict, description="Status of each dependency")
     capabilities: dict[str, str] = Field(
-        default_factory=dict,
-        description="What's currently available"
+        default_factory=dict, description="What's currently available"
     )
 
 
@@ -92,6 +96,7 @@ class APIError(Exception):
             actions=[{"label": "View payment", "href": "/payments/..."}]
         )
     """
+
     def __init__(
         self,
         code: str,

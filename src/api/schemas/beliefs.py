@@ -6,30 +6,31 @@ Request/response models for belief system.
 Per API_CONTRACT_V0.md section 4
 """
 
-from typing import Optional, Literal
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
 
-
 BeliefCategory = Literal[
-    "moral",        # Ethical beliefs (immutable identity)
-    "competence",   # How to do things
-    "technical",    # Domain-specific facts
-    "preference",   # Style choices
-    "identity",     # Core identity (immutable)
-    "threshold",    # Policy thresholds (special handling)
+    "moral",  # Ethical beliefs (immutable identity)
+    "competence",  # How to do things
+    "technical",  # Domain-specific facts
+    "preference",  # Style choices
+    "identity",  # Core identity (immutable)
+    "threshold",  # Policy thresholds (special handling)
 ]
 
 BeliefStatus = Literal[
-    "active",       # Current and used
-    "superseded",   # Replaced by newer belief
+    "active",  # Current and used
+    "superseded",  # Replaced by newer belief
     "invalidated",  # Proven wrong, no replacement
-    "disputed",     # User challenged, under review
-    "archived",     # No longer relevant
+    "disputed",  # User challenged, under review
+    "archived",  # No longer relevant
 ]
 
 
 class BeliefEvidence(BaseModel):
     """Evidence supporting or challenging a belief"""
+
     evidence_id: str
     type: Literal["supporting", "challenging"]
     source: str = Field(..., description="Where this came from")
@@ -40,6 +41,7 @@ class BeliefEvidence(BaseModel):
 
 class BeliefVersion(BaseModel):
     """Historical version of a belief"""
+
     version: int
     statement: str
     strength: float
@@ -50,6 +52,7 @@ class BeliefVersion(BaseModel):
 
 class BeliefResponse(BaseModel):
     """Basic belief info for lists"""
+
     belief_id: str
     statement: str
     category: BeliefCategory
@@ -61,6 +64,7 @@ class BeliefResponse(BaseModel):
 
 class BeliefDetailResponse(BaseModel):
     """Full belief detail with history"""
+
     belief_id: str
     statement: str
     category: BeliefCategory
@@ -71,8 +75,7 @@ class BeliefDetailResponse(BaseModel):
     # Mutability
     is_immutable: bool = False
     requires_role: Optional[str] = Field(
-        None,
-        description="Role required to modify (for thresholds)"
+        None, description="Role required to modify (for thresholds)"
     )
 
     # History
@@ -84,7 +87,9 @@ class BeliefDetailResponse(BaseModel):
 
     # Relationships
     supports: list[str] = Field(default_factory=list, description="Belief IDs this supports")
-    supported_by: list[str] = Field(default_factory=list, description="Belief IDs that support this")
+    supported_by: list[str] = Field(
+        default_factory=list, description="Belief IDs that support this"
+    )
 
     # Metadata
     source: str = Field(..., description="Origin: system, user, inferred, etc.")
@@ -103,56 +108,36 @@ class BeliefChallengeRequest(BaseModel):
 
     Users cannot directly edit beliefs. They challenge.
     """
-    reason: str = Field(
-        ...,
-        min_length=10,
-        description="Why this belief seems wrong"
-    )
-    evidence: Optional[str] = Field(
-        None,
-        description="Supporting evidence for the challenge"
-    )
+
+    reason: str = Field(..., min_length=10, description="Why this belief seems wrong")
+    evidence: Optional[str] = Field(None, description="Supporting evidence for the challenge")
 
 
 class BeliefChallengeResponse(BaseModel):
     """Response from belief challenge"""
+
     challenge_id: str
     belief_id: str
 
     # Result
-    accepted: bool = Field(
-        ...,
-        description="Whether the challenge was accepted for review"
-    )
-    belief_updated: bool = Field(
-        False,
-        description="Whether the belief strength changed"
-    )
+    accepted: bool = Field(..., description="Whether the challenge was accepted for review")
+    belief_updated: bool = Field(False, description="Whether the belief strength changed")
 
     # New state
-    new_strength: Optional[float] = Field(
-        None,
-        description="Belief's new strength if updated"
-    )
-    new_status: Optional[BeliefStatus] = Field(
-        None,
-        description="Belief's new status if changed"
-    )
+    new_strength: Optional[float] = Field(None, description="Belief's new strength if updated")
+    new_status: Optional[BeliefStatus] = Field(None, description="Belief's new status if changed")
 
     # Evidence shown
     existing_evidence: list[BeliefEvidence] = Field(
-        default_factory=list,
-        description="Evidence that was shown to user"
+        default_factory=list, description="Evidence that was shown to user"
     )
 
-    message: str = Field(
-        ...,
-        description="Explanation of what happened"
-    )
+    message: str = Field(..., description="Explanation of what happened")
 
 
 class ThresholdResponse(BaseModel):
     """Threshold belief (special type)"""
+
     belief_id: str
     name: str = Field(..., description="Threshold name: cross_entity_limit, etc.")
     value: float
