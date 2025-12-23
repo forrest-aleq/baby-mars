@@ -171,62 +171,22 @@ async def load_relationships(person_id: str, org_id: str, role: str, authority: 
 
 
 async def load_knowledge(
-    org_id: str,
-    person_id: str,
-    industry: str,
-    apollo_data: Optional[dict] = None,
+    org_id: str, person_id: str, industry: str, apollo_data: Optional[dict] = None
 ) -> list[dict]:
-    """
-    Load knowledge facts for this context.
+    """Load knowledge facts (scoped: global → industry → org → person). No strength."""
+    facts: list[KnowledgeFact] = list(GLOBAL_KNOWLEDGE_FACTS)
+    facts.extend(load_industry_knowledge(industry))
 
-    Knowledge = certain facts, NO strength.
-    Scoped: global → industry → org → person
-    """
-    all_facts: list[KnowledgeFact] = []
+    org_name = apollo_data.get("company", {}).get("name", "Unknown") if apollo_data else "Unknown"
+    facts.extend(create_org_knowledge(org_id, org_name, industry, "mid_market", apollo_data))
 
-    # Global knowledge (always present)
-    all_facts.extend(GLOBAL_KNOWLEDGE_FACTS)
-
-    # Industry knowledge
-    all_facts.extend(load_industry_knowledge(industry))
-
-    # Org-specific knowledge
-    org_name = "Unknown"
-    if apollo_data and "company" in apollo_data:
-        org_name = apollo_data["company"].get("name", "Unknown")
-
-    all_facts.extend(
-        create_org_knowledge(
-            org_id=org_id,
-            org_name=org_name,
-            industry=industry,
-            size="mid_market",  # TODO: Get from org
-            apollo_data=apollo_data,
-        )
-    )
-
-    # Person-specific knowledge
     if apollo_data:
-        person_name = apollo_data.get("person", {}).get("name", "User")
-        person_email = apollo_data.get("person", {}).get("email", "")
-        person_role = apollo_data.get("person", {}).get("title", "User")
+        p = apollo_data.get("person", {})
+        facts.extend(create_person_knowledge(
+            person_id, org_id, p.get("name", "User"), p.get("email", ""), p.get("title", "User"), apollo_data
+        ))
 
-        all_facts.extend(
-            create_person_knowledge(
-                person_id=person_id,
-                org_id=org_id,
-                name=person_name,
-                email=person_email,
-                role=person_role,
-                apollo_data=apollo_data,
-            )
-        )
-
-    # Resolve by scope (narrower wins)
-    resolved = resolve_knowledge(all_facts, org_id, person_id)
-
-    # Convert to dicts for state storage (max 20)
-    return facts_to_dicts(resolved[:20])
+    return facts_to_dicts(resolve_knowledge(facts, org_id, person_id)[:20])
 
 
 async def load_beliefs(org_id: str, max_beliefs: int = 20) -> list[dict]:
@@ -333,136 +293,74 @@ def validate_mount(
     return warnings
 
 
-async def mount(email: str, message: str) -> Optional[BabyMARSState]:
-    """
-    Mount ActiveSubgraph for a person.
+def _build_person_obj(person: dict, person_id: str, style: dict) -> PersonObject:
+    """Build person object for state."""
+    return {
+        "id": person_id, "name": person["name"], "role": person.get("role", "User"),
+        "authority": person.get("authority", 0.5), "relationship_value": 0.5,
+        "interaction_count": 0, "last_interaction": None, "expertise_areas": [],
+        "communication_preferences": style,
+    }
 
-    This is called on EVERY message to load the current state.
-    Birth writes once, Mount reads every time.
 
-    The 6 things loaded:
-    1. Capabilities - Binary flags
-    2. Relationships - Org structure
-    3. Knowledge - Facts (no strength)
-    4. Beliefs - Claims (with strength)
-    5. Goals - Active goals
-    6. Style - Resolved configuration
+def _temporal_to_dict(temporal: TemporalContext) -> dict:
+    """Convert TemporalContext to dict."""
+    return {
+        "current_time": temporal.current_time, "day_of_week": temporal.day_of_week,
+        "time_of_day": temporal.time_of_day, "month_phase": temporal.month_phase,
+        "is_month_end": temporal.is_month_end, "is_quarter_end": temporal.is_quarter_end,
+        "is_year_end": temporal.is_year_end,
+    }
 
-    Plus computed temporal context.
 
-    Args:
-        email: Person's email
-        message: The user's message
-
-    Returns:
-        BabyMARSState ready for cognitive loop, or None if person not found
-    """
+def _build_mount_state(
+    message: str, org_id: str, person_obj: PersonObject, capabilities: dict,
+    relationships: dict, knowledge: list, beliefs: list, goals: list,
+    style: dict, temporal: TemporalContext,
+) -> dict:
+    """Build the mount state dict."""
     import uuid
+    now = datetime.now(timezone.utc)
+    return {
+        "messages": [{"role": "user", "content": message}], "org_id": org_id,
+        "person": person_obj, "capabilities": capabilities, "relationships": relationships,
+        "knowledge": knowledge, "activated_beliefs": beliefs, "active_goals": goals,
+        "style": style, "current_context_key": "*|*|*", "temporal": _temporal_to_dict(temporal),
+        "working_memory": {
+            "active_tasks": [{"task_id": f"task_{uuid.uuid4().hex[:8]}", "description": message,
+                            "priority": 0.8, "created_at": now.isoformat(), "status": "active"}],
+            "notes": [], "objects": {"persons": [person_obj], "entities": [], "beliefs_in_focus": []},
+        },
+        "supervision_mode": None, "belief_strength_for_action": None, "selected_action": None,
+        "execution_results": [], "response": None, "appraisal": None, "turn_number": 1,
+        "gate_violation_detected": False, "feedback_events": [],
+    }
 
-    # Load person
+
+async def mount(email: str, message: str) -> Optional[BabyMARSState]:
+    """Mount ActiveSubgraph for a person. Called on EVERY message to load current state."""
     person = await load_person(email)
     if not person:
         return None
 
-    org_id = person["org_id"]
-    person_id = person["id"]
-
-    # Load org
+    org_id, person_id = person["org_id"], person["id"]
     org = await load_org(org_id) or {
-        "org_id": org_id,
-        "name": "Unknown",
-        "industry": "general",
-        "size": "mid_market",
-        "settings": {},
+        "org_id": org_id, "name": "Unknown", "industry": "general", "size": "mid_market", "settings": {},
     }
 
     industry = org.get("industry", "general")
-    apollo_data = person.get("apollo_data")
-
-    # Compute temporal context (always fresh)
     temporal = compute_temporal_context(person.get("timezone"))
 
     # Load the 6 things
     capabilities = await load_capabilities(org_id)
-    relationships = await load_relationships(
-        person_id, org_id, person.get("role", ""), person.get("authority", 0.5)
-    )
-    knowledge = await load_knowledge(org_id, person_id, industry, apollo_data)
+    relationships = await load_relationships(person_id, org_id, person.get("role", ""), person.get("authority", 0.5))
+    knowledge = await load_knowledge(org_id, person_id, industry, person.get("apollo_data"))
     beliefs = await load_beliefs(org_id)
-    goals = await load_goals(
-        person_id, org_id, person.get("role", ""), person.get("authority", 0.5)
-    )
+    goals = await load_goals(person_id, org_id, person.get("role", ""), person.get("authority", 0.5))
     style = resolve_style(person, org, temporal)
 
-    # Validate mount
-    warnings = validate_mount(person, org, knowledge, beliefs)
-    for w in warnings:
+    for w in validate_mount(person, org, knowledge, beliefs):
         print(f"Mount: {w}")
 
-    # Build person object for state
-    person_obj: PersonObject = {
-        "id": person_id,
-        "name": person["name"],
-        "role": person.get("role", "User"),
-        "authority": person.get("authority", 0.5),
-        "relationship_value": 0.5,
-        "interaction_count": 0,
-        "last_interaction": None,
-        "expertise_areas": [],
-        "communication_preferences": style,
-    }
-
-    # Build initial state with all 6 things
-    now = datetime.now(timezone.utc)
-
-    return {
-        "messages": [{"role": "user", "content": message}],
-        "org_id": org_id,
-        "person": person_obj,
-        # The 6 Things
-        "capabilities": capabilities,
-        "relationships": relationships,
-        "knowledge": knowledge,  # NEW: Facts, no strength
-        "activated_beliefs": beliefs,  # Claims, with strength
-        "active_goals": goals,
-        "style": style,
-        # Context
-        "current_context_key": "*|*|*",
-        "temporal": {
-            "current_time": temporal.current_time,
-            "day_of_week": temporal.day_of_week,
-            "time_of_day": temporal.time_of_day,
-            "month_phase": temporal.month_phase,
-            "is_month_end": temporal.is_month_end,
-            "is_quarter_end": temporal.is_quarter_end,
-            "is_year_end": temporal.is_year_end,
-        },
-        # Working memory
-        "working_memory": {
-            "active_tasks": [
-                {
-                    "task_id": f"task_{uuid.uuid4().hex[:8]}",
-                    "description": message,
-                    "priority": 0.8,
-                    "created_at": now.isoformat(),
-                    "status": "active",
-                }
-            ],
-            "notes": [],
-            "objects": {
-                "persons": [person_obj],
-                "entities": [],
-                "beliefs_in_focus": [],
-            },
-        },
-        # Cognitive loop state
-        "supervision_mode": None,
-        "belief_strength_for_action": None,
-        "selected_action": None,
-        "execution_results": [],
-        "response": None,
-        "appraisal": None,
-        "turn_number": 1,
-        "gate_violation_detected": False,
-        "feedback_events": [],
-    }
+    person_obj = _build_person_obj(person, person_id, style)
+    return _build_mount_state(message, org_id, person_obj, capabilities, relationships, knowledge, beliefs, goals, style, temporal)
