@@ -78,8 +78,8 @@ async def list_tasks(
     if source:
         tasks = [t for t in tasks if t.get("source") == source]
 
-    # Sort by priority desc, then created_at desc
-    tasks.sort(key=lambda t: (-t.get("priority", 0), t.get("created_at", "")), reverse=False)
+    # Sort by priority desc, then created_at desc (newer first within same priority)
+    tasks.sort(key=lambda t: (t.get("priority", 0), t.get("created_at", "")), reverse=True)
 
     total = len(tasks)
     tasks = tasks[offset : offset + limit]

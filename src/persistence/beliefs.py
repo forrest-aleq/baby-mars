@@ -204,4 +204,9 @@ async def delete_belief(org_id: str, belief_id: str) -> bool:
             org_id,
             belief_id,
         )
-        return str(result) == "DELETE 1"
+        # Parse affected row count from "DELETE N" result string
+        try:
+            affected_rows = int(str(result).split()[-1])
+            return affected_rows == 1
+        except (ValueError, IndexError):
+            return False

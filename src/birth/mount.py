@@ -331,6 +331,8 @@ def _temporal_to_dict(temporal: TemporalContext) -> dict[str, Any]:
         "is_month_end": temporal.is_month_end,
         "is_quarter_end": temporal.is_quarter_end,
         "is_year_end": temporal.is_year_end,
+        "quarter_phase": temporal.quarter_phase,
+        "fiscal_events": temporal.fiscal_events,
     }
 
 

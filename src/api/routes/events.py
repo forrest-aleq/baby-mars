@@ -15,69 +15,14 @@ from typing import Any, AsyncIterator, Optional
 from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
+from ..services.event_bus import get_event_bus
+
 logger = logging.getLogger("baby_mars.api.events")
 
 router = APIRouter()
 
-
-# Simple in-memory event bus (will be replaced with Redis pub/sub for multi-instance)
-class EventBus:
-    """Simple pub/sub for SSE events."""
-
-    def __init__(self) -> None:
-        self._subscribers: dict[str, list[asyncio.Queue[dict[str, Any]]]] = {}
-        self._event_counter = 0
-        self._lock = asyncio.Lock()
-
-    def subscribe(self, org_id: str) -> asyncio.Queue[dict[str, Any]]:
-        """Subscribe to events for an org."""
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-        if org_id not in self._subscribers:
-            self._subscribers[org_id] = []
-        self._subscribers[org_id].append(queue)
-        logger.debug(f"New subscriber for org {org_id}")
-        return queue
-
-    def unsubscribe(self, org_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
-        """Unsubscribe from events."""
-        if org_id in self._subscribers:
-            try:
-                self._subscribers[org_id].remove(queue)
-                logger.debug(f"Subscriber removed for org {org_id}")
-            except ValueError:
-                pass
-
-    async def publish(self, org_id: str, event_type: str, data: dict[str, Any]) -> None:
-        """Publish an event to all subscribers of an org."""
-        async with self._lock:
-            self._event_counter += 1
-            event_id = f"evt_{self._event_counter}"
-
-        event = {
-            "event_id": event_id,
-            "type": event_type,
-            "data": data,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        # Copy list to avoid mutation during iteration
-        subscribers = list(self._subscribers.get(org_id, []))
-        for queue in subscribers:
-            try:
-                await queue.put(event)
-            except Exception as e:
-                logger.warning(f"Failed to publish event: {e}")
-
-        logger.debug(f"Published {event_type} to org {org_id}")
-
-
-# Global event bus instance
-_event_bus = EventBus()
-
-
-def get_event_bus() -> EventBus:
-    """Get the global event bus."""
-    return _event_bus
+# Use the shared event bus from services
+_event_bus = get_event_bus()
 
 
 @router.get("")

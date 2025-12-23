@@ -6,7 +6,7 @@ Health check and system info endpoints.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Request
@@ -101,7 +101,7 @@ async def health(request: Request) -> HealthResponse:
     return HealthResponse(
         status=status,
         version="0.1.0",
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         services=services,
         capabilities=capabilities,
     )
