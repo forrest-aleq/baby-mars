@@ -5,6 +5,8 @@ Knowledge Resolution
 Functions for resolving and converting knowledge facts.
 """
 
+from typing import Any
+
 from .model import KnowledgeFact
 
 
@@ -48,9 +50,7 @@ def resolve_knowledge(
     return resolved
 
 
-def knowledge_to_context_string(
-    facts: list[KnowledgeFact], max_facts: int = 15
-) -> str:
+def knowledge_to_context_string(facts: list[KnowledgeFact], max_facts: int = 15) -> str:
     """
     Convert knowledge facts to a context string for the cognitive loop.
 
@@ -69,7 +69,7 @@ def knowledge_to_context_string(
     return "\n".join(lines)
 
 
-def facts_to_dicts(facts: list[KnowledgeFact]) -> list[dict]:
+def facts_to_dicts(facts: list[KnowledgeFact]) -> list[dict[str, Any]]:
     """Convert KnowledgeFact objects to dicts for state storage."""
     return [
         {
@@ -85,7 +85,7 @@ def facts_to_dicts(facts: list[KnowledgeFact]) -> list[dict]:
     ]
 
 
-def dicts_to_facts(dicts: list[dict]) -> list[KnowledgeFact]:
+def dicts_to_facts(dicts: list[dict[str, Any]]) -> list[KnowledgeFact]:
     """Convert dicts back to KnowledgeFact objects."""
     return [
         KnowledgeFact(

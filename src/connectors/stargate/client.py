@@ -8,7 +8,7 @@ Implements Stargate Integration Contract v1.1.
 
 import time
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -64,9 +64,9 @@ class StargateClient:
         capability_key: str,
         org_id: str,
         user_id: str,
-        args: dict,
+        args: dict[str, Any],
         turn_id: Optional[str] = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Execute a Stargate capability (per Contract Section 2.1).
 
@@ -100,7 +100,7 @@ class StargateClient:
 
         return await self._execute_with_retry(request_body)
 
-    async def _execute_with_retry(self, request_body: dict) -> dict:
+    async def _execute_with_retry(self, request_body: dict[str, Any]) -> dict[str, Any]:
         """Execute with retry logic per contract."""
         capability_key = request_body["capability_key"]
         backoff = self.config.backoff_base
@@ -113,35 +113,32 @@ class StargateClient:
                     self._log_success(capability_key, attempt)
                     return result
 
-                should_continue = self._handle_error(
-                    result, capability_key, attempt, backoff
-                )
+                should_continue = self._handle_error(result, capability_key, attempt, backoff)
                 if not should_continue:
                     return result
 
             except httpx.HTTPStatusError as e:
-                result = self._handle_http_error(e, capability_key, attempt, backoff)
-                if result:
-                    return result
+                error_result = self._handle_http_error(e, capability_key, attempt, backoff)
+                if error_result:
+                    return error_result
 
             except httpx.RequestError as e:
-                result = self._handle_request_error(e, capability_key, attempt, backoff)
-                if result:
-                    return result
+                error_result = self._handle_request_error(e, capability_key, attempt, backoff)
+                if error_result:
+                    return error_result
 
         return self._max_retries_error(capability_key)
 
-    async def _try_execute(self, request_body: dict) -> dict:
+    async def _try_execute(self, request_body: dict[str, Any]) -> dict[str, Any]:
         """Attempt a single execution."""
         client = await self._get_client()
         response = await client.post("/api/v1/execute", json=request_body)
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
     def _log_success(self, capability_key: str, attempt: int) -> None:
         """Log successful execution."""
-        metrics.increment(
-            "stargate_calls", capability=capability_key, status="success"
-        )
+        metrics.increment("stargate_calls", capability=capability_key, status="success")
         logger.info(
             "Stargate execution succeeded",
             capability=capability_key,
@@ -149,16 +146,14 @@ class StargateClient:
         )
 
     def _handle_error(
-        self, result: dict, capability_key: str, attempt: int, backoff: float
+        self, result: dict[str, Any], capability_key: str, attempt: int, backoff: float
     ) -> bool:
         """Handle error response. Returns True if should continue retrying."""
         error = result.get("error", {})
         error_type = error.get("error_type", "ExecutionError")
         retry_strategy = ERROR_RETRY_MAP.get(error_type, RetryStrategy.DO_NOT_RETRY)
 
-        metrics.increment(
-            "stargate_errors", capability=capability_key, error_type=error_type
-        )
+        metrics.increment("stargate_errors", capability=capability_key, error_type=error_type)
         logger.warning(
             "Stargate execution failed",
             capability=capability_key,
@@ -190,7 +185,7 @@ class StargateClient:
 
     def _handle_http_error(
         self, e: httpx.HTTPStatusError, capability_key: str, attempt: int, backoff: float
-    ) -> Optional[dict]:
+    ) -> Optional[dict[str, Any]]:
         """Handle HTTP errors. Returns error dict if should stop, None to continue."""
         logger.error(
             "Stargate HTTP error",
@@ -216,11 +211,9 @@ class StargateClient:
 
     def _handle_request_error(
         self, e: httpx.RequestError, capability_key: str, attempt: int, backoff: float
-    ) -> Optional[dict]:
+    ) -> Optional[dict[str, Any]]:
         """Handle request errors. Returns error dict if should stop, None to continue."""
-        logger.error(
-            "Stargate connection error", capability=capability_key, error=str(e)
-        )
+        logger.error("Stargate connection error", capability=capability_key, error=str(e))
         metrics.increment("stargate_errors", type="connection")
 
         if attempt < self.config.max_retries - 1:
@@ -238,7 +231,7 @@ class StargateClient:
             },
         }
 
-    def _max_retries_error(self, capability_key: str) -> dict:
+    def _max_retries_error(self, capability_key: str) -> dict[str, Any]:
         """Return max retries exceeded error."""
         return {
             "success": False,
@@ -250,22 +243,24 @@ class StargateClient:
             },
         }
 
-    async def health_check(self) -> dict:
+    async def health_check(self) -> dict[str, Any]:
         """Check Stargate health (per Contract Section 7.1)."""
         try:
             client = await self._get_client()
             response = await client.get("/health")
-            return response.json()
+            result: dict[str, Any] = response.json()
+            return result
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}
 
-    async def list_capabilities(self) -> list[dict]:
+    async def list_capabilities(self) -> list[dict[str, Any]]:
         """List available Stargate capabilities."""
         try:
             client = await self._get_client()
             response = await client.get("/api/v1/capabilities")
             response.raise_for_status()
-            return response.json()
+            result: list[dict[str, Any]] = response.json()
+            return result
         except Exception as e:
             logger.error(f"Failed to list capabilities: {e}")
             return []

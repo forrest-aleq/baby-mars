@@ -16,6 +16,7 @@ The 6 Things:
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any, cast
 
 from ..graphs.belief_graph import get_belief_graph, reset_belief_graph
 from ..state.schema import BabyMARSState, PersonObject
@@ -94,7 +95,7 @@ def birth_person(
     org_name: str,
     industry: str = "general",
     birth_mode: str = "standard",
-) -> dict:
+) -> dict[str, Any]:
     """
     Birth a new person into the system.
 
@@ -121,20 +122,23 @@ def birth_person(
     role_info = ROLE_HIERARCHY.get(role, {"reports_to": None, "authority": 0.5})
 
     # Build person object
-    person: PersonObject = {
-        "id": person_id,
-        "name": name,
-        "role": role,
-        "authority": role_info["authority"],
-        "relationship_value": 0.5,
-        "interaction_count": 0,
-        "last_interaction": None,
-        "expertise_areas": [],
-        "communication_preferences": {
-            **DEFAULT_STYLE,
-            **ROLE_STYLE_OVERRIDES.get(role, {}),
+    person = cast(
+        PersonObject,
+        {
+            "id": person_id,
+            "name": name,
+            "role": role,
+            "authority": role_info["authority"],
+            "relationship_value": 0.5,
+            "interaction_count": 0,
+            "last_interaction": "",
+            "expertise_areas": [],
+            "communication_preferences": {
+                **DEFAULT_STYLE,
+                **ROLE_STYLE_OVERRIDES.get(role, {}),
+            },
         },
-    }
+    )
 
     # Get role goals
     goals = ROLE_GOALS.get(
@@ -178,52 +182,55 @@ def birth_person(
     }
 
 
-def create_initial_state(birth_result: dict, initial_message: str) -> BabyMARSState:
+def create_initial_state(birth_result: dict[str, Any], initial_message: str) -> BabyMARSState:
     """Create initial cognitive state from birth result."""
     now = datetime.now(timezone.utc)
 
-    return {
-        "messages": [{"role": "user", "content": initial_message}],
-        "org_id": birth_result["org"]["org_id"],
-        "person": birth_result["person"],
-        "activated_beliefs": list(get_belief_graph().beliefs.values()),
-        "current_context_key": "*|*|*",
-        "active_goals": birth_result["goals"],
-        "working_memory": {
-            "active_tasks": [
-                {
-                    "task_id": f"task_{uuid.uuid4().hex[:8]}",
-                    "description": initial_message,
-                    "priority": 0.8,
-                    "created_at": now.isoformat(),
-                    "status": "active",
-                }
-            ],
-            "notes": [],
-            "objects": {
-                "persons": [birth_result["person"]],
-                "entities": [],
-                "beliefs_in_focus": [],
-                "temporal": {
-                    "current_time": now.isoformat(),
-                    "day_of_week": now.strftime("%A"),
-                    "is_month_end": now.day >= 25,
-                    "is_quarter_end": now.month in (3, 6, 9, 12) and now.day >= 25,
+    return cast(
+        BabyMARSState,
+        {
+            "messages": [{"role": "user", "content": initial_message}],
+            "org_id": birth_result["org"]["org_id"],
+            "person": birth_result["person"],
+            "activated_beliefs": list(get_belief_graph().beliefs.values()),
+            "current_context_key": "*|*|*",
+            "active_goals": birth_result["goals"],
+            "working_memory": {
+                "active_tasks": [
+                    {
+                        "task_id": f"task_{uuid.uuid4().hex[:8]}",
+                        "description": initial_message,
+                        "priority": 0.8,
+                        "created_at": now.isoformat(),
+                        "status": "active",
+                    }
+                ],
+                "notes": [],
+                "objects": {
+                    "persons": [birth_result["person"]],
+                    "entities": [],
+                    "beliefs_in_focus": [],
+                    "temporal": {
+                        "current_time": now.isoformat(),
+                        "day_of_week": now.strftime("%A"),
+                        "is_month_end": now.day >= 25,
+                        "is_quarter_end": now.month in (3, 6, 9, 12) and now.day >= 25,
+                    },
                 },
             },
+            "capabilities": birth_result["capabilities"],
+            "style": birth_result["style"],
+            "supervision_mode": None,
+            "belief_strength_for_action": None,
+            "selected_action": None,
+            "execution_results": [],
+            "response": None,
+            "appraisal": None,
+            "turn_number": 1,
+            "gate_violation_detected": False,
+            "feedback_events": [],
         },
-        "capabilities": birth_result["capabilities"],
-        "style": birth_result["style"],
-        "supervision_mode": None,
-        "belief_strength_for_action": None,
-        "selected_action": None,
-        "execution_results": [],
-        "response": None,
-        "appraisal": None,
-        "turn_number": 1,
-        "gate_violation_detected": False,
-        "feedback_events": [],
-    }
+    )
 
 
 def quick_birth(

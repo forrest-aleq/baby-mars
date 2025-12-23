@@ -7,7 +7,7 @@ CRUD operations for knowledge facts.
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from ..database import get_connection
 from .exceptions import (
@@ -154,7 +154,7 @@ async def add_fact(
     category: CategoryType,
     source_type: SourceType,
     scope_id: Optional[str] = None,
-    source_ref: Optional[dict] = None,
+    source_ref: Optional[dict[str, Any]] = None,
     tags: Optional[list[str]] = None,
     confidence: float = 1.0,
     valid_from: Optional[datetime] = None,
@@ -219,9 +219,7 @@ async def replace_fact(
 
             if not force_source_downgrade:
                 if not can_replace_source(old_fact["source_type"], corrected_by_type):
-                    raise SourcePriorityError(
-                        old_fact["source_type"], corrected_by_type
-                    )
+                    raise SourcePriorityError(old_fact["source_type"], corrected_by_type)
 
             new_fact_id = await conn.fetchval(
                 """
@@ -238,9 +236,7 @@ async def replace_fact(
                 new_statement,
                 old_fact["category"],
                 corrected_by_type,
-                json.dumps(
-                    {"correction_of": old_fact_id, "corrected_by": corrected_by_ref}
-                ),
+                json.dumps({"correction_of": old_fact_id, "corrected_by": corrected_by_ref}),
                 old_fact_id,
                 old_fact["tags"],
                 old_fact["metadata"],
@@ -318,7 +314,7 @@ async def delete_fact(
             )
 
 
-def _row_to_fact(r: dict) -> KnowledgeFact:
+def _row_to_fact(r: Any) -> KnowledgeFact:
     """Convert database row to KnowledgeFact."""
     return KnowledgeFact(
         id=str(r["id"]),

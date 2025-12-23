@@ -8,7 +8,7 @@ Implements Paper #17: Social Awareness and Relationship Dynamics.
 
 import json
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import networkx as nx
 
@@ -27,8 +27,8 @@ class SocialGraph:
     - Conflict resolution via authority-weighted triage
     """
 
-    def __init__(self):
-        self.G = nx.DiGraph()
+    def __init__(self) -> None:
+        self.G: nx.DiGraph[str] = nx.DiGraph()
         self.persons: dict[str, PersonObject] = {}
 
     # ============================================================
@@ -189,7 +189,7 @@ class SocialGraph:
 
     def resolve_conflict(
         self, person_a_id: str, person_b_id: str, guidance_a: str, guidance_b: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Resolve conflict between two people's guidance.
 
@@ -197,8 +197,10 @@ class SocialGraph:
         - If authority difference > 0.3: Auto-defer to higher
         - If <= 0.3: Escalate to human
         """
-        auth_a = self.persons.get(person_a_id, {}).get("authority", 0.5)
-        auth_b = self.persons.get(person_b_id, {}).get("authority", 0.5)
+        person_a = self.persons.get(person_a_id)
+        person_b = self.persons.get(person_b_id)
+        auth_a: float = person_a.get("authority", 0.5) if person_a else 0.5
+        auth_b: float = person_b.get("authority", 0.5) if person_b else 0.5
 
         diff = abs(auth_a - auth_b)
 
@@ -217,6 +219,8 @@ class SocialGraph:
             }
         else:
             # Comparable authority - escalate
+            name_a = person_a.get("name", "Unknown") if person_a else "Unknown"
+            name_b = person_b.get("name", "Unknown") if person_b else "Unknown"
             return {
                 "resolution": "escalate",
                 "reason": "comparable_authority",
@@ -225,13 +229,13 @@ class SocialGraph:
                     "id": person_a_id,
                     "authority": auth_a,
                     "guidance": guidance_a,
-                    "name": self.persons.get(person_a_id, {}).get("name", "Unknown"),
+                    "name": name_a,
                 },
                 "person_b": {
                     "id": person_b_id,
                     "authority": auth_b,
                     "guidance": guidance_b,
-                    "name": self.persons.get(person_b_id, {}).get("name", "Unknown"),
+                    "name": name_b,
                 },
             }
 
@@ -279,7 +283,7 @@ class SocialGraph:
         graph.persons = data.get("persons", {})
         return graph
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             "nodes": dict(self.G.nodes(data=True)),
@@ -288,7 +292,7 @@ class SocialGraph:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SocialGraph":
+    def from_dict(cls, data: dict[str, Any]) -> "SocialGraph":
         """Restore from dictionary"""
         graph = cls()
 

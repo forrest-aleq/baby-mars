@@ -23,6 +23,7 @@ def get_belief_graph() -> "BeliefGraph":
             # Double-check after acquiring lock
             if _belief_graph is None:
                 from .graph import BeliefGraph
+
                 _belief_graph = BeliefGraph()
     return _belief_graph
 

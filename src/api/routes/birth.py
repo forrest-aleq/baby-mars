@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=BirthResponse)
-async def birth(request_data: BirthRequest, request: Request):
+async def birth(request_data: BirthRequest, request: Request) -> BirthResponse:
     """
     Birth a new agent into Baby MARS.
 
@@ -43,8 +43,7 @@ async def birth(request_data: BirthRequest, request: Request):
             org_id=org_id,
             org_name=request_data.org_name,
             industry=request_data.industry,
-            org_size=request_data.org_size,
-            capabilities_override=request_data.capabilities_override,
+            # org_size and capabilities_override not supported by birth_person yet
         )
 
         # Create session

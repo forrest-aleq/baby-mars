@@ -15,10 +15,13 @@ Examples of the distinction:
 - BELIEF: "This org's close takes 5 days" (claim, strength 0.6)
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..graphs.belief_graph import BeliefGraph
 
 
-def seed_industry_beliefs(graph, industry: str, org_id: str) -> None:
+def seed_industry_beliefs(graph: "BeliefGraph", industry: str, org_id: str) -> None:
     """
     Seed beliefs about how this org likely operates based on industry.
 
@@ -55,7 +58,7 @@ def _get_industry_packs(industry: str) -> list[str]:
     return packs
 
 
-def _seed_pack_beliefs(graph, pack: str, org_id: str) -> None:
+def _seed_pack_beliefs(graph: "BeliefGraph", pack: str, org_id: str) -> None:
     """Seed beliefs from a specific pack."""
     beliefs = BELIEF_PACKS.get(pack, [])
 
@@ -181,7 +184,9 @@ BELIEF_PACKS = {
 }
 
 
-def seed_authority_beliefs(graph, title: str, authority: float, person_id: str) -> None:
+def seed_authority_beliefs(
+    graph: "BeliefGraph", title: str, authority: float, person_id: str
+) -> None:
     """
     Seed beliefs about this person's capabilities and authority.
 
@@ -225,7 +230,9 @@ def seed_authority_beliefs(graph, title: str, authority: float, person_id: str) 
         )
 
 
-def seed_preference_beliefs(graph, person_id: str, apollo_data: Optional[dict] = None) -> None:
+def seed_preference_beliefs(
+    graph: "BeliefGraph", person_id: str, apollo_data: Optional[dict[str, Any]] = None
+) -> None:
     """
     Seed beliefs about person's preferences.
 
@@ -264,7 +271,7 @@ def seed_preference_beliefs(graph, person_id: str, apollo_data: Optional[dict] =
         )
 
 
-def infer_goals_from_role(title: str, authority: float) -> list[dict]:
+def infer_goals_from_role(title: str, authority: float) -> list[dict[str, Any]]:
     """
     Infer standing goals from role and authority.
 

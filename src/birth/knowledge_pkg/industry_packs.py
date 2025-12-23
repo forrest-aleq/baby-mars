@@ -186,9 +186,7 @@ def get_industry_from_apollo(apollo_industry: str) -> list[str]:
     if any(x in industry_lower for x in ["software", "technology", "saas", "cloud"]):
         packs.append("saas")
 
-    if any(
-        x in industry_lower for x in ["investment", "asset management", "hedge", "fund"]
-    ):
+    if any(x in industry_lower for x in ["investment", "asset management", "hedge", "fund"]):
         packs.append("investment_management")
 
     if any(x in industry_lower for x in ["real estate", "property", "reit"]):

@@ -8,7 +8,7 @@ Called once at signup, never again.
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from ..persistence.beliefs import save_beliefs_batch
 from ..persistence.database import get_connection
@@ -17,10 +17,10 @@ from ..persistence.database import get_connection
 async def persist_birth(
     person_id: str,
     org_id: str,
-    person_data: dict,
-    org_data: dict,
-    beliefs: list[dict],
-    apollo_data: Optional[dict] = None,
+    person_data: dict[str, Any],
+    org_data: dict[str, Any],
+    beliefs: list[dict[str, Any]],
+    apollo_data: Optional[dict[str, Any]] = None,
 ) -> bool:
     """
     Persist all birth data atomically.

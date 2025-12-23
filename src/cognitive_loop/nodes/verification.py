@@ -9,6 +9,8 @@ Runs validators on execution results and determines
 whether to proceed, retry, or escalate.
 """
 
+from typing import Any, cast
+
 from ...claude_client import ValidationOutput, get_claude_client
 from ...state.schema import (
     BabyMARSState,
@@ -24,7 +26,7 @@ class Validators:
     """Collection of standard validators"""
 
     @staticmethod
-    def amount_validator(result: dict, constraint: dict) -> ValidationResult:
+    def amount_validator(result: dict[str, Any], constraint: dict[str, Any]) -> ValidationResult:
         """Validate amount is within bounds"""
         params = constraint.get("params", {})
         min_val = params.get("min", 0)
@@ -59,7 +61,7 @@ class Validators:
         }
 
     @staticmethod
-    def required_fields_validator(result: dict, constraint: dict) -> ValidationResult:
+    def required_fields_validator(result: dict[str, Any], constraint: dict[str, Any]) -> ValidationResult:
         """Validate all required fields are present"""
         params = constraint.get("params", {})
         required_fields = params.get("fields", [])
@@ -89,7 +91,7 @@ class Validators:
         }
 
     @staticmethod
-    def balance_validator(result: dict, constraint: dict) -> ValidationResult:
+    def balance_validator(result: dict[str, Any], constraint: dict[str, Any]) -> ValidationResult:
         """Validate debits equal credits (for journal entries)"""
         params = constraint.get("params", {})
         tolerance = params.get("tolerance", 0.01)
@@ -118,7 +120,7 @@ class Validators:
         }
 
     @staticmethod
-    def success_validator(result: dict, constraint: dict) -> ValidationResult:
+    def success_validator(result: dict[str, Any], constraint: dict[str, Any]) -> ValidationResult:
         """Basic check that execution succeeded"""
         success = result.get("success", False)
 
@@ -154,7 +156,7 @@ VALIDATORS = {
 # ============================================================
 
 
-def run_validators(execution_results: list[dict], work_units: list[dict]) -> list[ValidationResult]:
+def run_validators(execution_results: list[dict[str, Any]], work_units: list[dict[str, Any]]) -> list[ValidationResult]:
     """
     Run validators on execution results.
 
@@ -238,7 +240,7 @@ def determine_action(
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Verification Node
 
@@ -248,12 +250,15 @@ async def process(state: BabyMARSState) -> dict:
     3. Determine if results pass, need retry, or escalation
     """
 
-    execution_results = state.get("execution_results", [])
+    execution_results = list(state.get("execution_results") or [])
     selected_action = state.get("selected_action")
-    work_units = selected_action.get("work_units", []) if selected_action else []
+    work_units = cast(
+        list[dict[str, Any]],
+        selected_action.get("work_units", []) if selected_action and isinstance(selected_action, dict) else [],
+    )
 
-    retry_count = state.get("retry_count", 0)
-    max_retries = state.get("max_retries", 3)
+    retry_count = int(state.get("retry_count") or 0)
+    max_retries = int(state.get("max_retries") or 3)
 
     # Run built-in validators
     validation_results = run_validators(execution_results, work_units)
@@ -285,7 +290,7 @@ async def process(state: BabyMARSState) -> dict:
 
 
 def _needs_complex_validation(
-    validation_results: list[ValidationResult], execution_results: list[dict]
+    validation_results: list[ValidationResult], execution_results: list[dict[str, Any]]
 ) -> bool:
     """Check if complex Claude-based validation is needed"""
     # For MVP, only use Claude validation if:
@@ -302,7 +307,7 @@ def _needs_complex_validation(
 
 
 async def _claude_validation(
-    state: BabyMARSState, execution_results: list[dict]
+    state: BabyMARSState, execution_results: list[dict[str, Any]]
 ) -> list[ValidationResult]:
     """Use Claude for complex validation"""
     client = get_claude_client()
@@ -343,28 +348,34 @@ Return validation results in structured format.""",
         )
 
         # Convert to ValidationResult list
-        results = []
+        results: list[ValidationResult] = []
         for r in response.results:
             results.append(
-                {
-                    "validator": r.get("validator", "claude_validator"),
-                    "passed": r.get("passed", True),
-                    "severity": r.get("severity", 0.0),
-                    "message": r.get("message", ""),
-                    "fix_hint": r.get("fix_hint"),
-                }
+                cast(
+                    ValidationResult,
+                    {
+                        "validator": r.get("validator", "claude_validator"),
+                        "passed": r.get("passed", True),
+                        "severity": r.get("severity", 0.0),
+                        "message": r.get("message", ""),
+                        "fix_hint": r.get("fix_hint"),
+                    },
+                )
             )
 
         return results
 
     except Exception as e:
         # Return a single error result
-        return [
-            {
-                "validator": "claude_validator",
-                "passed": True,  # Don't block on validation error
-                "severity": 0.1,
-                "message": f"Claude validation skipped: {e}",
-                "fix_hint": None,
-            }
-        ]
+        return cast(
+            list[ValidationResult],
+            [
+                {
+                    "validator": "claude_validator",
+                    "passed": True,  # Don't block on validation error
+                    "severity": 0.1,
+                    "message": f"Claude validation skipped: {e}",
+                    "fix_hint": None,
+                }
+            ],
+        )

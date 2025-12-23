@@ -12,7 +12,7 @@ Key responsibilities:
 4. Route to appropriate next step based on supervision mode
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from ...claude_client import ActionSelectionOutput, get_claude_client
 from ...state.schema import (
@@ -44,16 +44,16 @@ def build_action_context(state: BabyMARSState) -> str:
     appraisal = state.get("appraisal")
     if appraisal:
         parts.append(f"""<appraisal>
-  Recommended action type: {appraisal.get('recommended_action_type', 'unknown')}
-  Difficulty: {appraisal.get('difficulty', 3)}
-  Involves ethical beliefs: {appraisal.get('involves_ethical_beliefs', False)}
-  Attributed beliefs: {', '.join(appraisal.get('attributed_beliefs', []))}
+  Recommended action type: {appraisal.get("recommended_action_type", "unknown")}
+  Difficulty: {appraisal.get("difficulty", 3)}
+  Involves ethical beliefs: {appraisal.get("involves_ethical_beliefs", False)}
+  Attributed beliefs: {", ".join(appraisal.get("attributed_beliefs", []))}
 </appraisal>""")
 
     # Supervision mode and belief strength
     parts.append(f"""<autonomy>
-  Supervision mode: {state.get('supervision_mode', 'guidance_seeking')}
-  Belief strength for action: {state.get('belief_strength_for_action', 0):.2f}
+  Supervision mode: {state.get("supervision_mode", "guidance_seeking")}
+  Belief strength for action: {state.get("belief_strength_for_action", 0):.2f}
 </autonomy>""")
 
     # Relevant beliefs for context
@@ -83,7 +83,7 @@ def build_action_context(state: BabyMARSState) -> str:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Action Selection Node
 
@@ -183,7 +183,7 @@ Return your action selection in the structured format.""",
 # ============================================================
 
 
-def compute_autonomy_level(belief_strength: float, appraisal: Optional[dict]) -> str:
+def compute_autonomy_level(belief_strength: float, appraisal: Optional[dict[str, Any]]) -> str:
     """
     Compute autonomy level from belief strength.
     Paper #1: Competence-Based Autonomy

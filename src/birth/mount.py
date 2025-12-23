@@ -18,7 +18,7 @@ Plus computed:
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional, cast
 
 from ..graphs.belief_graph_manager import get_org_belief_graph
 from ..persistence.database import get_connection
@@ -79,7 +79,7 @@ def compute_temporal_context(org_timezone: Optional[str] = None) -> TemporalCont
     )
 
 
-async def load_person(email: str) -> Optional[dict]:
+async def load_person(email: str) -> Optional[dict[str, Any]]:
     """Load person from database by email."""
     try:
         async with get_connection() as conn:
@@ -112,7 +112,7 @@ async def load_person(email: str) -> Optional[dict]:
         return None
 
 
-async def load_org(org_id: str) -> Optional[dict]:
+async def load_org(org_id: str) -> Optional[dict[str, Any]]:
     """Load organization from database."""
     try:
         async with get_connection() as conn:
@@ -139,7 +139,7 @@ async def load_org(org_id: str) -> Optional[dict]:
         return None
 
 
-async def load_capabilities(org_id: str) -> dict:
+async def load_capabilities(org_id: str) -> dict[str, Any]:
     """
     Load capabilities for an org.
 
@@ -150,7 +150,7 @@ async def load_capabilities(org_id: str) -> dict:
     return {**DEFAULT_CAPABILITIES}
 
 
-async def load_relationships(person_id: str, org_id: str, role: str, authority: float) -> dict:
+async def load_relationships(person_id: str, org_id: str, role: str, authority: float) -> dict[str, Any]:
     """
     Load relationships for a person.
 
@@ -159,7 +159,7 @@ async def load_relationships(person_id: str, org_id: str, role: str, authority: 
     # Infer from role
     from .defaults import ROLE_HIERARCHY
 
-    role_info = ROLE_HIERARCHY.get(role, {})
+    role_info: dict[str, Any] = ROLE_HIERARCHY.get(role, {})
 
     return {
         "reports_to": role_info.get("reports_to"),
@@ -171,8 +171,8 @@ async def load_relationships(person_id: str, org_id: str, role: str, authority: 
 
 
 async def load_knowledge(
-    org_id: str, person_id: str, industry: str, apollo_data: Optional[dict] = None
-) -> list[dict]:
+    org_id: str, person_id: str, industry: str, apollo_data: Optional[dict[str, Any]] = None
+) -> list[dict[str, Any]]:
     """Load knowledge facts (scoped: global → industry → org → person). No strength."""
     facts: list[KnowledgeFact] = list(GLOBAL_KNOWLEDGE_FACTS)
     facts.extend(load_industry_knowledge(industry))
@@ -182,14 +182,21 @@ async def load_knowledge(
 
     if apollo_data:
         p = apollo_data.get("person", {})
-        facts.extend(create_person_knowledge(
-            person_id, org_id, p.get("name", "User"), p.get("email", ""), p.get("title", "User"), apollo_data
-        ))
+        facts.extend(
+            create_person_knowledge(
+                person_id,
+                org_id,
+                p.get("name", "User"),
+                p.get("email", ""),
+                p.get("title", "User"),
+                apollo_data,
+            )
+        )
 
     return facts_to_dicts(resolve_knowledge(facts, org_id, person_id)[:20])
 
 
-async def load_beliefs(org_id: str, max_beliefs: int = 20) -> list[dict]:
+async def load_beliefs(org_id: str, max_beliefs: int = 20) -> list[dict[str, Any]]:
     """
     Load beliefs from the belief graph.
 
@@ -202,10 +209,10 @@ async def load_beliefs(org_id: str, max_beliefs: int = 20) -> list[dict]:
     # Sort by strength (highest first) and return top N
     beliefs.sort(key=lambda b: b.get("strength", 0), reverse=True)
 
-    return beliefs[:max_beliefs]
+    return cast(list[dict[str, Any]], beliefs[:max_beliefs])
 
 
-async def load_goals(person_id: str, org_id: str, role: str, authority: float) -> list[dict]:
+async def load_goals(person_id: str, org_id: str, role: str, authority: float) -> list[dict[str, Any]]:
     """
     Load active goals for a person.
 
@@ -223,10 +230,10 @@ async def load_goals(person_id: str, org_id: str, role: str, authority: float) -
 
 
 def resolve_style(
-    person: dict,
-    org: Optional[dict],
+    person: dict[str, Any],
+    org: Optional[dict[str, Any]],
     temporal: TemporalContext,
-) -> dict:
+) -> dict[str, Any]:
     """
     Resolve style by hierarchy: global → org → person → temporal.
 
@@ -261,10 +268,10 @@ def resolve_style(
 
 
 def validate_mount(
-    person: dict,
-    org: dict,
-    knowledge: list,
-    beliefs: list,
+    person: dict[str, Any],
+    org: dict[str, Any],
+    knowledge: list[dict[str, Any]],
+    beliefs: list[dict[str, Any]],
 ) -> list[str]:
     """
     Validate the mount is complete.
@@ -293,48 +300,88 @@ def validate_mount(
     return warnings
 
 
-def _build_person_obj(person: dict, person_id: str, style: dict) -> PersonObject:
+def _build_person_obj(person: dict[str, Any], person_id: str, style: dict[str, Any]) -> dict[str, Any]:
     """Build person object for state."""
     return {
-        "id": person_id, "name": person["name"], "role": person.get("role", "User"),
-        "authority": person.get("authority", 0.5), "relationship_value": 0.5,
-        "interaction_count": 0, "last_interaction": None, "expertise_areas": [],
+        "id": person_id,
+        "name": person["name"],
+        "role": person.get("role", "User"),
+        "authority": person.get("authority", 0.5),
+        "relationship_value": 0.5,
+        "interaction_count": 0,
+        "last_interaction": None,
+        "expertise_areas": [],
         "communication_preferences": style,
     }
 
 
-def _temporal_to_dict(temporal: TemporalContext) -> dict:
+def _temporal_to_dict(temporal: TemporalContext) -> dict[str, Any]:
     """Convert TemporalContext to dict."""
     return {
-        "current_time": temporal.current_time, "day_of_week": temporal.day_of_week,
-        "time_of_day": temporal.time_of_day, "month_phase": temporal.month_phase,
-        "is_month_end": temporal.is_month_end, "is_quarter_end": temporal.is_quarter_end,
+        "current_time": temporal.current_time,
+        "day_of_week": temporal.day_of_week,
+        "time_of_day": temporal.time_of_day,
+        "month_phase": temporal.month_phase,
+        "is_month_end": temporal.is_month_end,
+        "is_quarter_end": temporal.is_quarter_end,
         "is_year_end": temporal.is_year_end,
     }
 
 
 def _build_mount_state(
-    message: str, org_id: str, person_obj: PersonObject, capabilities: dict,
-    relationships: dict, knowledge: list, beliefs: list, goals: list,
-    style: dict, temporal: TemporalContext,
-) -> dict:
+    message: str,
+    org_id: str,
+    person_obj: dict[str, Any],
+    capabilities: dict[str, Any],
+    relationships: dict[str, Any],
+    knowledge: list[dict[str, Any]],
+    beliefs: list[dict[str, Any]],
+    goals: list[dict[str, Any]],
+    style: dict[str, Any],
+    temporal: TemporalContext,
+) -> BabyMARSState:
     """Build the mount state dict."""
     import uuid
+
     now = datetime.now(timezone.utc)
-    return {
-        "messages": [{"role": "user", "content": message}], "org_id": org_id,
-        "person": person_obj, "capabilities": capabilities, "relationships": relationships,
-        "knowledge": knowledge, "activated_beliefs": beliefs, "active_goals": goals,
-        "style": style, "current_context_key": "*|*|*", "temporal": _temporal_to_dict(temporal),
-        "working_memory": {
-            "active_tasks": [{"task_id": f"task_{uuid.uuid4().hex[:8]}", "description": message,
-                            "priority": 0.8, "created_at": now.isoformat(), "status": "active"}],
-            "notes": [], "objects": {"persons": [person_obj], "entities": [], "beliefs_in_focus": []},
+    return cast(
+        BabyMARSState,
+        {
+            "messages": [{"role": "user", "content": message}],
+            "org_id": org_id,
+            "person": person_obj,
+            "capabilities": capabilities,
+            "relationships": relationships,
+            "knowledge": knowledge,
+            "activated_beliefs": beliefs,
+            "active_goals": goals,
+            "style": style,
+            "current_context_key": "*|*|*",
+            "temporal": _temporal_to_dict(temporal),
+            "working_memory": {
+                "active_tasks": [
+                    {
+                        "task_id": f"task_{uuid.uuid4().hex[:8]}",
+                        "description": message,
+                        "priority": 0.8,
+                        "created_at": now.isoformat(),
+                        "status": "active",
+                    }
+                ],
+                "notes": [],
+                "objects": {"persons": [person_obj], "entities": [], "beliefs_in_focus": []},
+            },
+            "supervision_mode": None,
+            "belief_strength_for_action": None,
+            "selected_action": None,
+            "execution_results": [],
+            "response": None,
+            "appraisal": None,
+            "turn_number": 1,
+            "gate_violation_detected": False,
+            "feedback_events": [],
         },
-        "supervision_mode": None, "belief_strength_for_action": None, "selected_action": None,
-        "execution_results": [], "response": None, "appraisal": None, "turn_number": 1,
-        "gate_violation_detected": False, "feedback_events": [],
-    }
+    )
 
 
 async def mount(email: str, message: str) -> Optional[BabyMARSState]:
@@ -345,7 +392,11 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
 
     org_id, person_id = person["org_id"], person["id"]
     org = await load_org(org_id) or {
-        "org_id": org_id, "name": "Unknown", "industry": "general", "size": "mid_market", "settings": {},
+        "org_id": org_id,
+        "name": "Unknown",
+        "industry": "general",
+        "size": "mid_market",
+        "settings": {},
     }
 
     industry = org.get("industry", "general")
@@ -353,14 +404,29 @@ async def mount(email: str, message: str) -> Optional[BabyMARSState]:
 
     # Load the 6 things
     capabilities = await load_capabilities(org_id)
-    relationships = await load_relationships(person_id, org_id, person.get("role", ""), person.get("authority", 0.5))
+    relationships = await load_relationships(
+        person_id, org_id, person.get("role", ""), person.get("authority", 0.5)
+    )
     knowledge = await load_knowledge(org_id, person_id, industry, person.get("apollo_data"))
     beliefs = await load_beliefs(org_id)
-    goals = await load_goals(person_id, org_id, person.get("role", ""), person.get("authority", 0.5))
+    goals = await load_goals(
+        person_id, org_id, person.get("role", ""), person.get("authority", 0.5)
+    )
     style = resolve_style(person, org, temporal)
 
     for w in validate_mount(person, org, knowledge, beliefs):
         print(f"Mount: {w}")
 
     person_obj = _build_person_obj(person, person_id, style)
-    return _build_mount_state(message, org_id, person_obj, capabilities, relationships, knowledge, beliefs, goals, style, temporal)
+    return _build_mount_state(
+        message,
+        org_id,
+        person_obj,
+        capabilities,
+        relationships,
+        knowledge,
+        beliefs,
+        goals,
+        style,
+        temporal,
+    )

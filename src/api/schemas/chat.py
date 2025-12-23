@@ -6,7 +6,7 @@ Request/response models for chat endpoints.
 Per API_CONTRACT_V0.md sections 1.1-1.4
 """
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -64,7 +64,7 @@ class MessageResponse(BaseModel):
     references: list[Reference] = Field(
         default_factory=list, description="Objects referenced in response for highlighting"
     )
-    context_budget: Optional[dict] = Field(
+    context_budget: Optional[dict[str, Any]] = Field(
         None,
         description="Current context usage: {items: int, tokens: int, max_items: int, max_tokens: int}",
     )

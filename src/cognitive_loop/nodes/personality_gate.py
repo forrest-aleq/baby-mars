@@ -14,7 +14,7 @@ This ensures Aleq NEVER violates core personality constraints,
 regardless of what the cognitive loop produced.
 """
 
-from typing import Optional
+from typing import Any, Optional, cast
 
 from ...claude_client import get_claude_client
 from ...graphs.belief_graph import get_belief_graph
@@ -91,7 +91,7 @@ def quick_violation_check(response: str) -> Optional[str]:
 # ============================================================
 
 
-async def claude_violation_check(response: str, immutable_beliefs: list[dict]) -> Optional[dict]:
+async def claude_violation_check(response: str, immutable_beliefs: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
     """
     Use Claude to check for subtle violations.
 
@@ -171,7 +171,7 @@ Be strict. Even subtle violations count.""",
 # ============================================================
 
 
-async def generate_boundary_response(original_request: str, violation: dict) -> str:
+async def generate_boundary_response(original_request: str, violation: dict[str, Any]) -> str:
     """
     Generate a response that maintains boundaries while being helpful.
     """
@@ -182,7 +182,7 @@ async def generate_boundary_response(original_request: str, violation: dict) -> 
             "role": "user",
             "content": f"""The user asked: "{original_request}"
 
-My initial response would have violated this principle: {violation.get('explanation', 'professional boundaries')}
+My initial response would have violated this principle: {violation.get("explanation", "professional boundaries")}
 
 Generate a response that:
 1. Politely declines the problematic aspect
@@ -206,7 +206,7 @@ Do NOT explain the violation or be preachy. Just redirect naturally.""",
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Personality Gate Node
 
@@ -219,17 +219,20 @@ async def process(state: BabyMARSState) -> dict:
     4. If still violating, use boundary response
     """
 
-    final_response = state.get("final_response", "")
+    final_response = str(state.get("final_response") or "")
 
     if not final_response:
         return {}  # Nothing to check
 
     # Get immutable beliefs
     graph = get_belief_graph()
-    immutable_beliefs = [b for b in graph.beliefs.values() if b.get("immutable", False)]
+    immutable_beliefs = cast(
+        list[dict[str, Any]], [b for b in graph.beliefs.values() if b.get("immutable", False)]
+    )
 
     # Track retries
-    gate_retries = state.get("gate_retries", 0)
+    gate_retries_val = state.get("gate_retries")
+    gate_retries = int(gate_retries_val) if isinstance(gate_retries_val, (int, float, str)) else 0
     max_gate_retries = 2
 
     # Step 1: Quick pattern check

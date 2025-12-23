@@ -6,7 +6,7 @@ Query helpers and point-in-time queries for knowledge facts.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from ..database import get_connection
 from .core import _row_to_fact
@@ -39,7 +39,7 @@ async def get_fact_by_key(
         return _row_to_fact(row)
 
 
-async def count_facts_by_scope(org_id: str) -> dict:
+async def count_facts_by_scope(org_id: str) -> dict[str, int]:
     """Get count of active facts by scope for an org."""
     async with get_connection() as conn:
         rows = await conn.fetch(
@@ -63,7 +63,7 @@ async def get_fact_history(
     fact_key: str,
     scope_type: str,
     scope_id: Optional[str] = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Get the full history of a fact (all versions).
 
@@ -156,7 +156,7 @@ async def load_facts_known_at(
         return [_row_to_fact(r) for r in rows]
 
 
-def _row_to_history_dict(r: dict) -> dict:
+def _row_to_history_dict(r: Any) -> dict[str, Any]:
     """Convert database row to history dict."""
     return {
         "id": str(r["id"]),

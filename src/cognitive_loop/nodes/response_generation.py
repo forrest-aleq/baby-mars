@@ -9,6 +9,8 @@ Uses response_generation skill for proper formatting
 and professional communication patterns.
 """
 
+from typing import Any
+
 from ...claude_client import ResponseOutput, get_claude_client
 from ...state.schema import (
     BabyMARSState,
@@ -39,10 +41,12 @@ def build_response_context(state: BabyMARSState) -> str:
     # Appraisal summary
     appraisal = state.get("appraisal")
     if appraisal:
+        face_threat = appraisal.get("face_threat")
+        face_threat_level = face_threat.get("level", 0) if isinstance(face_threat, dict) else "none"
         parts.append(f"""<appraisal>
-  Difficulty: {appraisal.get('difficulty', 'unknown')}
-  Recommended action: {appraisal.get('recommended_action_type', 'unknown')}
-  Face threat: {appraisal.get('face_threat', {}).get('level', 0) if appraisal.get('face_threat') else 'none'}
+  Difficulty: {appraisal.get("difficulty", "unknown")}
+  Recommended action: {appraisal.get("recommended_action_type", "unknown")}
+  Face threat: {face_threat_level}
 </appraisal>""")
 
     # Selected action (if any)
@@ -53,7 +57,7 @@ def build_response_context(state: BabyMARSState) -> str:
         for wu in work_units[:5]:
             wu_summary.append(f"- {wu.get('tool', '?')}.{wu.get('verb', '?')}")
         parts.append(f"""<selected_action>
-  Type: {selected_action.get('action_type', 'unknown')}
+  Type: {selected_action.get("action_type", "unknown")}
   Work units:
 {chr(10).join(wu_summary)}
 </selected_action>""")
@@ -73,11 +77,15 @@ def build_response_context(state: BabyMARSState) -> str:
 
     # Outcome summary
     outcome = state.get("execution_outcome")
-    if outcome:
+    if outcome and isinstance(outcome, dict):
+        outcome_type = outcome.get("outcome_type", "unknown")
+        success_rate = float(outcome.get("success_rate", 0))
+        failures = outcome.get("failures", [])
+        failure_list = failures[:3] if isinstance(failures, list) else []
         parts.append(f"""<outcome>
-  Type: {outcome.get('outcome_type', 'unknown')}
-  Success rate: {outcome.get('success_rate', 0):.0%}
-  Failures: {', '.join(outcome.get('failures', [])[:3]) or 'none'}
+  Type: {outcome_type}
+  Success rate: {success_rate:.0%}
+  Failures: {", ".join(failure_list) or "none"}
 </outcome>""")
 
     # Validation results
@@ -87,7 +95,7 @@ def build_response_context(state: BabyMARSState) -> str:
         if failures:
             failure_msgs = [f.get("message", "") for f in failures[:3]]
             parts.append(f"""<validation_issues>
-{chr(10).join('- ' + m for m in failure_msgs)}
+{chr(10).join("- " + m for m in failure_msgs)}
 </validation_issues>""")
 
     # People context (for tone adjustment)
@@ -96,14 +104,14 @@ def build_response_context(state: BabyMARSState) -> str:
     if people:
         primary = people[0]
         parts.append(f"""<communication_context>
-  Primary person: {primary.get('name', 'unknown')} ({primary.get('role', 'unknown')})
-  Authority level: {primary.get('authority', 0):.2f}
-  Relationship value: {primary.get('relationship_value', 0):.2f}
+  Primary person: {primary.get("name", "unknown")} ({primary.get("role", "unknown")})
+  Authority level: {primary.get("authority", 0):.2f}
+  Relationship value: {primary.get("relationship_value", 0):.2f}
 </communication_context>""")
 
     # Relevant beliefs for tone
     beliefs = state.get("activated_beliefs", [])
-    style_beliefs = [b for b in beliefs if b.get("category") == "style"][:3]
+    style_beliefs = [b for b in beliefs if str(b.get("category", "")) == "style"][:3]
     if style_beliefs:
         style_strs = [f"- {b['statement']}" for b in style_beliefs]
         parts.append(f"""<style_beliefs>
@@ -153,7 +161,7 @@ Generate a response that:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Response Generation Node
 
@@ -166,7 +174,7 @@ async def process(state: BabyMARSState) -> dict:
 
     client = get_claude_client()
 
-    supervision_mode = state.get("supervision_mode", "guidance_seeking")
+    supervision_mode = state.get("supervision_mode") or "guidance_seeking"
     context = build_response_context(state)
     template = get_response_template(supervision_mode)
 
@@ -256,16 +264,17 @@ def _generate_fallback_response(state: BabyMARSState, supervision_mode: str) -> 
         return "I'd like to help with this request, but I need some additional information. Could you provide more details about what you're looking to accomplish?"
 
     elif supervision_mode == "action_proposal":
-        action = state.get("selected_action", {})
-        action_type = action.get("action_type", "action")
+        action = state.get("selected_action")
+        action_type = action.get("action_type", "action") if isinstance(action, dict) else "action"
         return f"I've prepared to {action_type}. Would you like me to proceed with this?"
 
     else:  # autonomous
-        outcome = state.get("execution_outcome", {})
-        if outcome.get("outcome_type") == "success":
-            return "I've completed the requested action. Let me know if you need anything else."
-        else:
-            failures = outcome.get("failures", [])
-            if failures:
-                return f"I encountered an issue: {failures[0]}. How would you like me to proceed?"
-            return "I've processed your request. Please let me know if you need any adjustments."
+        outcome = state.get("execution_outcome")
+        if isinstance(outcome, dict):
+            if outcome.get("outcome_type") == "success":
+                return "I've completed the requested action. Let me know if you need anything else."
+            else:
+                failures = outcome.get("failures", [])
+                if failures and isinstance(failures, list) and len(failures) > 0:
+                    return f"I encountered an issue: {failures[0]}. How would you like me to proceed?"
+        return "I've processed your request. Please let me know if you need any adjustments."

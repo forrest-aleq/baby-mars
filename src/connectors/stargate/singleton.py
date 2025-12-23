@@ -18,6 +18,7 @@ def get_stargate_client() -> "StargateClient":
     global _stargate_client
     if _stargate_client is None:
         from .client import StargateClient
+
         _stargate_client = StargateClient()
     return _stargate_client
 

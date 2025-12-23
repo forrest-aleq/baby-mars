@@ -15,7 +15,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Callable, Optional
+from typing import Any, Callable, Generator, Optional
 
 # ============================================================
 # STRUCTURED LOGGER
@@ -26,7 +26,7 @@ class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_data = {
+        log_data: dict[str, Any] = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
@@ -55,33 +55,33 @@ class StructuredFormatter(logging.Formatter):
 class StructuredLogger:
     """Logger with structured output and extra fields."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.logger = logging.getLogger(name)
-        self._context: dict = {}
+        self._context: dict[str, Any] = {}
 
-    def with_context(self, **kwargs) -> "StructuredLogger":
+    def with_context(self, **kwargs: Any) -> "StructuredLogger":
         """Return logger with additional context."""
         new_logger = StructuredLogger(self.logger.name)
         new_logger._context = {**self._context, **kwargs}
         return new_logger
 
-    def _log(self, level: int, message: str, **kwargs):
+    def _log(self, level: int, message: str, **kwargs: Any) -> None:
         extra = {"extra_data": {**self._context, **kwargs}}
         self.logger.log(level, message, extra=extra)
 
-    def debug(self, message: str, **kwargs):
+    def debug(self, message: str, **kwargs: Any) -> None:
         self._log(logging.DEBUG, message, **kwargs)
 
-    def info(self, message: str, **kwargs):
+    def info(self, message: str, **kwargs: Any) -> None:
         self._log(logging.INFO, message, **kwargs)
 
-    def warning(self, message: str, **kwargs):
+    def warning(self, message: str, **kwargs: Any) -> None:
         self._log(logging.WARNING, message, **kwargs)
 
-    def error(self, message: str, **kwargs):
+    def error(self, message: str, **kwargs: Any) -> None:
         self._log(logging.ERROR, message, **kwargs)
 
-    def critical(self, message: str, **kwargs):
+    def critical(self, message: str, **kwargs: Any) -> None:
         self._log(logging.CRITICAL, message, **kwargs)
 
 
@@ -89,7 +89,7 @@ def setup_logging(
     level: str = "INFO",
     json_format: bool = True,
     log_file: Optional[str] = None,
-):
+) -> logging.Logger:
     """Setup logging configuration."""
     root = logging.getLogger()
     root.setLevel(getattr(logging, level.upper()))
@@ -136,23 +136,23 @@ class Metric:
     name: str
     value: float
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    tags: dict = field(default_factory=dict)
+    tags: dict[str, Any] = field(default_factory=dict)
     metric_type: str = "gauge"  # gauge, counter, histogram
 
 
 class MetricsCollector:
     """Collects and exports metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._metrics: list[Metric] = []
         self._counters: dict[str, float] = {}
         self._histograms: dict[str, list[float]] = {}
 
-    def gauge(self, name: str, value: float, **tags):
+    def gauge(self, name: str, value: float, **tags: Any) -> None:
         """Record a gauge metric (point-in-time value)."""
         self._metrics.append(Metric(name=name, value=value, tags=tags, metric_type="gauge"))
 
-    def increment(self, name: str, value: float = 1.0, **tags):
+    def increment(self, name: str, value: float = 1.0, **tags: Any) -> None:
         """Increment a counter."""
         key = f"{name}:{json.dumps(tags, sort_keys=True)}"
         self._counters[key] = self._counters.get(key, 0) + value
@@ -160,7 +160,7 @@ class MetricsCollector:
             Metric(name=name, value=self._counters[key], tags=tags, metric_type="counter")
         )
 
-    def histogram(self, name: str, value: float, **tags):
+    def histogram(self, name: str, value: float, **tags: Any) -> None:
         """Record a histogram value."""
         key = f"{name}:{json.dumps(tags, sort_keys=True)}"
         if key not in self._histograms:
@@ -169,7 +169,7 @@ class MetricsCollector:
         self._metrics.append(Metric(name=name, value=value, tags=tags, metric_type="histogram"))
 
     @contextmanager
-    def timer(self, name: str, **tags):
+    def timer(self, name: str, **tags: Any) -> Generator[None, None, None]:
         """Context manager to time operations."""
         start = time.perf_counter()
         try:
@@ -178,9 +178,9 @@ class MetricsCollector:
             duration = time.perf_counter() - start
             self.histogram(f"{name}_seconds", duration, **tags)
 
-    def get_stats(self, name: str) -> dict:
+    def get_stats(self, name: str) -> dict[str, float]:
         """Get statistics for a histogram."""
-        matching = []
+        matching: list[float] = []
         for key, values in self._histograms.items():
             if key.startswith(name):
                 matching.extend(values)
@@ -189,7 +189,7 @@ class MetricsCollector:
             return {}
 
         return {
-            "count": len(matching),
+            "count": float(len(matching)),
             "min": min(matching),
             "max": max(matching),
             "avg": sum(matching) / len(matching),
@@ -197,11 +197,11 @@ class MetricsCollector:
             "p99": sorted(matching)[int(len(matching) * 0.99)],
         }
 
-    def export(self) -> list[dict]:
+    def export(self) -> list[dict[str, Any]]:
         """Export all metrics as dicts."""
         return [asdict(m) for m in self._metrics]
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear collected metrics."""
         self._metrics.clear()
 
@@ -231,8 +231,8 @@ class Span:
     start_time: float
     end_time: Optional[float] = None
     status: str = "ok"
-    attributes: dict = field(default_factory=dict)
-    events: list = field(default_factory=list)
+    attributes: dict[str, Any] = field(default_factory=dict)
+    events: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def duration_ms(self) -> Optional[float]:
@@ -244,19 +244,19 @@ class Span:
 class Tracer:
     """Simple tracing implementation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._spans: list[Span] = []
         self._current_trace: Optional[str] = None
         self._current_span: Optional[str] = None
 
-    def start_trace(self, name: str, **attributes) -> str:
+    def start_trace(self, name: str, **attributes: Any) -> str:
         """Start a new trace."""
         trace_id = uuid.uuid4().hex[:16]
         self._current_trace = trace_id
         self.start_span(name, **attributes)
         return trace_id
 
-    def start_span(self, name: str, **attributes) -> str:
+    def start_span(self, name: str, **attributes: Any) -> str:
         """Start a new span."""
         span_id = uuid.uuid4().hex[:8]
         span = Span(
@@ -265,13 +265,13 @@ class Tracer:
             parent_id=self._current_span,
             name=name,
             start_time=time.perf_counter(),
-            attributes=attributes,
+            attributes=dict(attributes),
         )
         self._spans.append(span)
         self._current_span = span_id
         return span_id
 
-    def end_span(self, status: str = "ok", **attributes):
+    def end_span(self, status: str = "ok", **attributes: Any) -> None:
         """End the current span."""
         for span in reversed(self._spans):
             if span.span_id == self._current_span:
@@ -282,7 +282,7 @@ class Tracer:
                 self._current_span = span.parent_id
                 break
 
-    def add_event(self, name: str, **attributes):
+    def add_event(self, name: str, **attributes: Any) -> None:
         """Add an event to the current span."""
         for span in reversed(self._spans):
             if span.span_id == self._current_span:
@@ -296,7 +296,7 @@ class Tracer:
                 break
 
     @contextmanager
-    def span(self, name: str, **attributes):
+    def span(self, name: str, **attributes: Any) -> Generator[None, None, None]:
         """Context manager for spans."""
         self.start_span(name, **attributes)
         try:
@@ -307,11 +307,11 @@ class Tracer:
         else:
             self.end_span()
 
-    def export(self) -> list[dict]:
+    def export(self) -> list[dict[str, Any]]:
         """Export all spans."""
         return [asdict(s) for s in self._spans]
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear spans."""
         self._spans.clear()
         self._current_trace = None
@@ -332,20 +332,20 @@ def get_tracer() -> Tracer:
 # ============================================================
 
 
-def traced(name: Optional[str] = None):
+def traced(name: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to trace a function."""
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         span_name = name or f"{func.__module__}.{func.__name__}"
 
         @functools.wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             tracer = get_tracer()
             with tracer.span(span_name, args_count=len(args)):
                 return await func(*args, **kwargs)
 
         @functools.wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             tracer = get_tracer()
             with tracer.span(span_name, args_count=len(args)):
                 return func(*args, **kwargs)
@@ -357,20 +357,20 @@ def traced(name: Optional[str] = None):
     return decorator
 
 
-def timed(name: Optional[str] = None):
+def timed(name: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to time a function."""
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         metric_name = name or f"{func.__module__}.{func.__name__}"
 
         @functools.wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             metrics = get_metrics()
             with metrics.timer(metric_name):
                 return await func(*args, **kwargs)
 
         @functools.wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             metrics = get_metrics()
             with metrics.timer(metric_name):
                 return func(*args, **kwargs)
@@ -390,23 +390,23 @@ def timed(name: Optional[str] = None):
 class CognitiveLoopInstrumentation:
     """Instrumentation for the cognitive loop."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = get_logger("cognitive_loop")
         self.metrics = get_metrics()
         self.tracer = get_tracer()
 
-    def on_loop_start(self, thread_id: str, org_id: str):
+    def on_loop_start(self, thread_id: str, org_id: str) -> None:
         """Called when cognitive loop starts."""
         self.tracer.start_trace("cognitive_loop", thread_id=thread_id, org_id=org_id)
         self.metrics.increment("cognitive_loop_started", org_id=org_id)
         self.logger.info("Cognitive loop started", thread_id=thread_id, org_id=org_id)
 
-    def on_node_start(self, node_name: str):
+    def on_node_start(self, node_name: str) -> None:
         """Called when a node starts processing."""
         self.tracer.start_span(f"node.{node_name}")
         self.logger.debug(f"Node started: {node_name}", node=node_name)
 
-    def on_node_end(self, node_name: str, updates: dict):
+    def on_node_end(self, node_name: str, updates: dict[str, Any]) -> None:
         """Called when a node finishes."""
         self.tracer.end_span()
         self.metrics.increment("node_processed", node=node_name)
@@ -414,7 +414,9 @@ class CognitiveLoopInstrumentation:
             f"Node completed: {node_name}", node=node_name, update_keys=list(updates.keys())
         )
 
-    def on_claude_call(self, node_name: str, tokens_in: int, tokens_out: int, latency_ms: float):
+    def on_claude_call(
+        self, node_name: str, tokens_in: int, tokens_out: int, latency_ms: float
+    ) -> None:
         """Called after a Claude API call."""
         self.metrics.histogram("claude_latency_ms", latency_ms, node=node_name)
         self.metrics.increment("claude_tokens_in", tokens_in, node=node_name)
@@ -429,7 +431,7 @@ class CognitiveLoopInstrumentation:
 
     def on_belief_update(
         self, belief_id: str, old_strength: float, new_strength: float, category: str
-    ):
+    ) -> None:
         """Called when a belief is updated."""
         delta = new_strength - old_strength
         self.metrics.histogram("belief_strength_delta", delta, category=category)
@@ -443,20 +445,20 @@ class CognitiveLoopInstrumentation:
             category=category,
         )
 
-    def on_supervision_mode(self, mode: str, strength: float):
+    def on_supervision_mode(self, mode: str, strength: float) -> None:
         """Called when supervision mode is determined."""
         self.metrics.increment("supervision_mode", mode=mode)
         self.tracer.add_event("supervision_mode", mode=mode, strength=strength)
         self.logger.info("Supervision mode determined", mode=mode, belief_strength=strength)
 
-    def on_loop_end(self, outcome: str, duration_ms: float):
+    def on_loop_end(self, outcome: str, duration_ms: float) -> None:
         """Called when cognitive loop completes."""
         self.tracer.end_span()
         self.metrics.histogram("cognitive_loop_duration_ms", duration_ms)
         self.metrics.increment("cognitive_loop_completed", outcome=outcome)
         self.logger.info("Cognitive loop completed", outcome=outcome, duration_ms=duration_ms)
 
-    def on_error(self, error: Exception, node: Optional[str] = None):
+    def on_error(self, error: Exception, node: Optional[str] = None) -> None:
         """Called on error."""
         self.metrics.increment("errors", node=node or "unknown", error_type=type(error).__name__)
         self.logger.error(

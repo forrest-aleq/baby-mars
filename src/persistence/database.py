@@ -7,10 +7,12 @@ Single DATABASE_URL for both LangGraph checkpoints and belief storage.
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Any, Optional
 
 import asyncpg
+from asyncpg import Connection
 
 # Load .env file
 try:
@@ -158,7 +160,7 @@ async def close_pool() -> None:
 
 
 @asynccontextmanager
-async def get_connection():
+async def get_connection() -> AsyncIterator[Connection[Any]]:
     """Get a database connection from pool"""
     pool = await get_pool()
     async with pool.acquire() as conn:

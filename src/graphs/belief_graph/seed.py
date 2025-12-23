@@ -167,6 +167,7 @@ def seed_initial_beliefs(graph: Optional["BeliefGraph"] = None) -> "BeliefGraph"
     """
     if graph is None:
         from .singleton import get_belief_graph
+
         graph = get_belief_graph()
 
     for belief in CORE_BELIEFS:

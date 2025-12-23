@@ -14,7 +14,7 @@ Key responsibilities:
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, cast
 
 from ...graphs.belief_graph_manager import get_org_belief_graph, save_org_belief
 from ...state.schema import (
@@ -28,7 +28,7 @@ from ...state.schema import (
 # ============================================================
 
 
-def analyze_outcome(execution_results: list[dict], validation_results: list[dict]) -> dict:
+def analyze_outcome(execution_results: list[dict[str, Any]], validation_results: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Analyze execution and validation results to determine outcome.
 
@@ -102,7 +102,7 @@ def analyze_outcome(execution_results: list[dict], validation_results: list[dict
 # ============================================================
 
 
-async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict) -> list[dict]:
+async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Update beliefs based on outcome.
 
@@ -117,7 +117,8 @@ async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict) -> li
     org_id = state.get("org_id", "default")
     belief_graph = await get_org_belief_graph(org_id)
 
-    attributed_beliefs = state.get("appraisal", {}).get("attributed_beliefs", [])
+    appraisal: dict[str, Any] = cast(dict[str, Any], state.get("appraisal") or {})
+    attributed_beliefs = appraisal.get("attributed_beliefs", [])
     outcome_type = outcome.get("outcome_type", "failure")
     success_rate = outcome.get("success_rate", 0.0)
     context_key = state.get("current_context_key", "*|*|*")
@@ -134,7 +135,7 @@ async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict) -> li
             outcome_signal = "failure"
 
         # Get difficulty from appraisal
-        difficulty = state.get("appraisal", {}).get("difficulty", 3)
+        difficulty = appraisal.get("difficulty", 3)
 
         # Update the belief using the proper method
         try:
@@ -160,7 +161,7 @@ async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict) -> li
                 # Persist the updated belief to database
                 updated_belief = belief_graph.get_belief(belief_id)
                 if updated_belief:
-                    await save_org_belief(org_id, updated_belief)
+                    await save_org_belief(org_id, cast(dict[str, Any], updated_belief))
 
         except Exception as e:
             print(f"Error updating belief {belief_id}: {e}")
@@ -173,7 +174,7 @@ async def update_beliefs_from_outcome(state: BabyMARSState, outcome: dict) -> li
 # ============================================================
 
 
-def create_memory_from_outcome(state: BabyMARSState, outcome: dict) -> Optional[Memory]:
+def create_memory_from_outcome(state: BabyMARSState, outcome: dict[str, Any]) -> Optional[Memory]:
     """
     Create a memory from significant outcomes.
 
@@ -217,24 +218,28 @@ def create_memory_from_outcome(state: BabyMARSState, outcome: dict) -> Optional[
             request_content = content[:200]  # Truncate
             break
 
-    action = state.get("selected_action", {})
+    action: dict[str, Any] = state.get("selected_action") or {}  # type: ignore[assignment]
     action_summary = f"{action.get('action_type', 'unknown')} with {len(action.get('work_units', []))} work units"
 
-    memory: Memory = {
-        "memory_id": f"mem_{uuid.uuid4().hex[:12]}",
-        "type": memory_type,
-        "content": {
-            "request": request_content,
-            "action": action_summary,
-            "outcome": outcome_type,
-            "failures": outcome.get("failures", [])[:3],  # Top 3 failures
-            "peak_event": peak_event,
+    appraisal_data: dict[str, Any] = cast(dict[str, Any], state.get("appraisal") or {})
+    memory = cast(
+        Memory,
+        {
+            "memory_id": f"mem_{uuid.uuid4().hex[:12]}",
+            "type": memory_type,
+            "content": {
+                "request": request_content,
+                "action": action_summary,
+                "outcome": outcome_type,
+                "failures": outcome.get("failures", [])[:3],  # Top 3 failures
+                "peak_event": peak_event,
+            },
+            "created_at": datetime.now().isoformat(),
+            "emotional_weight": emotional_weight,
+            "decay_rate": 0.01 if memory_type == "procedural" else 0.05,
+            "associations": appraisal_data.get("attributed_beliefs", []),
         },
-        "created_at": datetime.now().isoformat(),
-        "emotional_weight": emotional_weight,
-        "decay_rate": 0.01 if memory_type == "procedural" else 0.05,
-        "associations": state.get("appraisal", {}).get("attributed_beliefs", []),
-    }
+    )
 
     return memory
 
@@ -245,19 +250,22 @@ def create_memory_from_outcome(state: BabyMARSState, outcome: dict) -> Optional[
 
 
 def create_feedback_event(
-    state: BabyMARSState, outcome: dict, belief_updates: list[dict]
+    state: BabyMARSState, outcome: dict[str, Any], belief_updates: list[dict[str, Any]]
 ) -> FeedbackEvent:
     """Create a feedback event for logging"""
 
-    return {
-        "event_id": f"fb_{uuid.uuid4().hex[:12]}",
-        "timestamp": datetime.now().isoformat(),
-        "trigger": "execution_outcome",
-        "outcome_type": outcome.get("outcome_type", "unknown"),
-        "belief_updates": belief_updates,
-        "context_key": state.get("current_context_key", "*|*|*"),
-        "supervision_mode": state.get("supervision_mode", "unknown"),
-    }
+    return cast(
+        FeedbackEvent,
+        {
+            "event_id": f"fb_{uuid.uuid4().hex[:12]}",
+            "timestamp": datetime.now().isoformat(),
+            "trigger": "execution_outcome",
+            "outcome_type": outcome.get("outcome_type", "unknown"),
+            "belief_updates": belief_updates,
+            "context_key": state.get("current_context_key", "*|*|*"),
+            "supervision_mode": state.get("supervision_mode") or "unknown",
+        },
+    )
 
 
 # ============================================================
@@ -265,7 +273,7 @@ def create_feedback_event(
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Feedback Node
 
@@ -284,7 +292,10 @@ async def process(state: BabyMARSState) -> dict:
         return {}
 
     # Analyze outcome
-    outcome = analyze_outcome(execution_results, validation_results)
+    outcome = analyze_outcome(
+        execution_results,
+        cast(list[dict[str, Any]], validation_results),
+    )
 
     # Update beliefs
     belief_updates = await update_beliefs_from_outcome(state, outcome)
@@ -296,10 +307,12 @@ async def process(state: BabyMARSState) -> dict:
     feedback_event = create_feedback_event(state, outcome, belief_updates)
 
     # Build state updates
-    updates = {"feedback_events": state.get("feedback_events", []) + [feedback_event]}
+    feedback_events: list[Any] = cast(list[Any], state.get("feedback_events") or [])
+    updates: dict[str, Any] = {"feedback_events": feedback_events + [feedback_event]}
 
     if memory:
-        updates["memories"] = state.get("memories", []) + [memory]
+        memories: list[Any] = cast(list[Any], state.get("memories") or [])
+        updates["memories"] = memories + [memory]
 
     # Store outcome for response generation
     updates["execution_outcome"] = outcome

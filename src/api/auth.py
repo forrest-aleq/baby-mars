@@ -89,11 +89,11 @@ class OrgAuth:
     Maps API keys to organizations for multi-tenant deployments.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._key_to_org: dict[str, str] = {}
         self._org_permissions: dict[str, set[str]] = {}
 
-    def register_key(self, api_key: str, org_id: str, permissions: list[str] = None):
+    def register_key(self, api_key: str, org_id: str, permissions: Optional[list[str]] = None) -> None:
         """Register an API key for an organization."""
         self._key_to_org[api_key] = org_id
         self._org_permissions[org_id] = set(permissions or ["read", "write"])
@@ -129,7 +129,7 @@ class RateLimiter:
     For production, use Redis-based rate limiting.
     """
 
-    def __init__(self, requests_per_minute: int = 60):
+    def __init__(self, requests_per_minute: int = 60) -> None:
         self.rpm = requests_per_minute
         self._requests: dict[str, list[datetime]] = {}
 
@@ -186,7 +186,7 @@ async def check_rate_limit(
     limiter = get_rate_limiter()
 
     # Use API key or IP for rate limiting
-    key = api_key if api_key != "dev-mode" else request.client.host
+    key = api_key if api_key != "dev-mode" else (request.client.host if request.client else "unknown")
 
     if not limiter.is_allowed(key):
         remaining = limiter.get_remaining(key)
@@ -205,6 +205,9 @@ async def check_rate_limit(
 
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from starlette.types import ASGIApp
+from collections.abc import Callable, Awaitable
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -216,7 +219,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     SKIP_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         # Skip auth for certain paths
         if request.url.path in self.SKIP_PATHS:
             return await call_next(request)
@@ -238,6 +241,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-def add_auth_middleware(app: FastAPI):
+def add_auth_middleware(app: FastAPI) -> None:
     """Add authentication middleware to an app."""
     app.add_middleware(AuthMiddleware)

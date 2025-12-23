@@ -8,7 +8,7 @@ Per API_CONTRACT_V0.md section 2
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -28,10 +28,10 @@ router = APIRouter()
 
 # In-memory task store (will be moved to persistence layer)
 # Structure: {task_id: TaskDetail}
-_tasks: dict[str, dict] = {}
+_tasks: dict[str, dict[str, Any]] = {}
 
 
-def _get_task_or_404(task_id: str) -> dict:
+def _get_task_or_404(task_id: str) -> dict[str, Any]:
     """Get task or raise 404"""
     task = _tasks.get(task_id)
     if not task:
@@ -54,7 +54,7 @@ async def list_tasks(
     source: Optional[str] = Query(None, description="Filter by source"),
     limit: int = Query(20, le=100),
     offset: int = Query(0, ge=0),
-):
+) -> TaskListResponse:
     """
     List tasks with filtering.
 
@@ -110,7 +110,7 @@ async def list_tasks(
 
 
 @router.get("/{task_id}", response_model=TaskDetail)
-async def get_task(task_id: str):
+async def get_task(task_id: str) -> TaskDetail:
     """
     Get full task detail with subtasks, timeline, and decisions.
     """
@@ -141,7 +141,7 @@ async def get_task(task_id: str):
 
 
 @router.get("/{task_id}/timeline", response_model=TaskTimeline)
-async def get_task_timeline(task_id: str):
+async def get_task_timeline(task_id: str) -> TaskTimeline:
     """
     Get just the timeline for refresh.
 
@@ -158,7 +158,7 @@ async def get_task_timeline(task_id: str):
 
 
 @router.post("/{task_id}/pause")
-async def pause_task(task_id: str):
+async def pause_task(task_id: str) -> dict[str, str]:
     """
     Pause a running task.
 
@@ -195,7 +195,7 @@ async def pause_task(task_id: str):
 
 
 @router.post("/{task_id}/resume")
-async def resume_task(task_id: str):
+async def resume_task(task_id: str) -> dict[str, str]:
     """
     Resume a paused task.
     """
@@ -288,7 +288,7 @@ def update_task_status(
     message: Optional[str] = None,
     progress: Optional[float] = None,
     current_step: Optional[str] = None,
-):
+) -> None:
     """Update task status and add timeline entry."""
     task = _tasks.get(task_id)
     if not task:

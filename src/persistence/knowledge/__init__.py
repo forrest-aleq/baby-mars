@@ -37,9 +37,9 @@ from .exceptions import (
     SourcePriorityError,
 )
 from .models import (
+    SOURCE_PRIORITY,
     FactCorrection,
     KnowledgeFact,
-    SOURCE_PRIORITY,
     can_replace_source,
 )
 from .queries import (

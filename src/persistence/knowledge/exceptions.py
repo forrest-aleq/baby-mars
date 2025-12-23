@@ -37,9 +37,7 @@ class SourcePriorityError(KnowledgeError):
     def __init__(self, old_source: str, new_source: str):
         self.old_source = old_source
         self.new_source = new_source
-        super().__init__(
-            f"Cannot replace {old_source} source with {new_source} (lower priority)"
-        )
+        super().__init__(f"Cannot replace {old_source} source with {new_source} (lower priority)")
 
 
 class DuplicateFactKeyError(KnowledgeError):
@@ -49,6 +47,4 @@ class DuplicateFactKeyError(KnowledgeError):
         self.fact_key = fact_key
         self.scope_type = scope_type
         self.scope_id = scope_id
-        super().__init__(
-            f"Active fact already exists: {fact_key} in {scope_type}/{scope_id}"
-        )
+        super().__init__(f"Active fact already exists: {fact_key} in {scope_type}/{scope_id}")

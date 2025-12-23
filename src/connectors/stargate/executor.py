@@ -5,7 +5,7 @@ Stargate Executor
 Executes Baby MARS work units via Stargate.
 """
 
-from typing import Optional
+from typing import Any, Optional, cast
 
 from .capability_map import map_work_unit_to_capability
 from .client import StargateClient
@@ -24,11 +24,11 @@ class StargateExecutor:
 
     async def execute(
         self,
-        work_unit: dict,
+        work_unit: dict[str, Any],
         org_id: str,
         user_id: str,
         turn_id: Optional[str] = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Execute a work unit via Stargate.
 
@@ -59,7 +59,7 @@ class StargateExecutor:
 
         return self._transform_response(response, capability_key)
 
-    def _transform_response(self, response: dict, capability_key: str) -> dict:
+    def _transform_response(self, response: dict[str, Any], capability_key: str) -> dict[str, Any]:
         """Transform Stargate response to Baby MARS format."""
         if response.get("success", False):
             return {
@@ -83,11 +83,11 @@ class StargateExecutor:
 
     async def execute_batch(
         self,
-        work_units: list[dict],
+        work_units: list[dict[str, Any]],
         org_id: str,
         user_id: str,
         turn_id: Optional[str] = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Execute multiple work units."""
         results = []
 
@@ -118,11 +118,11 @@ class StargateExecutor:
 
 
 async def execute_work_unit(
-    work_unit: dict,
+    work_unit: dict[str, Any],
     org_id: str,
     user_id: str,
     turn_id: Optional[str] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Execute a single work unit via Stargate."""
     executor = StargateExecutor()
     return await executor.execute(work_unit, org_id, user_id, turn_id)
@@ -132,12 +132,12 @@ async def execute_capability(
     capability_key: str,
     org_id: str,
     user_id: str,
-    args: dict,
+    args: dict[str, Any],
     turn_id: Optional[str] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Execute a Stargate capability directly."""
     client = get_stargate_client()
-    return await client.execute(capability_key, org_id, user_id, args, turn_id)
+    return cast(dict[str, Any], await client.execute(capability_key, org_id, user_id, args, turn_id))
 
 
 async def is_stargate_available() -> bool:

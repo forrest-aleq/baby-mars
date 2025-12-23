@@ -12,7 +12,7 @@ Apollo provides:
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -68,8 +68,8 @@ class CompanyData:
     description: str = ""
     linkedin_url: str = ""
     website: str = ""
-    technologies: list = field(default_factory=list)
-    keywords: list = field(default_factory=list)
+    technologies: list[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -78,8 +78,8 @@ class ApolloEnrichment:
 
     person: PersonData
     company: CompanyData
-    rapport_hooks: dict = field(default_factory=dict)
-    raw_response: dict = field(default_factory=dict)
+    rapport_hooks: dict[str, Any] = field(default_factory=dict)
+    raw_response: dict[str, Any] = field(default_factory=dict)
 
 
 async def enrich_from_apollo(email: str) -> Optional[ApolloEnrichment]:

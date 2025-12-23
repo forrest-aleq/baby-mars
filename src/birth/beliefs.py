@@ -6,6 +6,11 @@ Belief seeding for birth system.
 Immutable, global, industry, and role beliefs.
 """
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..graphs.belief_graph import BeliefGraph
+
 # Immutable beliefs (identity - NEVER change)
 IMMUTABLE_BELIEFS = [
     {
@@ -91,7 +96,7 @@ IMMUTABLE_BELIEFS = [
 ]
 
 
-def seed_global_beliefs(graph) -> None:
+def seed_global_beliefs(graph: "BeliefGraph") -> None:
     """Seed global accounting beliefs (scope: *|*|*)"""
     global_beliefs = [
         {
@@ -164,7 +169,7 @@ def seed_global_beliefs(graph) -> None:
 # This file only contains immutable, global, and role-specific beliefs.
 
 
-def seed_role_beliefs(graph, role: str, person_id: str) -> None:
+def seed_role_beliefs(graph: "BeliefGraph", role: str, person_id: str) -> None:
     """Seed role-specific beliefs (competence category)"""
     role_belief_templates = {
         "AP Specialist": [

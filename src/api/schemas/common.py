@@ -102,12 +102,12 @@ class APIError(Exception):
         code: str,
         message: str,
         status_code: int = 400,
-        details: Optional[dict] = None,
+        details: Optional[dict[str, Any]] = None,
         severity: Literal["info", "warning", "error", "critical"] = "error",
         recoverable: bool = True,
         retryable: bool = False,
-        retry: Optional[dict] = None,
-        actions: Optional[list[dict]] = None,
+        retry: Optional[dict[str, Any]] = None,
+        actions: Optional[list[dict[str, Any]]] = None,
     ):
         self.code = code
         self.message = message

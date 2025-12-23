@@ -16,13 +16,11 @@ Source Priority (higher wins when upgrading):
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 # Type aliases for clarity
 ScopeType = Literal["global", "industry", "org", "person"]
-CategoryType = Literal[
-    "accounting", "regulatory", "process", "entity", "temporal", "context"
-]
+CategoryType = Literal["accounting", "regulatory", "process", "entity", "temporal", "context"]
 SourceType = Literal[
     "system", "knowledge_pack", "apollo", "user", "admin", "inferred", "integration"
 ]
@@ -61,7 +59,7 @@ class KnowledgeFact:
     statement: str
     category: CategoryType
     source_type: SourceType
-    source_ref: dict
+    source_ref: dict[str, Any]
     status: str
     tags: list[str]
     confidence: float
@@ -69,7 +67,7 @@ class KnowledgeFact:
     valid_from: datetime
     valid_until: Optional[datetime]
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict for state storage."""
         return {
             "fact_id": self.id,

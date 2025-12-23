@@ -5,7 +5,7 @@ Birth Schemas
 Request/response models for agent initialization.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +27,7 @@ class BirthRequest(BaseModel):
     org_size: str = Field(
         "mid_market", description="Org size: startup, smb, mid_market, enterprise"
     )
-    capabilities_override: Optional[dict] = Field(None, description="Override default capabilities")
+    capabilities_override: Optional[dict[str, Any]] = Field(None, description="Override default capabilities")
 
 
 class BirthResponse(BaseModel):

@@ -12,6 +12,8 @@ Implements the appraisal phase of the cognitive loop:
 - Uncertainty identification
 """
 
+from typing import Any, cast
+
 from ...claude_client import AppraisalOutput, get_claude_client
 from ...state.schema import (
     AppraisalResult,
@@ -93,11 +95,11 @@ def build_appraisal_context(state: BabyMARSState) -> str:
     temporal = objects.get("temporal", {})
     if temporal:
         parts.append(f"""<temporal_context>
-- Current time: {temporal.get('current_time', 'unknown')}
-- Month-end: {temporal.get('is_month_end', False)}
-- Quarter-end: {temporal.get('is_quarter_end', False)}
-- Year-end: {temporal.get('is_year_end', False)}
-- Urgency multiplier: {temporal.get('urgency_multiplier', 1.0)}
+- Current time: {temporal.get("current_time", "unknown")}
+- Month-end: {temporal.get("is_month_end", False)}
+- Quarter-end: {temporal.get("is_quarter_end", False)}
+- Year-end: {temporal.get("is_year_end", False)}
+- Urgency multiplier: {temporal.get("urgency_multiplier", 1.0)}
 </temporal_context>""")
 
     return "\n\n".join(parts)
@@ -108,7 +110,7 @@ def build_appraisal_context(state: BabyMARSState) -> str:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Appraisal Node
 
@@ -168,14 +170,15 @@ Return your appraisal in the structured format.""",
             else None,
             "goal_alignment": appraisal.goal_alignment,
             "attributed_beliefs": appraisal.relevant_belief_ids,
-            "recommended_action_type": _map_approach(appraisal.recommended_approach),
+            "recommended_action_type": _map_approach(appraisal.recommended_approach),  # type: ignore[typeddict-item]
             "difficulty": appraisal.difficulty_assessment,
             "involves_ethical_beliefs": appraisal.involves_ethical_beliefs,
         }
 
         # Compute belief strength first (Paper #1)
+        activated_beliefs = state.get("activated_beliefs", [])
         belief_strength = _compute_aggregate_strength(
-            appraisal.relevant_belief_ids, state.get("activated_beliefs", [])
+            appraisal.relevant_belief_ids, cast(list[dict[str, Any]], activated_beliefs)
         )
 
         # Determine supervision mode from belief strength (Paper #1)
@@ -252,7 +255,7 @@ def _determine_supervision_mode(
     return mode
 
 
-def _compute_aggregate_strength(belief_ids: list[str], beliefs: list[dict]) -> float:
+def _compute_aggregate_strength(belief_ids: list[str], beliefs: list[dict[str, Any]]) -> float:
     """
     Compute average strength of relevant competence beliefs.
 
@@ -284,10 +287,10 @@ def _compute_aggregate_strength(belief_ids: list[str], beliefs: list[dict]) -> f
 
     # Prefer competence/technical beliefs
     if competence_strengths:
-        return sum(competence_strengths) / len(competence_strengths)
+        return float(sum(competence_strengths) / len(competence_strengths))
 
     # Fall back to other beliefs (moral, preference) if no competence beliefs
     if other_strengths:
-        return sum(other_strengths) / len(other_strengths)
+        return float(sum(other_strengths) / len(other_strengths))
 
     return 0.3  # Default low when no relevant beliefs

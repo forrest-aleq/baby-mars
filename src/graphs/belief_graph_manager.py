@@ -13,7 +13,7 @@ Architecture:
 
 import asyncio
 from collections import OrderedDict
-from typing import Optional
+from typing import Any, Optional, cast
 
 from ..persistence.beliefs import (
     load_beliefs_for_org,
@@ -114,7 +114,7 @@ class BeliefGraphManager:
 
         return graph
 
-    async def save_belief(self, org_id: str, belief: dict) -> None:
+    async def save_belief(self, org_id: str, belief: dict[str, Any]) -> None:
         """
         Save a belief to the database.
         Called after every belief update for durability.
@@ -130,7 +130,7 @@ class BeliefGraphManager:
         beliefs = list(graph.beliefs.values())
 
         if beliefs:
-            await save_beliefs_batch(org_id, beliefs)
+            await save_beliefs_batch(org_id, cast(list[dict[str, Any]], beliefs))
 
     def invalidate(self, org_id: str) -> None:
         """Remove an org from cache (e.g., on logout or error)"""
@@ -192,7 +192,7 @@ async def get_org_belief_graph(org_id: str) -> BeliefGraph:
     return await manager.get_graph(org_id)
 
 
-async def save_org_belief(org_id: str, belief: dict) -> None:
+async def save_org_belief(org_id: str, belief: dict[str, Any]) -> None:
     """
     Save a belief after update.
     Called from feedback node.

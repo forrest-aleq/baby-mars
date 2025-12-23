@@ -10,7 +10,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -28,7 +28,7 @@ router = APIRouter()
 
 # In-memory decision store (will be moved to persistence layer)
 # Structure: {decision_id: DecisionDetail}
-_decisions: dict[str, dict] = {}
+_decisions: dict[str, dict[str, Any]] = {}
 
 # Idempotency tracking: {idempotency_key: (decision_id, created_at)}
 # Keys are cleaned up after 24 hours
@@ -39,7 +39,7 @@ IDEMPOTENCY_TTL_HOURS = 24
 UNDO_WINDOW_SECONDS = 30
 
 
-def _cleanup_expired_idempotency_keys():
+def _cleanup_expired_idempotency_keys() -> None:
     """Remove idempotency keys older than 24 hours."""
     cutoff = datetime.now() - timedelta(hours=IDEMPOTENCY_TTL_HOURS)
     expired = [k for k, (_, ts) in _idempotency_keys.items() if ts < cutoff]
@@ -49,7 +49,7 @@ def _cleanup_expired_idempotency_keys():
         logger.debug(f"Cleaned up {len(expired)} expired idempotency keys")
 
 
-def _get_decision_or_404(decision_id: str) -> dict:
+def _get_decision_or_404(decision_id: str) -> dict[str, Any]:
     """Get decision or raise 404"""
     decision = _decisions.get(decision_id)
     if not decision:
@@ -67,7 +67,7 @@ def _get_decision_or_404(decision_id: str) -> dict:
 
 
 @router.get("/{decision_id}", response_model=DecisionDetail)
-async def get_decision(decision_id: str):
+async def get_decision(decision_id: str) -> DecisionDetail:
     """
     Get decision detail with belief snapshot.
 
@@ -116,7 +116,7 @@ async def get_decision(decision_id: str):
 async def execute_decision(
     decision_id: str,
     request: DecisionExecuteRequest,
-):
+) -> DecisionExecuteResponse:
     """
     Execute a decision with idempotency.
 
@@ -252,7 +252,7 @@ async def execute_decision(
         )
 
 
-async def _auto_commit_decision(decision_id: str, delay_seconds: int):
+async def _auto_commit_decision(decision_id: str, delay_seconds: int) -> None:
     """Auto-commit a staged decision after undo window expires."""
     try:
         await asyncio.sleep(delay_seconds)
@@ -276,7 +276,7 @@ async def _auto_commit_decision(decision_id: str, delay_seconds: int):
 
 
 @router.post("/{decision_id}/undo", response_model=DecisionUndoResponse)
-async def undo_decision(decision_id: str):
+async def undo_decision(decision_id: str) -> DecisionUndoResponse:
     """
     Undo a staged decision within the 30-second window.
 
@@ -332,7 +332,7 @@ def create_decision(
     confidence: float,
     is_soft: bool = True,
     task_id: Optional[str] = None,
-    belief_snapshots: Optional[list[dict]] = None,
+    belief_snapshots: Optional[list[dict[str, Any]]] = None,
     reasoning: Optional[str] = None,
     options: Optional[list[str]] = None,
 ) -> str:

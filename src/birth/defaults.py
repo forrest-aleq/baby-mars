@@ -5,8 +5,10 @@ Birth Defaults
 Default values for capabilities, roles, styles, goals.
 """
 
+from typing import Any, Optional
+
 # Type 1: Capabilities (binary - can or can't)
-DEFAULT_CAPABILITIES = {
+DEFAULT_CAPABILITIES: dict[str, bool] = {
     "erp.read_transactions": True,
     "erp.write_journal_entries": True,
     "erp.process_invoices": True,
@@ -19,7 +21,7 @@ DEFAULT_CAPABILITIES = {
 }
 
 # Type 2: Relationships (facts, not beliefs)
-ROLE_HIERARCHY = {
+ROLE_HIERARCHY: dict[str, dict[str, Any]] = {
     "AP Specialist": {"reports_to": "AP Manager", "authority": 0.3},
     "AP Manager": {"reports_to": "Controller", "authority": 0.5},
     "AR Specialist": {"reports_to": "AR Manager", "authority": 0.3},
@@ -35,7 +37,7 @@ ROLE_HIERARCHY = {
 # This file only contains configuration defaults, not knowledge.
 
 # Type 5: Goals (standing goals by role)
-ROLE_GOALS = {
+ROLE_GOALS: dict[str, list[dict[str, Any]]] = {
     "AP Specialist": [
         {
             "goal_id": "process_invoices",
@@ -88,7 +90,7 @@ ROLE_GOALS = {
 }
 
 # Type 6: Style (defaults, can be overridden)
-DEFAULT_STYLE = {
+DEFAULT_STYLE: dict[str, str] = {
     "tone": "warm",
     "verbosity": "moderate",
     "formality": "professional",
@@ -97,7 +99,7 @@ DEFAULT_STYLE = {
     "certainty": "balanced",
 }
 
-ROLE_STYLE_OVERRIDES = {
+ROLE_STYLE_OVERRIDES: dict[str, dict[str, str]] = {
     "CFO": {"verbosity": "concise", "pace": "quick"},
     "CEO": {"verbosity": "concise", "formality": "formal"},
     "AP Specialist": {"verbosity": "thorough"},

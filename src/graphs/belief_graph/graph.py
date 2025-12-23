@@ -7,7 +7,7 @@ Implements Papers #4, #9, #10, #11, #12.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Literal, Optional, cast
 
 import networkx as nx
 
@@ -52,8 +52,8 @@ class BeliefGraph:
     # GRAPH MANAGEMENT
     # ============================================================
 
-    def add_belief(self, belief: BeliefState) -> None:
-        """Add belief node to graph."""
+    def add_belief(self, belief: dict[str, Any]) -> None:
+        """Add belief node to graph. Accepts partial dict, fills in defaults."""
         if "supports" not in belief:
             belief["supports"] = []
         if "supported_by" not in belief:
@@ -61,7 +61,7 @@ class BeliefGraph:
         if "support_weights" not in belief:
             belief["support_weights"] = {}
 
-        self.beliefs[belief["belief_id"]] = belief
+        self.beliefs[belief["belief_id"]] = cast(BeliefState, belief)
         self.G.add_node(
             belief["belief_id"], category=belief["category"], strength=belief["strength"]
         )
@@ -147,9 +147,7 @@ class BeliefGraph:
         ladder.append("|".join(["*"] * len(parts)))
         return ladder
 
-    def get_or_create_context_state(
-        self, belief_id: str, context_key: str
-    ) -> ContextState:
+    def get_or_create_context_state(self, belief_id: str, context_key: str) -> ContextState:
         """Get existing context state or create new one."""
         belief = self.beliefs.get(belief_id)
         if not belief:
@@ -193,9 +191,7 @@ class BeliefGraph:
         else:
             return "autonomous"
 
-    def get_aggregate_autonomy(
-        self, belief_ids: list[str], context_key: str
-    ) -> tuple[str, float]:
+    def get_aggregate_autonomy(self, belief_ids: list[str], context_key: str) -> tuple[str, float]:
         """Compute aggregate autonomy level for multiple beliefs."""
         if not belief_ids:
             return ("guidance_seeking", 0.0)
@@ -224,7 +220,7 @@ class BeliefGraph:
     # ============================================================
 
     def cascade_strength_update(
-        self, belief_id: str, new_strength: float, _visited: set = None
+        self, belief_id: str, new_strength: float, _visited: Optional[set[str]] = None
     ) -> list[str]:
         """
         Update belief strength and cascade to all supported beliefs.
@@ -264,14 +260,12 @@ class BeliefGraph:
             delta = new_contribution - old_contribution
             new_effective = max(0.0, min(1.0, intrinsic + delta))
 
-            affected.extend(
-                self.cascade_strength_update(supported_id, new_effective, _visited)
-            )
+            affected.extend(self.cascade_strength_update(supported_id, new_effective, _visited))
 
         return affected
 
     def compute_effective_strength(
-        self, belief_id: str, _memo: dict = None
+        self, belief_id: str, _memo: Optional[dict[str, float]] = None
     ) -> float:
         """Compute effective strength including support (Paper #11)."""
         if _memo is None:
@@ -321,9 +315,7 @@ class BeliefGraph:
 
         signal = self._compute_outcome_signal(outcome)
         category_mult = self._get_category_multiplier(belief["category"], signal)
-        peak_end_mult = self._apply_peak_end_rule(
-            belief, is_end_memory, emotional_intensity
-        )
+        peak_end_mult = self._apply_peak_end_rule(belief, is_end_memory, emotional_intensity)
         difficulty_mult = DIFFICULTY_WEIGHTS.get(difficulty_level, 1.0)
 
         total_signal = signal * category_mult * peak_end_mult * difficulty_mult
@@ -338,8 +330,14 @@ class BeliefGraph:
         self.cascade_strength_update(belief_id, new_strength)
 
         return self._create_strength_event(
-            belief_id, context_key, old_strength, new_strength,
-            outcome, difficulty_level, category_mult, peak_end_mult
+            belief_id,
+            context_key,
+            old_strength,
+            new_strength,
+            outcome,
+            difficulty_level,
+            category_mult,
+            peak_end_mult,
         )
 
     def _compute_outcome_signal(self, outcome: str) -> float:
@@ -364,20 +362,24 @@ class BeliefGraph:
         """Apply peak-end rule (Paper #12)."""
         if is_end_memory or emotional_intensity > PEAK_INTENSITY_THRESHOLD:
             belief["is_end_memory_influenced"] = True
-            belief["peak_intensity"] = max(
-                belief.get("peak_intensity", 0.0), emotional_intensity
-            )
+            belief["peak_intensity"] = max(belief.get("peak_intensity", 0.0), emotional_intensity)
             return PEAK_END_MULTIPLIER
         return 1.0
 
     def _update_state_counts(
-        self, state: ContextState, belief: BeliefState,
-        signal: float, new_strength: float, outcome: str
+        self,
+        state: ContextState,
+        belief: BeliefState,
+        signal: float,
+        new_strength: float,
+        outcome: str,
     ) -> None:
         """Update success/failure counts."""
         state["strength"] = new_strength
         state["last_updated"] = datetime.now().isoformat()
-        state["last_outcome"] = outcome
+        state["last_outcome"] = cast(
+            Literal["success", "failure", "neutral", "validation", "correction"], outcome
+        )
 
         if signal > 0:
             state["success_count"] = state.get("success_count", 0) + 1
@@ -388,15 +390,21 @@ class BeliefGraph:
 
     def _check_moral_violation(self, belief: BeliefState, signal: float) -> None:
         """Check for moral violation circuit breaker (Paper #9)."""
-        if belief["category"] == "ethical" and signal < 0:
+        if belief["category"] == "moral" and signal < 0:
             belief["moral_violation_count"] = belief.get("moral_violation_count", 0) + 1
             if belief["moral_violation_count"] >= 2:
                 belief["is_distrusted"] = True
 
     def _create_strength_event(
-        self, belief_id: str, context_key: str, old_strength: float,
-        new_strength: float, outcome: str, difficulty_level: int,
-        category_mult: float, peak_end_mult: float
+        self,
+        belief_id: str,
+        context_key: str,
+        old_strength: float,
+        new_strength: float,
+        outcome: str,
+        difficulty_level: int,
+        category_mult: float,
+        peak_end_mult: float,
     ) -> BeliefStrengthEvent:
         """Create immutable event (Paper #7)."""
         return {
@@ -467,8 +475,8 @@ class BeliefGraph:
                     }
                 )
 
-        activated.sort(key=lambda b: b["resolved_strength"], reverse=True)
-        return activated[:limit]
+        activated.sort(key=lambda b: float(str(b.get("resolved_strength", 0))), reverse=True)
+        return cast(list[BeliefState], activated[:limit])
 
     # ============================================================
     # SERIALIZATION
@@ -483,11 +491,11 @@ class BeliefGraph:
         """Restore from Postgres JSON."""
         return deserialize_graph(json_str, cls)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return graph_to_dict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "BeliefGraph":
+    def from_dict(cls, data: dict[str, Any]) -> "BeliefGraph":
         """Restore from dictionary."""
         return graph_from_dict(data, cls)

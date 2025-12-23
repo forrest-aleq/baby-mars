@@ -9,7 +9,7 @@ Per API_CONTRACT_V0.md section 4
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -34,7 +34,7 @@ async def list_beliefs(
     status: Optional[str] = Query("active", description="Filter by status"),
     limit: int = Query(50, le=100),
     offset: int = Query(0, ge=0),
-):
+) -> list[BeliefResponse]:
     """
     List beliefs for an organization.
 
@@ -61,9 +61,9 @@ async def list_beliefs(
                 statement=b["statement"],
                 category=b["category"],
                 strength=b.get("strength", 0.5),
-                context_key=b.get("context_key", "*|*|*"),
-                status=b.get("status", "active"),
-                is_immutable=b.get("is_immutable", False),
+                context_key=str(b.get("context_key", "*|*|*")),
+                status=b.get("status") or "active",  # type: ignore[arg-type]
+                is_immutable=bool(b.get("is_immutable", False)),
             )
             for b in beliefs
         ]
@@ -74,7 +74,7 @@ async def list_beliefs(
 
 
 @router.get("/{org_id}/{belief_id}", response_model=BeliefDetailResponse)
-async def get_belief(org_id: str, belief_id: str):
+async def get_belief(org_id: str, belief_id: str) -> BeliefDetailResponse:
     """
     Get full belief detail with history and evidence.
 
@@ -101,39 +101,43 @@ async def get_belief(org_id: str, belief_id: str):
             )
 
         # Build version history (placeholder - will be enhanced)
+        created_at_str = str(belief.get("created_at") or datetime.now().isoformat())
         versions = [
             BeliefVersion(
                 version=1,
                 statement=belief["statement"],
                 strength=belief.get("strength", 0.5),
-                changed_at=belief.get("created_at", datetime.now().isoformat()),
+                changed_at=created_at_str,
                 changed_by="system",
                 reason="Initial creation",
             )
         ]
 
         # Build evidence list (placeholder)
-        evidence = []
+        evidence: list[Any] = []
+
+        requires_role_val = belief.get("requires_role")
+        active_challenge_val = belief.get("active_challenge")
 
         return BeliefDetailResponse(
             belief_id=belief["belief_id"],
             statement=belief["statement"],
             category=belief["category"],
             strength=belief.get("strength", 0.5),
-            context_key=belief.get("context_key", "*|*|*"),
-            status=belief.get("status", "active"),
-            is_immutable=belief.get("is_immutable", False),
-            requires_role=belief.get("requires_role"),
+            context_key=str(belief.get("context_key", "*|*|*")),
+            status=belief.get("status") or "active",  # type: ignore[arg-type]
+            is_immutable=bool(belief.get("is_immutable", False)),
+            requires_role=str(requires_role_val) if requires_role_val else None,
             versions=versions,
             current_version=1,
             evidence=evidence,
             supports=belief.get("supports", []),
             supported_by=belief.get("supported_by", []),
-            source=belief.get("source", "system"),
-            created_at=belief.get("created_at", datetime.now().isoformat()),
-            updated_at=belief.get("updated_at", datetime.now().isoformat()),
-            challenge_count=belief.get("challenge_count", 0),
-            active_challenge=belief.get("active_challenge"),
+            source=str(belief.get("source") or "system"),
+            created_at=created_at_str,
+            updated_at=str(belief.get("updated_at") or datetime.now().isoformat()),
+            challenge_count=int(str(belief.get("challenge_count", 0) or 0)),
+            active_challenge=str(active_challenge_val) if active_challenge_val else None,
         )
 
     except HTTPException:
@@ -148,7 +152,7 @@ async def challenge_belief(
     org_id: str,
     belief_id: str,
     request: BeliefChallengeRequest,
-):
+) -> BeliefChallengeResponse:
     """
     Challenge a belief.
 
@@ -182,7 +186,7 @@ async def challenge_belief(
             )
 
         # Show existing evidence (placeholder)
-        existing_evidence = []
+        existing_evidence: list[Any] = []
 
         # Generate challenge ID
         challenge_id = f"challenge_{uuid.uuid4().hex[:12]}"
@@ -190,7 +194,9 @@ async def challenge_belief(
         # Calculate what strength would be after challenge (reduces by ~50%)
         old_strength = belief.get("strength", 0.5)
         projected_strength = max(0.1, old_strength * 0.5)
-        projected_status = "disputed" if projected_strength < 0.4 else "active"
+        # Use cast to match the BeliefStatus Literal type
+        from ..schemas.beliefs import BeliefStatus
+        projected_status: BeliefStatus = "disputed" if projected_strength < 0.4 else "active"
 
         # TODO: Implement proper challenge flow with graph.challenge_belief()
         # For now, we only record the challenge without persisting the change

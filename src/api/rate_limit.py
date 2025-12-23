@@ -8,7 +8,7 @@ Falls back to in-memory limiting if Redis is unavailable.
 
 import os
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import HTTPException, Request
 
@@ -30,15 +30,16 @@ class RedisRateLimiter:
         self._redis = None
         self._fallback = InMemoryRateLimiter(requests_per_minute)
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Lazy connect to Redis."""
         if self._redis is None:
             try:
-                import redis.asyncio as redis
+                import redis.asyncio as aioredis
 
-                self._redis = redis.from_url(self.redis_url, decode_responses=True)
+                self._redis = aioredis.from_url(self.redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
                 # Test connection
-                await self._redis.ping()
+                if self._redis is not None:
+                    await self._redis.ping()
             except Exception:
                 self._redis = None
         return self._redis
@@ -67,7 +68,7 @@ class RedisRateLimiter:
                 # First request in window, set expiry
                 await redis_client.expire(rate_key, 60)
 
-            return count <= self.rpm
+            return bool(count <= self.rpm)
         except Exception:
             # On Redis error, fall back to in-memory
             return self._fallback.is_allowed(key)
@@ -87,7 +88,7 @@ class RedisRateLimiter:
         except Exception:
             return self._fallback.get_remaining(key)
 
-    async def close(self):
+    async def close(self) -> None:
         """Close Redis connection."""
         if self._redis:
             await self._redis.close()

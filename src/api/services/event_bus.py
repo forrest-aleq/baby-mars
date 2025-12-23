@@ -9,7 +9,7 @@ Will be backed by Redis for multi-instance deployments.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("baby_mars.api.services.event_bus")
 
@@ -22,22 +22,22 @@ class EventBus:
     For multi-instance, replace with Redis pub/sub.
     """
 
-    def __init__(self):
-        self._subscribers: dict[str, list[asyncio.Queue]] = {}
+    def __init__(self) -> None:
+        self._subscribers: dict[str, list[asyncio.Queue[dict[str, Any]]]] = {}
         self._event_counter = 0
-        self._event_history: list[dict] = []  # For replay on reconnect
+        self._event_history: list[dict[str, Any]] = []  # For replay on reconnect
         self._max_history = 100
 
-    def subscribe(self, org_id: str) -> asyncio.Queue:
+    def subscribe(self, org_id: str) -> asyncio.Queue[dict[str, Any]]:
         """Subscribe to events for an org."""
-        queue = asyncio.Queue()
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         if org_id not in self._subscribers:
             self._subscribers[org_id] = []
         self._subscribers[org_id].append(queue)
         logger.debug(f"New subscriber for org {org_id} (total: {len(self._subscribers[org_id])})")
         return queue
 
-    def unsubscribe(self, org_id: str, queue: asyncio.Queue):
+    def unsubscribe(self, org_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
         """Unsubscribe from events."""
         if org_id in self._subscribers:
             try:
@@ -46,7 +46,7 @@ class EventBus:
             except ValueError:
                 pass
 
-    async def publish(self, org_id: str, event_type: str, data: dict):
+    async def publish(self, org_id: str, event_type: str, data: dict[str, Any]) -> None:
         """Publish an event to all subscribers of an org."""
         self._event_counter += 1
         event = {
@@ -72,7 +72,7 @@ class EventBus:
 
         logger.debug(f"Published {event_type} to org {org_id}")
 
-    def get_events_since(self, org_id: str, last_event_id: str) -> list[dict]:
+    def get_events_since(self, org_id: str, last_event_id: str) -> list[dict[str, Any]]:
         """Get events since a given event ID for replay."""
         events = []
         found = False
@@ -101,7 +101,7 @@ def get_event_bus() -> EventBus:
     return _event_bus
 
 
-def reset_event_bus():
+def reset_event_bus() -> None:
     """Reset event bus (for testing)."""
     global _event_bus
     _event_bus = None

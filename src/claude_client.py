@@ -13,10 +13,11 @@ Uses the latest Anthropic SDK (December 2025) features:
 
 import json
 import os
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import time
-from typing import Optional, Type, TypeVar
+from typing import Any, Optional, Type, TypeVar, Union, cast
 
 from anthropic import (
     APIConnectionError,
@@ -26,6 +27,8 @@ from anthropic import (
     RateLimitError,
 )
 from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 # Load .env file if present
 try:
@@ -61,12 +64,12 @@ class CircuitBreaker:
     failures: int = field(default=0, init=False)
     last_failure: float = field(default=0.0, init=False)
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """Record a failure and update timestamp."""
         self.failures += 1
         self.last_failure = time()
 
-    def record_success(self):
+    def record_success(self) -> None:
         """Reset failures on success."""
         self.failures = 0
 
@@ -80,7 +83,7 @@ class CircuitBreaker:
             return True
         return False
 
-    def check_or_raise(self):
+    def check_or_raise(self) -> None:
         """Raise if circuit is open."""
         if self.is_open():
             raise CircuitBreakerOpenError(
@@ -124,7 +127,12 @@ class ClaudeClient:
     - Conversation history management
     """
 
-    def __init__(self, config: Optional[ClaudeConfig] = None, skills_dir: Optional[Path] = None):
+    client: Union[AsyncAnthropic, AsyncAnthropicFoundry]
+    using_foundry: bool
+
+    def __init__(
+        self, config: Optional[ClaudeConfig] = None, skills_dir: Optional[Path] = None
+    ) -> None:
         self.config = config or ClaudeConfig()
 
         # Check for Azure AI Foundry configuration
@@ -198,7 +206,7 @@ class ClaudeClient:
 
     async def complete(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
         temperature: Optional[float] = None,
@@ -229,11 +237,14 @@ class ClaudeClient:
                 max_tokens=self.config.max_tokens,
                 temperature=temperature or self.config.temperature,
                 system=system or "",
-                messages=messages,
+                messages=cast(Any, messages),
             )
             _circuit_breaker.record_success()
-            # Extract text
-            return response.content[0].text
+            # Extract text - content[0] is always TextBlock for text completions
+            first_block = response.content[0]
+            if hasattr(first_block, "text"):
+                return first_block.text
+            raise ValueError("Response did not contain text block")
         except (RateLimitError, APIConnectionError, APIError):
             _circuit_breaker.record_failure()
             raise
@@ -242,11 +253,9 @@ class ClaudeClient:
     # STRUCTURED OUTPUTS (Beta)
     # ============================================================
 
-    T = TypeVar("T", bound=BaseModel)
-
     async def complete_structured(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         response_model: Type[T],
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
@@ -284,12 +293,15 @@ class ClaudeClient:
                 max_tokens=self.config.max_tokens,
                 temperature=temperature or self.config.temperature,
                 system=full_system,
-                messages=messages,
+                messages=cast(Any, messages),
             )
             _circuit_breaker.record_success()
 
             # Parse JSON response into model
-            response_text = response.content[0].text
+            first_block = response.content[0]
+            if not hasattr(first_block, "text"):
+                raise ValueError("Response did not contain text block")
+            response_text: str = first_block.text
             # Handle potential markdown code blocks
             if response_text.startswith("```"):
                 import re
@@ -306,11 +318,11 @@ class ClaudeClient:
 
     async def complete_json(
         self,
-        messages: list[dict],
-        schema: dict,
+        messages: list[dict[str, Any]],
+        schema: dict[str, Any],
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Completion with JSON schema validation.
 
@@ -336,11 +348,15 @@ class ClaudeClient:
                 max_tokens=self.config.max_tokens,
                 betas=[STRUCTURED_OUTPUTS_BETA],
                 system=system or "",
-                messages=messages,
-                output_format={"type": "json_schema", "schema": schema},
+                messages=cast(Any, messages),
+                output_format=cast(Any, {"type": "json_schema", "schema": schema}),
             )
             _circuit_breaker.record_success()
-            return json.loads(response.content[0].text)
+            first_block = response.content[0]
+            if hasattr(first_block, "text"):
+                result: dict[str, Any] = json.loads(first_block.text)
+                return result
+            raise ValueError("Response did not contain text block")
         except (RateLimitError, APIConnectionError, APIError):
             _circuit_breaker.record_failure()
             raise
@@ -351,12 +367,12 @@ class ClaudeClient:
 
     async def complete_with_tools(
         self,
-        messages: list[dict],
-        tools: list[dict],
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
-        tool_choice: Optional[dict] = None,
-    ) -> dict:
+        tool_choice: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Completion with tool use.
 
@@ -373,7 +389,7 @@ class ClaudeClient:
         if system is None and skills:
             system = self.build_system_prompt(skills)
 
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "model": self.config.model,
             "max_tokens": self.config.max_tokens,
             "system": system or "",
@@ -387,7 +403,11 @@ class ClaudeClient:
         response = await self.client.messages.create(**kwargs)
 
         # Parse response into structured format
-        result = {"text_blocks": [], "tool_use_blocks": [], "stop_reason": response.stop_reason}
+        result: dict[str, Any] = {
+            "text_blocks": [],
+            "tool_use_blocks": [],
+            "stop_reason": response.stop_reason,
+        }
 
         for block in response.content:
             if block.type == "text":
@@ -404,8 +424,11 @@ class ClaudeClient:
     # ============================================================
 
     async def stream(
-        self, messages: list[dict], system: Optional[str] = None, skills: Optional[list[str]] = None
-    ):
+        self,
+        messages: list[dict[str, Any]],
+        system: Optional[str] = None,
+        skills: Optional[list[str]] = None,
+    ) -> AsyncIterator[str]:
         """
         Stream completion tokens.
 
@@ -418,7 +441,7 @@ class ClaudeClient:
             model=self.config.model,
             max_tokens=self.config.max_tokens,
             system=system or "",
-            messages=messages,
+            messages=cast(Any, messages),
         ) as stream:
             async for text in stream.text_stream:
                 yield text
@@ -448,7 +471,7 @@ class ActionSelectionOutput(BaseModel):
     """Structured output for action selection node"""
 
     action_type: str
-    work_units: list[dict]
+    work_units: list[dict[str, Any]]
     tool_requirements: list[str]
     confidence: float
     requires_human_approval: bool
@@ -460,7 +483,7 @@ class ValidationOutput(BaseModel):
     """Structured output for validation node"""
 
     all_passed: bool
-    results: list[dict]  # ValidationResult items
+    results: list[dict[str, Any]]  # ValidationResult items
     recommended_action: str  # "proceed", "retry", "escalate"
     fix_suggestions: list[str]
 
@@ -487,4 +510,17 @@ class DialecticalOutput(BaseModel):
 
 
 # Backwards-compatible re-exports from singleton module
-from .claude_singleton import complete, complete_structured, get_claude_client, reset_claude_client
+from .claude_singleton import get_claude_client
+
+__all__ = [
+    "ClaudeClient",
+    "ClaudeConfig",
+    "CircuitBreaker",
+    "CircuitBreakerOpenError",
+    "get_claude_client",
+    "AppraisalOutput",
+    "ActionSelectionOutput",
+    "ValidationOutput",
+    "ResponseOutput",
+    "DialecticalOutput",
+]

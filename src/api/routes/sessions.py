@@ -7,6 +7,8 @@ Session management endpoints.
 
 import logging
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request
 
 logger = logging.getLogger("baby_mars.api.sessions")
@@ -15,7 +17,7 @@ router = APIRouter()
 
 
 @router.get("/{session_id}")
-async def get_session(session_id: str, request: Request):
+async def get_session(session_id: str, request: Request) -> dict[str, Any]:
     """Get session information"""
     session = request.app.state.sessions.get(session_id)
     if not session:
@@ -54,7 +56,7 @@ async def get_session(session_id: str, request: Request):
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str, request: Request):
+async def delete_session(session_id: str, request: Request) -> dict[str, str]:
     """Delete a session"""
     if session_id not in request.app.state.sessions:
         raise HTTPException(
@@ -75,7 +77,7 @@ async def delete_session(session_id: str, request: Request):
 
 
 @router.get("/{session_id}/context")
-async def get_session_context(session_id: str, request: Request):
+async def get_session_context(session_id: str, request: Request) -> dict[str, Any]:
     """
     Get current context pills and budget.
 
@@ -112,7 +114,7 @@ async def get_session_context(session_id: str, request: Request):
 
 
 @router.get("/{session_id}/history")
-async def get_session_history(session_id: str, request: Request, limit: int = 20):
+async def get_session_history(session_id: str, request: Request, limit: int = 20) -> dict[str, Any]:
     """
     Get conversation history for session.
 

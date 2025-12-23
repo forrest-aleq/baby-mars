@@ -11,6 +11,7 @@ interaction.
 """
 
 from datetime import datetime
+from typing import Any, cast
 
 from ...graphs.belief_graph import BeliefGraph
 from ...graphs.belief_graph_manager import get_org_belief_graph
@@ -48,7 +49,7 @@ async def load_social_graph(org_id: str) -> SocialGraph:
 # ============================================================
 
 
-def extract_context_key(message: dict) -> str:
+def extract_context_key(message: dict[str, Any]) -> str:
     """
     Extract context key from message.
 
@@ -118,7 +119,7 @@ def build_temporal_context() -> TemporalContext:
     }
 
 
-def detect_goal_conflict(goals: list[dict]) -> dict | None:
+def detect_goal_conflict(goals: list[dict[str, Any]]) -> dict[str, Any] | None:
     """
     Detect conflicts between active goals.
 
@@ -135,7 +136,7 @@ def detect_goal_conflict(goals: list[dict]) -> dict | None:
                 return {"type": "explicit_conflict", "goal_a": goal_a, "goal_b": goal_b}
 
     # Check for resource conflicts (same resource, different objectives)
-    resources_used = {}
+    resources_used: dict[str, dict[str, Any]] = {}
     for goal in goals:
         for resource in goal.get("resources", []):
             if resource in resources_used:
@@ -155,7 +156,7 @@ def detect_goal_conflict(goals: list[dict]) -> dict | None:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Cognitive Activation Node
 
@@ -177,7 +178,7 @@ async def process(state: BabyMARSState) -> dict:
 
     # Extract context from last message
     messages = state.get("messages", [])
-    last_message = messages[-1] if messages else None
+    last_message = messages[-1] if messages else {}
     context_key = extract_context_key(last_message)
 
     # Activate relevant beliefs
@@ -193,13 +194,13 @@ async def process(state: BabyMARSState) -> dict:
             people.append({**person, "relationship_value": rv})
 
     # Sort by relationship value
-    people.sort(key=lambda p: p.get("relationship_value", 0), reverse=True)
+    people.sort(key=lambda p: float(str(p.get("relationship_value", 0))), reverse=True)
 
     # Build Objects column (Paper #8)
     objects: Objects = {
-        "people": people[:10],  # Top 10
+        "people": cast(list[Any], people[:10]),  # Top 10
         "entities": [],  # TODO: extract from context
-        "beliefs": activated_beliefs[:20],
+        "beliefs": cast(list[dict[str, Any]], activated_beliefs[:20]),
         "knowledge": [],  # TODO: relevant workflows
         "goals": state.get("active_goals", []),
         "temporal": build_temporal_context(),

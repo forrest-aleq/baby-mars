@@ -5,7 +5,7 @@ API Routes
 All route modules for Baby MARS API.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, FastAPI
 
 from .beliefs import router as beliefs_router
 from .birth import router as birth_router
@@ -17,7 +17,7 @@ from .sessions import router as sessions_router
 from .tasks import router as tasks_router
 
 
-def register_routes(app):
+def register_routes(app: FastAPI) -> None:
     """Register all route modules with the FastAPI app"""
     # Health/info at root level
     app.include_router(health_router, tags=["Health"])

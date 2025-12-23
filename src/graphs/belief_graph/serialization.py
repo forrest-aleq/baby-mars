@@ -6,7 +6,7 @@ Serialization and deserialization for belief graphs.
 """
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from .graph import BeliefGraph
@@ -36,10 +36,10 @@ def deserialize_graph(json_str: str, graph_cls: type) -> "BeliefGraph":
         graph.G.add_edge(source, target, **attrs)
 
     graph.beliefs = data.get("beliefs", {})
-    return graph
+    return cast("BeliefGraph", graph)
 
 
-def graph_to_dict(graph: "BeliefGraph") -> dict:
+def graph_to_dict(graph: "BeliefGraph") -> dict[str, Any]:
     """Convert graph to dictionary (for non-JSON storage)."""
     return {
         "nodes": dict(graph.G.nodes(data=True)),
@@ -48,7 +48,7 @@ def graph_to_dict(graph: "BeliefGraph") -> dict:
     }
 
 
-def graph_from_dict(data: dict, graph_cls: type) -> "BeliefGraph":
+def graph_from_dict(data: dict[str, Any], graph_cls: type) -> "BeliefGraph":
     """Restore graph from dictionary."""
     graph = graph_cls()
 
@@ -59,4 +59,4 @@ def graph_from_dict(data: dict, graph_cls: type) -> "BeliefGraph":
         graph.G.add_edge(source, target, **attrs)
 
     graph.beliefs = data.get("beliefs", {})
-    return graph
+    return cast("BeliefGraph", graph)

@@ -13,9 +13,10 @@ Usage:
 
 import asyncio
 import os
-from typing import Optional
+from typing import Any, Optional, cast
 
 import typer
+from langchain_core.runnables import RunnableConfig
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -48,7 +49,7 @@ def serve(
     host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),
     port: int = typer.Option(8000, "--port", "-p", help="Port to bind to"),
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload"),
-):
+) -> None:
     """Start the Baby MARS API server."""
     console.print(
         Panel.fit("[bold blue]Baby MARS[/bold blue] API Server", subtitle="Cognitive Architecture")
@@ -82,7 +83,7 @@ def chat(
     name: str = typer.Option("Demo User", "--name", "-n", help="Your name"),
     role: str = typer.Option("Controller", "--role", "-r", help="Your role"),
     industry: str = typer.Option("general", "--industry", "-i", help="Industry"),
-):
+) -> None:
     """Start an interactive chat session."""
 
     console.print(
@@ -101,7 +102,7 @@ def chat(
     asyncio.run(_run_chat(name, role, industry))
 
 
-async def _run_chat(name: str, role: str, industry: str):
+async def _run_chat(name: str, role: str, industry: str) -> None:
     """Run interactive chat session."""
     from .birth.birth_system import quick_birth
     from .cognitive_loop.graph import create_graph_in_memory, invoke_cognitive_loop
@@ -157,9 +158,9 @@ async def _run_chat(name: str, role: str, industry: str):
 
             if user_input.strip().lower() == "/mode":
                 if state:
-                    mode = state.get("supervision_mode", "unknown")
+                    current_mode = state.get("supervision_mode", "unknown")
                     strength = state.get("belief_strength_for_action", 0)
-                    console.print(f"Mode: [bold]{mode}[/bold] (strength: {strength:.2f})")
+                    console.print(f"Mode: [bold]{current_mode}[/bold] (strength: {strength:.2f})")
                 else:
                     console.print("[dim]No session yet[/dim]")
                 continue
@@ -177,15 +178,15 @@ async def _run_chat(name: str, role: str, industry: str):
 
             # Run cognitive loop with spinner
             with console.status("[bold green]Thinking...[/bold green]", spinner="dots"):
-                config = {"configurable": {"thread_id": state["thread_id"]}}
+                config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
                 state = await invoke_cognitive_loop(state, graph, config)
 
             # Display response
-            response = state.get("final_response", "")
-            mode = state.get("supervision_mode", "")
+            response = str(state.get("final_response", ""))
+            mode: str = state.get("supervision_mode") or ""
 
             # Mode indicator
-            mode_colors = {
+            mode_colors: dict[str, str] = {
                 "guidance_seeking": "yellow",
                 "action_proposal": "blue",
                 "autonomous": "green",
@@ -206,7 +207,7 @@ async def _run_chat(name: str, role: str, industry: str):
                     console.print("[green]Approved![/green] Executing...\n")
                     with console.status("[bold green]Executing...[/bold green]"):
                         state = await invoke_cognitive_loop(state, graph, config)
-                    response = state.get("final_response", "")
+                    response = str(state.get("final_response", ""))
                     console.print(Panel(Markdown(response), border_style="green"))
                 else:
                     state["approval_status"] = "rejected"
@@ -232,7 +233,7 @@ def birth(
     org_name: str = typer.Option("Default Org", "--org", "-o", help="Organization name"),
     industry: str = typer.Option("general", "--industry", "-i", help="Industry"),
     org_size: str = typer.Option("mid_market", "--size", "-s", help="Org size"),
-):
+) -> None:
     """Birth a new person into Baby MARS."""
     import uuid
 
@@ -255,7 +256,6 @@ def birth(
         org_id=org_id,
         org_name=org_name,
         industry=industry,
-        org_size=org_size,
     )
 
     # Display results
@@ -279,9 +279,9 @@ def birth(
 
     graph = get_belief_graph()
 
-    categories = {}
+    categories: dict[str, int] = {}
     for b in graph.beliefs.values():
-        cat = b.get("category", "unknown")
+        cat: str = b.get("category") or "unknown"
         categories[cat] = categories.get(cat, 0) + 1
 
     for cat, count in sorted(categories.items()):
@@ -297,7 +297,7 @@ def birth(
 def beliefs(
     category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
     min_strength: float = typer.Option(0.0, "--min-strength", "-m", help="Minimum strength"),
-):
+) -> None:
     """View beliefs in the current graph."""
     from .graphs.belief_graph import get_belief_graph
 
@@ -349,7 +349,7 @@ def beliefs(
 
 
 @app.command()
-def version():
+def version() -> None:
     """Show version information."""
     console.print(
         Panel.fit(

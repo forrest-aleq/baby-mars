@@ -10,11 +10,14 @@ This is the core orchestration that implements the research.
 """
 
 import os
-from typing import Literal, Optional
+from collections.abc import AsyncIterator
+from typing import Any, Literal, Optional, Union
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from ..state.schema import BabyMARSState
 
@@ -92,7 +95,7 @@ def route_after_verification(state: BabyMARSState) -> Literal["retry", "feedback
 # ============================================================
 
 
-async def cognitive_activation_node(state: BabyMARSState) -> dict:
+async def cognitive_activation_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Load cognitive context from graphs.
     Implements fetch_active_subgraph pattern.
@@ -103,7 +106,7 @@ async def cognitive_activation_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def appraisal_node(state: BabyMARSState) -> dict:
+async def appraisal_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Analyze situation against activated beliefs.
     Use Claude to perform rich appraisal.
@@ -113,7 +116,7 @@ async def appraisal_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def dialectical_resolution_node(state: BabyMARSState) -> dict:
+async def dialectical_resolution_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Handle goal conflicts.
     """
@@ -122,7 +125,7 @@ async def dialectical_resolution_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def action_selection_node(state: BabyMARSState) -> dict:
+async def action_selection_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Select action based on appraisal and beliefs.
     Determine autonomy level (Paper #1).
@@ -132,7 +135,7 @@ async def action_selection_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def action_proposal_node(state: BabyMARSState) -> dict:
+async def action_proposal_node(state: BabyMARSState) -> dict[str, Any]:
     """
     HITL interrupt node for action approval.
     Pauses execution until human approves or rejects.
@@ -142,7 +145,7 @@ async def action_proposal_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def execution_node(state: BabyMARSState) -> dict:
+async def execution_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Execute action via MCP servers.
     PTD Driver layer.
@@ -152,7 +155,7 @@ async def execution_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def verification_node(state: BabyMARSState) -> dict:
+async def verification_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Paper #3: Self-Correcting Validation
     Run validators on execution results.
@@ -162,7 +165,7 @@ async def verification_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def feedback_node(state: BabyMARSState) -> dict:
+async def feedback_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Update beliefs and create memories based on outcome.
     Papers #1, #9, #11, #12
@@ -172,7 +175,7 @@ async def feedback_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def response_generation_node(state: BabyMARSState) -> dict:
+async def response_generation_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Generate final response based on supervision mode.
     """
@@ -181,7 +184,7 @@ async def response_generation_node(state: BabyMARSState) -> dict:
     return await process(state)
 
 
-async def personality_gate_node(state: BabyMARSState) -> dict:
+async def personality_gate_node(state: BabyMARSState) -> dict[str, Any]:
     """
     Final validation against immutable personality beliefs.
     Ensures response doesn't violate core constraints.
@@ -196,7 +199,9 @@ async def personality_gate_node(state: BabyMARSState) -> dict:
 # ============================================================
 
 
-def create_cognitive_loop_graph(checkpointer=None) -> StateGraph:
+def create_cognitive_loop_graph(
+    checkpointer: Optional[Union[MemorySaver, PostgresSaver]] = None,
+) -> CompiledStateGraph[BabyMARSState]:
     """
     Create the main cognitive loop graph.
 
@@ -213,7 +218,7 @@ def create_cognitive_loop_graph(checkpointer=None) -> StateGraph:
     - Verification (self-correction)
     """
 
-    builder = StateGraph(BabyMARSState)
+    builder: StateGraph[BabyMARSState] = StateGraph(BabyMARSState)
 
     # ============================================================
     # NODES
@@ -294,10 +299,11 @@ def create_cognitive_loop_graph(checkpointer=None) -> StateGraph:
     builder.add_edge("personality_gate", END)
 
     # Compile with checkpointer
-    if checkpointer is None:
-        checkpointer = MemorySaver()
+    actual_checkpointer: Union[MemorySaver, PostgresSaver] = (
+        checkpointer if checkpointer is not None else MemorySaver()
+    )
 
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(checkpointer=actual_checkpointer)  # type: ignore[return-value]
 
 
 # ============================================================
@@ -321,13 +327,16 @@ def get_checkpointer() -> PostgresSaver:
                 "DATABASE_URL environment variable required for persistence. "
                 "Use create_graph_in_memory() for testing without a database."
             )
-        _checkpointer = PostgresSaver.from_conn_string(postgres_url)
-        # Create tables if they don't exist
-        _checkpointer.setup()
+        # from_conn_string returns a context manager, use it to get the saver
+        with PostgresSaver.from_conn_string(postgres_url) as saver:
+            saver.setup()
+            _checkpointer = saver
     return _checkpointer
 
 
-def create_graph_with_postgres(postgres_url: str = None) -> StateGraph:
+def create_graph_with_postgres(
+    postgres_url: Optional[str] = None,
+) -> CompiledStateGraph[BabyMARSState]:
     """
     Create graph with Postgres persistence.
 
@@ -335,14 +344,14 @@ def create_graph_with_postgres(postgres_url: str = None) -> StateGraph:
         postgres_url: Optional override. If not provided, uses DATABASE_URL env var.
     """
     if postgres_url:
-        checkpointer = PostgresSaver.from_conn_string(postgres_url)
-        checkpointer.setup()
+        with PostgresSaver.from_conn_string(postgres_url) as checkpointer:
+            checkpointer.setup()
+            return create_cognitive_loop_graph(checkpointer)
     else:
-        checkpointer = get_checkpointer()
-    return create_cognitive_loop_graph(checkpointer)
+        return create_cognitive_loop_graph(get_checkpointer())
 
 
-def create_graph_in_memory() -> StateGraph:
+def create_graph_in_memory() -> CompiledStateGraph[BabyMARSState]:
     """Create graph with in-memory persistence (for testing)"""
     return create_cognitive_loop_graph(MemorySaver())
 
@@ -353,7 +362,9 @@ def create_graph_in_memory() -> StateGraph:
 
 
 async def invoke_cognitive_loop(
-    state: BabyMARSState, graph: StateGraph = None, config: dict = None
+    state: BabyMARSState,
+    graph: Optional[CompiledStateGraph[BabyMARSState]] = None,
+    config: Optional[RunnableConfig] = None,
 ) -> BabyMARSState:
     """
     Main entry point for running the cognitive loop.
@@ -372,13 +383,15 @@ async def invoke_cognitive_loop(
     if config is None:
         config = {"configurable": {"thread_id": state.get("thread_id", "default")}}
 
-    result = await graph.ainvoke(state, config)
+    result: BabyMARSState = await graph.ainvoke(state, config)  # type: ignore[assignment]
     return result
 
 
 async def stream_cognitive_loop(
-    state: BabyMARSState, graph: StateGraph = None, config: dict = None
-):
+    state: BabyMARSState,
+    graph: Optional[CompiledStateGraph[BabyMARSState]] = None,
+    config: Optional[RunnableConfig] = None,
+) -> AsyncIterator[Any]:
     """
     Stream events from the cognitive loop.
 

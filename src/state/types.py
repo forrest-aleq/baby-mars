@@ -6,8 +6,7 @@ TypedDicts for Baby MARS state structure.
 Implements Three-Column Working Memory (Paper #8) and supporting structures.
 """
 
-from typing import Literal, Optional, TypedDict
-
+from typing import Any, Literal, Optional, TypedDict
 
 # ============================================================
 # COLUMN 1: ACTIVE TASKS (3-4 slots)
@@ -34,7 +33,7 @@ class ActiveTask(TypedDict):
     description: str
     state: TaskState
     dependencies: list[str]
-    history: list[dict]  # TaskEvents
+    history: list[dict[str, Any]]  # TaskEvents
     started_at: str  # ISO datetime
     estimated_duration_minutes: Optional[int]
     priority: float  # 0.0-1.0
@@ -59,7 +58,7 @@ class Note(TypedDict):
     ttl_hours: int
     priority: float  # Base priority, escalates as TTL expires
     source: Literal["user", "system", "inferred"]
-    context: dict  # Relevant context when noted
+    context: dict[str, Any]  # Relevant context when noted
 
 
 # ============================================================
@@ -92,7 +91,7 @@ class EntityObject(TypedDict):
     name: str
     entity_type: str
     salience: float
-    properties: dict
+    properties: dict[str, Any]
 
 
 class TemporalContext(TypedDict):
@@ -117,9 +116,9 @@ class Objects(TypedDict):
 
     people: list[PersonObject]
     entities: list[EntityObject]
-    beliefs: list[dict]  # BeliefState objects
-    knowledge: list[dict]  # Relevant workflows/rules
-    goals: list[dict]  # Active goals
+    beliefs: list[dict[str, Any]]  # BeliefState objects
+    knowledge: list[dict[str, Any]]  # Relevant workflows/rules
+    goals: list[dict[str, Any]]  # Active goals
     temporal: TemporalContext
 
 
@@ -139,9 +138,7 @@ class ContextState(TypedDict):
     last_updated: str  # ISO datetime
     success_count: int
     failure_count: int
-    last_outcome: Optional[
-        Literal["success", "failure", "neutral", "validation", "correction"]
-    ]
+    last_outcome: Optional[Literal["success", "failure", "neutral", "validation", "correction"]]
 
 
 class BeliefState(TypedDict):
@@ -243,13 +240,11 @@ class PersonRelationship(TypedDict):
 class AppraisalResult(TypedDict):
     """Result of the appraisal node."""
 
-    expectancy_violation: Optional[dict]
-    face_threat: Optional[dict]
-    goal_alignment: dict
+    expectancy_violation: Optional[dict[str, Any]]
+    face_threat: Optional[dict[str, Any]]
+    goal_alignment: dict[str, Any]
     attributed_beliefs: list[str]
-    recommended_action_type: Literal[
-        "guidance_needed", "propose_and_confirm", "execute_directly"
-    ]
+    recommended_action_type: Literal["guidance_needed", "propose_and_confirm", "execute_directly"]
     difficulty: int
     involves_ethical_beliefs: bool
 
@@ -269,9 +264,9 @@ class WorkUnit(TypedDict):
     unit_id: str
     tool: str  # Which surface (api, web, database, etc.)
     verb: str  # Semantic action (create_record, fill_form, etc.)
-    entities: dict  # What to operate on
-    slots: dict  # Parameters
-    constraints: list[dict]  # Verification requirements
+    entities: dict[str, Any]  # What to operate on
+    slots: dict[str, Any]  # Parameters
+    constraints: list[dict[str, Any]]  # Verification requirements
 
 
 class SelectedAction(TypedDict):
@@ -334,6 +329,6 @@ class FeedbackEvent(TypedDict):
     timestamp: str
     trigger: str  # What triggered the feedback
     outcome_type: str  # "success", "partial_success", "failure"
-    belief_updates: list[dict]  # List of belief update records
+    belief_updates: list[dict[str, Any]]  # List of belief update records
     context_key: str
     supervision_mode: str

@@ -6,7 +6,7 @@ Request/response models for task management.
 Per API_CONTRACT_V0.md section 2
 """
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +35,7 @@ class TaskTimelineEntry(BaseModel):
     timestamp: str
     event: str = Field(..., description="What happened")
     actor: str = Field(..., description="Who/what did it: 'aleq', 'system', user_id")
-    details: Optional[dict] = None
+    details: Optional[dict[str, Any]] = None
 
 
 class TaskSummary(BaseModel):
@@ -99,8 +99,8 @@ class TaskDetail(BaseModel):
     completed_at: Optional[str] = None
 
     # Error info (if failed)
-    error: Optional[dict] = None
-    recovery_actions: list[dict] = Field(default_factory=list)
+    error: Optional[dict[str, Any]] = None
+    recovery_actions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class TaskTimeline(BaseModel):
@@ -129,7 +129,7 @@ class TaskProgressEvent(BaseModel):
     stage_name: str
     stage_total: int
     stage_progress: float = Field(..., ge=0, le=1)
-    detail: Optional[dict] = None
+    detail: Optional[dict[str, Any]] = None
     message: str
 
 

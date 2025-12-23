@@ -8,6 +8,8 @@ Uses Claude to reason about competing goals and find resolution.
 Paper #6: Goal Conflict Resolution
 """
 
+from typing import Any
+
 from ...claude_client import DialecticalOutput, get_claude_client
 from ...state.schema import BabyMARSState
 
@@ -34,11 +36,11 @@ def build_conflict_context(state: BabyMARSState) -> str:
     if goals:
         goal_details = []
         for g in goals:
-            goal_details.append(f"""<goal id="{g.get('goal_id', 'unknown')}">
-  Description: {g.get('description', '')}
-  Priority: {g.get('priority', 0.5)}
-  Resources: {', '.join(g.get('resources', []))}
-  Conflicts with: {', '.join(g.get('conflicts_with', []))}
+            goal_details.append(f"""<goal id="{g.get("goal_id", "unknown")}">
+  Description: {g.get("description", "")}
+  Priority: {g.get("priority", 0.5)}
+  Resources: {", ".join(g.get("resources", []))}
+  Conflicts with: {", ".join(g.get("conflicts_with", []))}
 </goal>""")
         parts.append("<active_goals>\n" + "\n".join(goal_details) + "\n</active_goals>")
 
@@ -72,7 +74,7 @@ def build_conflict_context(state: BabyMARSState) -> str:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Dialectical Resolution Node
 

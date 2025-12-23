@@ -5,7 +5,7 @@ Knowledge Creation
 Functions to create org-specific and person-specific knowledge facts.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from .model import KnowledgeFact
 
@@ -15,7 +15,7 @@ def create_org_knowledge(
     org_name: str,
     industry: str,
     size: str,
-    apollo_data: Optional[dict] = None,
+    apollo_data: Optional[dict[str, Any]] = None,
 ) -> list[KnowledgeFact]:
     """
     Create org-specific knowledge from Apollo and inference.
@@ -86,7 +86,7 @@ def create_person_knowledge(
     name: str,
     email: str,
     role: str,
-    apollo_data: Optional[dict] = None,
+    apollo_data: Optional[dict[str, Any]] = None,
 ) -> list[KnowledgeFact]:
     """
     Create person-specific knowledge from Apollo.
@@ -129,9 +129,7 @@ def create_person_knowledge(
     return facts
 
 
-def _add_person_details(
-    facts: list[KnowledgeFact], person_id: str, person: dict
-) -> None:
+def _add_person_details(facts: list[KnowledgeFact], person_id: str, person: dict[str, Any]) -> None:
     """Add person detail facts from Apollo data."""
     if person.get("timezone"):
         facts.append(
@@ -173,9 +171,7 @@ def _add_person_details(
         )
 
 
-def _add_rapport_hooks(
-    facts: list[KnowledgeFact], person_id: str, hooks
-) -> None:
+def _add_rapport_hooks(facts: list[KnowledgeFact], person_id: str, hooks: Any) -> None:
     """Add rapport hooks as knowledge facts."""
     if not hooks:
         return

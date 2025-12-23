@@ -7,7 +7,7 @@ Factory functions for creating state objects with proper defaults.
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Optional
 
 from .constants import INVALIDATION_THRESHOLDS
 from .types import BeliefState, Memory, PersonObject
@@ -21,9 +21,7 @@ def generate_id() -> str:
     return str(uuid.uuid4())
 
 
-def create_initial_state(
-    thread_id: str, org_id: str, user_id: str
-) -> "BabyMARSState":
+def create_initial_state(thread_id: str, org_id: str, user_id: str) -> "BabyMARSState":
     """Create initial state for a new conversation."""
     return {
         "thread_id": thread_id,
@@ -114,8 +112,8 @@ def create_memory(
     difficulty_level: int = 3,
     emotional_intensity: float = 0.5,
     is_end_memory: bool = False,
-    related_beliefs: list[str] = None,
-    related_persons: list[str] = None,
+    related_beliefs: Optional[list[str]] = None,
+    related_persons: Optional[list[str]] = None,
 ) -> Memory:
     """Factory function to create a new memory."""
     return {
@@ -143,9 +141,7 @@ def compute_relationship_value(
     return 0.6 * authority + 0.2 * interaction_strength + 0.2 * context_relevance
 
 
-def create_person(
-    name: str, role: str, authority: float = 0.5
-) -> PersonObject:
+def create_person(name: str, role: str, authority: float = 0.5) -> PersonObject:
     """Factory function to create a new person."""
     interaction_strength = 0.5
     context_relevance = 0.5

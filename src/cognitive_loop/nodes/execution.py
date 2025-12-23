@@ -14,6 +14,7 @@ Requires:
 """
 
 import uuid
+from typing import Any, cast
 
 from ...connectors.stargate import (
     StargateExecutor,
@@ -32,7 +33,7 @@ metrics = get_metrics()
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Execution Node
 
@@ -76,12 +77,12 @@ async def process(state: BabyMARSState) -> dict:
         }
 
     # Get org and user IDs
-    org_id = state.get("org_id", "default")
-    person = state.get("person", {})
-    user_id = person.get("person_id", "default")
+    org_id = str(state.get("org_id") or "default")
+    person = state.get("person") or {}
+    user_id = person.get("person_id", "default") if isinstance(person, dict) else "default"
 
     # Generate turn_id for this execution (idempotency)
-    turn_id = state.get("turn_id") or str(uuid.uuid4())
+    turn_id = str(state.get("turn_id") or uuid.uuid4())
 
     logger.info(
         "Executing work units via Stargate",
@@ -94,7 +95,7 @@ async def process(state: BabyMARSState) -> dict:
     # Execute via Stargate
     executor = StargateExecutor()
     results = await executor.execute_batch(
-        work_units=work_units,
+        work_units=cast(list[dict[str, Any]], work_units),
         org_id=org_id,
         user_id=user_id,
         turn_id=turn_id,
@@ -126,7 +127,7 @@ async def process(state: BabyMARSState) -> dict:
 # ============================================================
 
 
-async def check_stargate_health() -> dict:
+async def check_stargate_health() -> dict[str, Any]:
     """Check if Stargate is available and healthy."""
     try:
         client = get_stargate_client()
@@ -162,7 +163,7 @@ def get_capability_for_work_unit(work_unit: WorkUnit) -> str:
     return map_work_unit_to_capability(tool, verb)
 
 
-async def list_available_capabilities() -> list[dict]:
+async def list_available_capabilities() -> list[dict[str, Any]]:
     """List all available Stargate capabilities."""
     try:
         client = get_stargate_client()

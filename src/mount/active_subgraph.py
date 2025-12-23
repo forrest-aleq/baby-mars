@@ -14,7 +14,7 @@ If Mount expects it, Birth must write it.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TypedDict
+from typing import Any, TypedDict, cast
 
 from ..graphs.belief_graph import get_belief_graph
 from ..state.schema import (
@@ -41,7 +41,7 @@ class RelationshipEdge(TypedDict):
     relationship_type: str  # "reports_to", "manages", "approves_for"
     source_id: str
     target_id: str
-    properties: dict  # e.g., {"threshold": 10000, "domain": "expenses"}
+    properties: dict[str, Any]  # e.g., {"threshold": 10000, "domain": "expenses"}
 
 
 class KnowledgeNode(TypedDict):
@@ -113,28 +113,34 @@ class ActiveSubgraph:
     beliefs: list[BeliefState] = field(default_factory=list)  # Max 20, resolved
     goals: list[GoalNode] = field(default_factory=list)  # Max 10, active
     style: StyleConfiguration = field(
-        default_factory=lambda: {
-            "tone": "warm",
-            "verbosity": "moderate",
-            "formality": "professional",
-            "proactivity": "balanced",
-            "pace": "normal",
-            "certainty": "balanced",
-        }
+        default_factory=lambda: cast(
+            StyleConfiguration,
+            {
+                "tone": "warm",
+                "verbosity": "moderate",
+                "formality": "professional",
+                "proactivity": "balanced",
+                "pace": "normal",
+                "certainty": "balanced",
+            },
+        )
     )
 
     # Computed at mount
     temporal: TemporalContext = field(
-        default_factory=lambda: {
-            "current_time": datetime.now().isoformat(),
-            "day_of_week": datetime.now().strftime("%A"),
-            "time_of_day": "morning",
-            "month_phase": "mid-month",
-            "is_month_end": False,
-            "is_quarter_end": False,
-            "is_year_end": False,
-            "urgency_multiplier": 1.0,
-        }
+        default_factory=lambda: cast(
+            TemporalContext,
+            {
+                "current_time": datetime.now().isoformat(),
+                "day_of_week": datetime.now().strftime("%A"),
+                "time_of_day": "morning",
+                "month_phase": "mid-month",
+                "is_month_end": False,
+                "is_quarter_end": False,
+                "is_year_end": False,
+                "urgency_multiplier": 1.0,
+            },
+        )
     )
 
     # Personality (immutable beliefs - special handling)
@@ -152,7 +158,7 @@ class ActiveSubgraph:
 
 
 def mount_active_subgraph(
-    state: dict,
+    state: dict[str, Any],
     max_beliefs: int = 20,
     max_goals: int = 10,
     max_knowledge: int = 20,
@@ -214,22 +220,25 @@ def mount_active_subgraph(
     return subgraph
 
 
-def _extract_person(state: dict) -> PersonObject:
+def _extract_person(state: dict[str, Any]) -> PersonObject:
     """Extract person from state"""
     objects = state.get("objects", {})
     people = objects.get("people", [])
 
     if people:
-        return people[0]
+        return cast(PersonObject, people[0])
 
     # Fallback
-    return {
-        "id": "unknown",
-        "name": "Unknown User",
-        "role": "User",
-        "authority": 0.5,
-        "relationship_value": 0.5,
-    }
+    return cast(
+        PersonObject,
+        {
+            "id": "unknown",
+            "name": "Unknown User",
+            "role": "User",
+            "authority": 0.5,
+            "relationship_value": 0.5,
+        },
+    )
 
 
 def _resolve_beliefs(
@@ -272,7 +281,7 @@ def _scope_resolution(beliefs: list[BeliefState], context_key: str) -> list[Beli
     return beliefs
 
 
-def _compute_temporal(state: dict) -> TemporalContext:
+def _compute_temporal(state: dict[str, Any]) -> TemporalContext:
     """Compute temporal context from current time and state"""
     now = datetime.now()
 
@@ -375,7 +384,7 @@ def _validate_subgraph(subgraph: ActiveSubgraph) -> None:
 # ============================================================
 
 
-def subgraph_to_state_updates(subgraph: ActiveSubgraph) -> dict:
+def subgraph_to_state_updates(subgraph: ActiveSubgraph) -> dict[str, Any]:
     """
     Convert ActiveSubgraph to state update dict.
 

@@ -5,7 +5,7 @@ Belief Graph Helpers
 Helper functions for creating belief hierarchies.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from ...state.schema import BeliefState
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def create_belief_hierarchy(
     foundation: BeliefState,
     derived: list[BeliefState],
-    weights: list[float] = None,
+    weights: Optional[list[float]] = None,
 ) -> "BeliefGraph":
     """
     Helper to create a belief hierarchy.
@@ -37,10 +37,10 @@ def create_belief_hierarchy(
         weights = [0.8] * len(derived)
 
     graph = BeliefGraph()
-    graph.add_belief(foundation)
+    graph.add_belief(cast(dict[str, Any], foundation))
 
     for belief, weight in zip(derived, weights):
-        graph.add_belief(belief)
+        graph.add_belief(cast(dict[str, Any], belief))
         graph.add_support_relationship(foundation["belief_id"], belief["belief_id"], weight)
 
     return graph

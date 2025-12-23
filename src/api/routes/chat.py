@@ -10,8 +10,10 @@ import asyncio
 import json
 import logging
 from datetime import datetime
+from typing import Any, AsyncIterator, cast
 
 from fastapi import APIRouter, HTTPException, Request
+from langchain_core.runnables import RunnableConfig
 from sse_starlette.sse import EventSourceResponse
 
 from ...birth.birth_system import create_initial_state
@@ -30,9 +32,9 @@ logger = logging.getLogger("baby_mars.api.chat")
 router = APIRouter()
 
 
-def get_session(request: Request, session_id: str) -> dict:
+def get_session(request: Request, session_id: str) -> dict[str, Any]:
     """Get session or raise 404"""
-    session = request.app.state.sessions.get(session_id)
+    session: dict[str, Any] | None = request.app.state.sessions.get(session_id)
     if not session:
         raise HTTPException(
             status_code=404,
@@ -52,7 +54,7 @@ def get_session(request: Request, session_id: str) -> dict:
 
 
 @router.post("", response_model=MessageResponse)
-async def send_message(request_data: MessageRequest, request: Request):
+async def send_message(request_data: MessageRequest, request: Request) -> MessageResponse:
     """
     Send a message and get a response.
 
@@ -94,7 +96,7 @@ async def send_message(request_data: MessageRequest, request: Request):
             # TODO: Resolve pills to actual data and add to state
 
         # Run cognitive loop
-        config = {"configurable": {"thread_id": session["state"]["thread_id"]}}
+        config = cast(RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}})
 
         result = await invoke_cognitive_loop(
             state=session["state"],
@@ -106,25 +108,25 @@ async def send_message(request_data: MessageRequest, request: Request):
         session["state"] = result
 
         # Extract response
-        final_response = result.get("final_response", "")
-        supervision_mode = result.get("supervision_mode", "guidance_seeking")
-        belief_strength = result.get("belief_strength_for_action", 0.0)
+        final_response = str(result.get("final_response", ""))
+        supervision_mode = result.get("supervision_mode") or "guidance_seeking"
+        belief_strength = result.get("belief_strength_for_action") or 0.0
 
         # Check for approval
         approval_needed = supervision_mode == "action_proposal"
         approval_summary = result.get("approval_summary") if approval_needed else None
 
-        # Extract references for highlighting
-        references = []
-        if result.get("referenced_objects"):
-            for ref in result["referenced_objects"]:
-                references.append(
-                    Reference(
-                        type=ref.get("type", "widget"),
-                        id=ref.get("id", ""),
-                        intensity=ref.get("intensity", "mention"),
-                    )
+        # Extract references for highlighting (referenced_objects may not exist in state)
+        references: list[Reference] = []
+        referenced_objs: list[dict[str, Any]] = result.get("referenced_objects") or []  # type: ignore[assignment]
+        for ref in referenced_objs:
+            references.append(
+                Reference(
+                    type=ref.get("type", "widget"),
+                    id=ref.get("id", ""),
+                    intensity=ref.get("intensity", "mention"),
                 )
+            )
 
         logger.info(
             f"Message processed: session={request_data.session_id}, "
@@ -139,6 +141,7 @@ async def send_message(request_data: MessageRequest, request: Request):
             approval_needed=approval_needed,
             approval_summary=approval_summary,
             references=references,
+            context_budget=None,
         )
 
     except Exception as e:
@@ -162,7 +165,7 @@ async def send_message(request_data: MessageRequest, request: Request):
 
 
 @router.post("/stream")
-async def send_message_stream(request_data: MessageRequest, request: Request):
+async def send_message_stream(request_data: MessageRequest, request: Request) -> EventSourceResponse:
     """
     Send a message and stream the response via SSE.
 
@@ -180,7 +183,7 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
     # Create interrupt event for this stream
     session["interrupt_event"] = asyncio.Event()
 
-    async def event_generator():
+    async def event_generator() -> AsyncIterator[dict[str, str]]:
         try:
             # Create or update state
             if session["state"] is None:
@@ -195,7 +198,7 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
 
             session["message_count"] += 1
 
-            config = {"configurable": {"thread_id": session["state"]["thread_id"]}}
+            config = cast(RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}})
 
             # Stream events from cognitive loop
             async for event in stream_cognitive_loop(
@@ -269,7 +272,7 @@ async def send_message_stream(request_data: MessageRequest, request: Request):
 
 
 @router.post("/interrupt", response_model=ChatInterruptResponse)
-async def interrupt_stream(request_data: ChatInterruptRequest, request: Request):
+async def interrupt_stream(request_data: ChatInterruptRequest, request: Request) -> ChatInterruptResponse:
     """
     Interrupt current streaming response.
 
@@ -309,7 +312,7 @@ async def interrupt_stream(request_data: ChatInterruptRequest, request: Request)
 
 
 @router.post("/approve", response_model=MessageResponse)
-async def approve_action(request_data: ApprovalRequest, request: Request):
+async def approve_action(request_data: ApprovalRequest, request: Request) -> MessageResponse:
     """
     Approve or reject a proposed action.
 
@@ -364,7 +367,7 @@ async def approve_action(request_data: ApprovalRequest, request: Request):
             )
 
         # Continue cognitive loop
-        config = {"configurable": {"thread_id": state["thread_id"]}}
+        config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
 
         result = await invoke_cognitive_loop(
             state=state,
@@ -380,12 +383,13 @@ async def approve_action(request_data: ApprovalRequest, request: Request):
 
         return MessageResponse(
             session_id=request_data.session_id,
-            response=result.get("final_response", ""),
-            supervision_mode=result.get("supervision_mode", ""),
-            belief_strength=result.get("belief_strength_for_action", 0.0),
+            response=str(result.get("final_response", "")),
+            supervision_mode=result.get("supervision_mode") or "guidance_seeking",
+            belief_strength=result.get("belief_strength_for_action") or 0.0,
             approval_needed=False,
             approval_summary=None,
             references=[],
+            context_budget=None,
         )
 
     except Exception as e:

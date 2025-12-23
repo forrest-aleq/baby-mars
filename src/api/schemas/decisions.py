@@ -6,7 +6,7 @@ Request/response models for decision lifecycle.
 Per API_CONTRACT_V0.md section 3
 """
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -64,7 +64,7 @@ class DecisionDetail(BaseModel):
     # Execution info
     executed_at: Optional[str] = None
     executed_by: Optional[str] = None
-    result: Optional[dict] = None
+    result: Optional[dict[str, Any]] = None
 
     # Undo window (for soft decisions)
     undo_available: bool = False
@@ -98,7 +98,7 @@ class DecisionExecuteResponse(BaseModel):
     undo_expires_at: Optional[str] = None
 
     # Result
-    result: Optional[dict] = None
+    result: Optional[dict[str, Any]] = None
     message: Optional[str] = None
 
 
@@ -120,4 +120,4 @@ class DecisionAlreadyDecided(BaseModel):
     already_decided: bool = True
     decided_by: str
     decided_at: str
-    result: Optional[dict] = None
+    result: Optional[dict[str, Any]] = None

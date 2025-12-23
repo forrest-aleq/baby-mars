@@ -29,13 +29,9 @@ class KnowledgeFact:
     category: str = "general"  # accounting, regulatory, process, entity, temporal
     source: str = "system"  # system, apollo, user, inferred
     tags: list[str] = field(default_factory=list)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-    def matches_scope(
-        self, org_id: Optional[str], person_id: Optional[str]
-    ) -> bool:
+    def matches_scope(self, org_id: Optional[str], person_id: Optional[str]) -> bool:
         """Check if this fact applies to the given scope."""
         if self.scope == "global":
             return True

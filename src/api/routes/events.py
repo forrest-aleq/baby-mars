@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, AsyncIterator, Iterator, Optional
 
 from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
@@ -24,21 +24,21 @@ router = APIRouter()
 class EventBus:
     """Simple pub/sub for SSE events."""
 
-    def __init__(self):
-        self._subscribers: dict[str, list[asyncio.Queue]] = {}
+    def __init__(self) -> None:
+        self._subscribers: dict[str, list[asyncio.Queue[dict[str, Any]]]] = {}
         self._event_counter = 0
         self._lock = asyncio.Lock()
 
-    def subscribe(self, org_id: str) -> asyncio.Queue:
+    def subscribe(self, org_id: str) -> asyncio.Queue[dict[str, Any]]:
         """Subscribe to events for an org."""
-        queue = asyncio.Queue()
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         if org_id not in self._subscribers:
             self._subscribers[org_id] = []
         self._subscribers[org_id].append(queue)
         logger.debug(f"New subscriber for org {org_id}")
         return queue
 
-    def unsubscribe(self, org_id: str, queue: asyncio.Queue):
+    def unsubscribe(self, org_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
         """Unsubscribe from events."""
         if org_id in self._subscribers:
             try:
@@ -47,7 +47,7 @@ class EventBus:
             except ValueError:
                 pass
 
-    async def publish(self, org_id: str, event_type: str, data: dict):
+    async def publish(self, org_id: str, event_type: str, data: dict[str, Any]) -> None:
         """Publish an event to all subscribers of an org."""
         async with self._lock:
             self._event_counter += 1
@@ -85,7 +85,7 @@ async def event_stream(
     request: Request,
     org_id: str = Query(..., description="Organization ID"),
     last_event_id: Optional[str] = Query(None, description="Resume from event ID"),
-):
+) -> EventSourceResponse:
     """
     Real-time event stream via SSE.
 
@@ -102,7 +102,7 @@ async def event_stream(
     """
     queue = _event_bus.subscribe(org_id)
 
-    async def event_generator():
+    async def event_generator() -> AsyncIterator[dict[str, str]]:
         try:
             # Send initial connection event
             yield {
@@ -146,7 +146,7 @@ async def event_stream(
 # Helper functions for publishing events from other routes
 
 
-async def publish_task_created(org_id: str, task_id: str, task_type: str, summary: str):
+async def publish_task_created(org_id: str, task_id: str, task_type: str, summary: str) -> None:
     """Publish task:created event."""
     await _event_bus.publish(
         org_id,
@@ -159,7 +159,7 @@ async def publish_task_created(org_id: str, task_id: str, task_type: str, summar
     )
 
 
-async def publish_task_updated(org_id: str, task_id: str, status: str, summary: str):
+async def publish_task_updated(org_id: str, task_id: str, status: str, summary: str) -> None:
     """Publish task:updated event."""
     await _event_bus.publish(
         org_id,
@@ -177,7 +177,7 @@ async def publish_task_decision_needed(
     task_id: str,
     decision_id: str,
     summary: str,
-):
+) -> None:
     """Publish task:decision_needed event."""
     await _event_bus.publish(
         org_id,
@@ -195,7 +195,7 @@ async def publish_decision_made(
     decision_id: str,
     made_by: str,
     action: str,
-):
+) -> None:
     """Publish decision:made event."""
     await _event_bus.publish(
         org_id,
@@ -208,7 +208,7 @@ async def publish_decision_made(
     )
 
 
-async def publish_data_changed(org_id: str, widget_id: str, change_type: str):
+async def publish_data_changed(org_id: str, widget_id: str, change_type: str) -> None:
     """Publish data:changed event."""
     await _event_bus.publish(
         org_id,
@@ -220,7 +220,7 @@ async def publish_data_changed(org_id: str, widget_id: str, change_type: str):
     )
 
 
-async def publish_presence_update(org_id: str, task_id: str, users: list[str]):
+async def publish_presence_update(org_id: str, task_id: str, users: list[str]) -> None:
     """Publish presence:update event."""
     await _event_bus.publish(
         org_id,
@@ -232,7 +232,7 @@ async def publish_presence_update(org_id: str, task_id: str, users: list[str]):
     )
 
 
-async def publish_aleq_message(org_id: str, message: str, references: list[dict]):
+async def publish_aleq_message(org_id: str, message: str, references: list[dict[str, Any]]) -> None:
     """Publish aleq:message event for proactive communication."""
     await _event_bus.publish(
         org_id,

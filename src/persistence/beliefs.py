@@ -8,6 +8,7 @@ One row per belief for queryability.
 
 import json
 from datetime import datetime
+from typing import Any
 
 from .database import get_connection
 
@@ -51,7 +52,7 @@ _UPSERT_SQL = """
 """
 
 
-def _prepare_belief_params(org_id: str, belief: dict) -> tuple:
+def _prepare_belief_params(org_id: str, belief: dict[str, Any]) -> tuple[Any, ...]:
     """Prepare parameters for belief upsert query"""
     return (
         belief.get("belief_id"),
@@ -77,7 +78,7 @@ def _prepare_belief_params(org_id: str, belief: dict) -> tuple:
     )
 
 
-def _row_to_belief(row) -> dict:
+def _row_to_belief(row: Any) -> dict[str, Any]:
     """Convert database row to belief dict"""
     return {
         "belief_id": row["belief_id"],
@@ -107,7 +108,7 @@ def _row_to_belief(row) -> dict:
 # ============================================================
 
 
-async def save_belief(org_id: str, belief: dict) -> None:
+async def save_belief(org_id: str, belief: dict[str, Any]) -> None:
     """
     Save or update a belief in the database.
     Called after every belief update for durability.
@@ -116,12 +117,12 @@ async def save_belief(org_id: str, belief: dict) -> None:
         await conn.execute(_UPSERT_SQL, *_prepare_belief_params(org_id, belief))
 
 
-async def save_belief_with_conn(conn, org_id: str, belief: dict) -> None:
+async def save_belief_with_conn(conn: Any, org_id: str, belief: dict[str, Any]) -> None:
     """Save belief using existing connection (for transactions)"""
     await conn.execute(_UPSERT_SQL, *_prepare_belief_params(org_id, belief))
 
 
-async def save_beliefs_batch(org_id: str, beliefs: list[dict]) -> None:
+async def save_beliefs_batch(org_id: str, beliefs: list[dict[str, Any]]) -> None:
     """Save multiple beliefs in a single transaction"""
     async with get_connection() as conn:
         async with conn.transaction():
@@ -134,7 +135,7 @@ async def save_beliefs_batch(org_id: str, beliefs: list[dict]) -> None:
 # ============================================================
 
 
-async def load_beliefs_for_org(org_id: str) -> list[dict]:
+async def load_beliefs_for_org(org_id: str) -> list[dict[str, Any]]:
     """
     Load all beliefs for an organization.
     Used on cache miss to populate in-memory graph.
@@ -160,7 +161,7 @@ async def load_beliefs_for_org(org_id: str) -> list[dict]:
 
 async def get_beliefs_by_category(
     org_id: str, category: str, min_strength: float = 0.0, limit: int = 50
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get beliefs filtered by category and minimum strength"""
     async with get_connection() as conn:
         rows = await conn.fetch(
@@ -203,4 +204,4 @@ async def delete_belief(org_id: str, belief_id: str) -> bool:
             org_id,
             belief_id,
         )
-        return result == "DELETE 1"
+        return str(result) == "DELETE 1"

@@ -6,7 +6,9 @@ Efficient batch operations for knowledge facts.
 """
 
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Any, Literal, Optional, cast
+
+from asyncpg import Connection
 
 from ..database import get_connection
 from .core import add_fact, replace_fact
@@ -14,7 +16,7 @@ from .exceptions import DuplicateFactKeyError
 from .models import can_replace_source
 
 
-async def seed_global_facts(facts: list[dict]) -> int:
+async def seed_global_facts(facts: list[dict[str, Any]]) -> int:
     """
     Seed global facts (system init).
 
@@ -44,7 +46,7 @@ async def seed_global_facts(facts: list[dict]) -> int:
         return count
 
 
-async def seed_industry_facts(industry: str, facts: list[dict]) -> int:
+async def seed_industry_facts(industry: str, facts: list[dict[str, Any]]) -> int:
     """
     Seed facts for an industry.
 
@@ -76,9 +78,7 @@ async def seed_industry_facts(industry: str, facts: list[dict]) -> int:
         return count
 
 
-async def set_org_industries(
-    org_id: str, industries: list[str], source: str = "apollo"
-) -> None:
+async def set_org_industries(org_id: str, industries: list[str], source: str = "apollo") -> None:
     """Set the industries for an org (used for industry fact resolution)."""
     async with get_connection() as conn:
         await conn.execute("DELETE FROM org_industries WHERE org_id = $1", org_id)
@@ -97,12 +97,10 @@ async def set_org_industries(
 
 
 async def bulk_import_facts(
-    facts: list[dict],
-    source_type: Literal[
-        "system", "knowledge_pack", "apollo", "admin", "integration"
-    ] = "admin",
+    facts: list[dict[str, Any]],
+    source_type: Literal["system", "knowledge_pack", "apollo", "admin", "integration"] = "admin",
     on_conflict: Literal["skip", "replace", "error"] = "skip",
-) -> dict:
+) -> dict[str, Any]:
     """
     Efficiently import many facts at once.
 
@@ -125,15 +123,13 @@ async def bulk_import_facts(
     Returns:
         {"inserted": N, "skipped": N, "replaced": N, "errors": [...]}
     """
-    results = {"inserted": 0, "skipped": 0, "replaced": 0, "errors": []}
+    results: dict[str, Any] = {"inserted": 0, "skipped": 0, "replaced": 0, "errors": []}
 
     async with get_connection() as conn:
         async with conn.transaction():
             for fact in facts:
                 try:
-                    result = await _import_single_fact(
-                        conn, fact, source_type, on_conflict
-                    )
+                    result = await _import_single_fact(conn, fact, source_type, on_conflict)
                     results[result] += 1
                 except DuplicateFactKeyError:
                     raise
@@ -146,7 +142,10 @@ async def bulk_import_facts(
 
 
 async def _import_single_fact(
-    conn, fact: dict, source_type: str, on_conflict: str
+    conn: Connection[Any],
+    fact: dict[str, Any],
+    source_type: Literal["system", "knowledge_pack", "apollo", "admin", "integration"],
+    on_conflict: Literal["skip", "replace", "error"],
 ) -> str:
     """Import a single fact. Returns 'inserted', 'skipped', or 'replaced'."""
     fact_key = fact["fact_key"]
@@ -174,15 +173,18 @@ async def _import_single_fact(
             raise DuplicateFactKeyError(fact_key, scope_type, scope_id)
         elif on_conflict == "replace":
             if not can_replace_source(existing["source_type"], source_type):
-                raise ValueError(
-                    f"Cannot replace {existing['source_type']} with {source_type}"
-                )
+                raise ValueError(f"Cannot replace {existing['source_type']} with {source_type}")
+            # Cast source_type to the corrected_by_type Literal (user/admin/system/integration)
+            corrected_by = cast(
+                Literal["user", "admin", "system", "integration"],
+                source_type if source_type in ("user", "admin", "system", "integration") else "system",
+            )
             await replace_fact(
                 old_fact_id=str(existing["id"]),
                 new_statement=fact["statement"],
                 reason="Bulk import replacement",
                 correction_type="source_upgrade",
-                corrected_by_type=source_type,
+                corrected_by_type=corrected_by,
             )
             return "replaced"
 
@@ -211,7 +213,7 @@ async def export_facts(
     scope_type: Optional[str] = None,
     scope_id: Optional[str] = None,
     include_superseded: bool = False,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Export facts for backup or migration.
 
@@ -253,7 +255,7 @@ async def export_facts(
         return [_row_to_export_dict(r) for r in rows]
 
 
-def _row_to_export_dict(r: dict) -> dict:
+def _row_to_export_dict(r: Any) -> dict[str, Any]:
     """Convert database row to export dict."""
     return {
         "fact_key": r["fact_key"],

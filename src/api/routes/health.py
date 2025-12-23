@@ -7,6 +7,7 @@ Health check and system info endpoints.
 
 import logging
 from datetime import datetime
+from typing import Any, Literal
 
 from fastapi import APIRouter, Request
 
@@ -19,7 +20,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=dict)
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint - API info"""
     return {
         "name": "Baby MARS",
@@ -30,7 +31,7 @@ async def root():
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health(request: Request):
+async def health(request: Request) -> HealthResponse:
     """
     Health check with capability matrix.
 
@@ -56,9 +57,9 @@ async def health(request: Request):
 
     # Claude (check if client is configured)
     try:
-        from ...claude_client import get_client
+        from ...claude_client import get_claude_client
 
-        client = get_client()
+        client = get_claude_client()
         services["claude"] = "healthy" if client else "unavailable"
     except Exception:
         services["claude"] = "unavailable"
@@ -89,6 +90,7 @@ async def health(request: Request):
         capabilities["drill_down"] = "unavailable"
 
     # Overall status
+    status: Literal["healthy", "degraded", "unavailable"]
     if all(s == "healthy" for s in services.values()):
         status = "healthy"
     elif services["baby_mars"] == "healthy" and services["claude"] == "healthy":

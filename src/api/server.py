@@ -8,6 +8,7 @@ Restructured into modular routes per API_CONTRACT_V0.md.
 
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -36,7 +37,7 @@ logger = logging.getLogger("baby_mars")
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan - initialize and cleanup resources"""
     logger.info("Starting Baby MARS API...")
 
@@ -118,7 +119,7 @@ add_auth_middleware(app)
 
 
 @app.exception_handler(APIError)
-async def api_error_handler(request: Request, exc: APIError):
+async def api_error_handler(request: Request, exc: APIError) -> JSONResponse:
     """Handle structured API errors"""
     return JSONResponse(
         status_code=exc.status_code,
@@ -127,7 +128,7 @@ async def api_error_handler(request: Request, exc: APIError):
 
 
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions with structured format"""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
@@ -160,7 +161,7 @@ register_routes(app)
 # ============================================================
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
+def run_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) -> None:
     """Run the server"""
     import uvicorn
 

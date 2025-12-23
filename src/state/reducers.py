@@ -14,9 +14,7 @@ from .types import ActiveTask, Note
 logger = logging.getLogger(__name__)
 
 
-def task_reducer(
-    existing: list[ActiveTask], new: list[ActiveTask]
-) -> list[ActiveTask]:
+def task_reducer(existing: list[ActiveTask], new: list[ActiveTask]) -> list[ActiveTask]:
     """
     Keep max 4 active tasks, priority-based replacement.
     Paper #8: Working memory capacity of 3-4 items.

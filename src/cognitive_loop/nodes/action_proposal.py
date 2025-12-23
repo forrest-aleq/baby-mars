@@ -13,7 +13,7 @@ Flow:
    - reject: Go to guidance_seeking mode
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from langgraph.types import interrupt
 
@@ -80,8 +80,8 @@ Original request: {original_request}
 Proposed actions:
 {work_units_text}
 
-Action type: {action.get('action_type', 'unknown')}
-Estimated difficulty: {action.get('estimated_difficulty', 3)}/5
+Action type: {action.get("action_type", "unknown")}
+Estimated difficulty: {action.get("estimated_difficulty", 3)}/5
 
 Write 2-4 bullet points explaining what will happen if approved.
 Be specific about amounts, accounts, and entities involved.
@@ -91,7 +91,7 @@ Keep it under 150 words. Be professional but conversational."""
 
     try:
         response = await client.complete(
-            messages=[{"role": "user", "content": prompt}], max_tokens=300
+            messages=[{"role": "user", "content": prompt}],
         )
         return response
     except Exception:
@@ -110,7 +110,7 @@ This requires your approval before I can proceed.
 # ============================================================
 
 
-def build_interrupt_payload(state: BabyMARSState, action: SelectedAction, summary: str) -> dict:
+def build_interrupt_payload(state: BabyMARSState, action: SelectedAction, summary: str) -> dict[str, Any]:
     """
     Build the payload that will be sent to the frontend
     when the graph pauses for approval.
@@ -132,7 +132,7 @@ def build_interrupt_payload(state: BabyMARSState, action: SelectedAction, summar
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict:
+async def process(state: BabyMARSState) -> dict[str, Any]:
     """
     Action Proposal Node
 
