@@ -15,12 +15,15 @@ Key responsibilities:
 from typing import Any, Optional
 
 from ...claude_client import ActionSelectionOutput, get_claude_client
+from ...observability import get_logger
 from ...state.schema import (
     AUTONOMY_THRESHOLDS,
     BabyMARSState,
     SelectedAction,
     WorkUnit,
 )
+
+logger = get_logger(__name__)
 
 # ============================================================
 # ACTION PLANNING

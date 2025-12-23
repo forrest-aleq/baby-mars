@@ -8,7 +8,6 @@ Per API_CONTRACT_V0.md sections 1.1-1.4
 
 import asyncio
 import json
-import logging
 from datetime import datetime
 from typing import Any, AsyncIterator, cast
 
@@ -18,6 +17,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from ...birth.birth_system import create_initial_state
 from ...cognitive_loop.graph import invoke_cognitive_loop, stream_cognitive_loop
+from ...observability import get_logger
 from ..schemas.chat import (
     ApprovalRequest,
     ChatInterruptRequest,
@@ -27,7 +27,7 @@ from ..schemas.chat import (
     Reference,
 )
 
-logger = logging.getLogger("baby_mars.api.chat")
+logger = get_logger("baby_mars.api.chat")
 
 router = APIRouter()
 

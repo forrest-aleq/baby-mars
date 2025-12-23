@@ -15,10 +15,13 @@ Implements the appraisal phase of the cognitive loop:
 from typing import Any, cast
 
 from ...claude_client import AppraisalOutput, get_claude_client
+from ...observability import get_logger
 from ...state.schema import (
     AppraisalResult,
     BabyMARSState,
 )
+
+logger = get_logger(__name__)
 
 # ============================================================
 # CONTEXT BUILDING

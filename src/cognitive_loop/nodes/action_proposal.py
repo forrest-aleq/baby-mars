@@ -18,7 +18,10 @@ from typing import Any, Literal
 from langgraph.types import interrupt
 
 from ...claude_client import get_claude_client
+from ...observability import get_logger
 from ...state.schema import BabyMARSState, SelectedAction
+
+logger = get_logger(__name__)
 
 # ============================================================
 # HUMAN-READABLE SUMMARY GENERATION

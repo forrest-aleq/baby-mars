@@ -16,11 +16,14 @@ from typing import Any, cast
 from ...graphs.belief_graph import BeliefGraph
 from ...graphs.belief_graph_manager import get_org_belief_graph
 from ...graphs.social_graph import SocialGraph
+from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
     Objects,
     TemporalContext,
 )
+
+logger = get_logger(__name__)
 
 # ============================================================
 # GRAPH LOADING

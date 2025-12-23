@@ -7,13 +7,13 @@ Per API_CONTRACT_V0.md section 3
 """
 
 import asyncio
-import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
 
+from ...observability import get_logger
 from ..schemas.decisions import (
     BeliefSnapshot,
     DecisionDetail,
@@ -22,7 +22,7 @@ from ..schemas.decisions import (
     DecisionUndoResponse,
 )
 
-logger = logging.getLogger("baby_mars.api.decisions")
+logger = get_logger("baby_mars.api.decisions")
 
 router = APIRouter()
 

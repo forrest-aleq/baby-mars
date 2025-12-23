@@ -17,6 +17,10 @@ dependencies = [
     # LLM
     "anthropic>=0.40.0",
 
+    # Observability
+    "langsmith>=0.1.0",
+    "posthog>=3.0.0",
+
     # Graph structure
     "networkx>=3.2",
 

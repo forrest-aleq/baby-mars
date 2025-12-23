@@ -11,6 +11,7 @@ from typing import Any, Literal, Optional, cast
 
 import networkx as nx
 
+from ...observability import get_logger
 from ...state.schema import (
     AUTONOMY_THRESHOLDS,
     CATEGORY_MULTIPLIERS,
@@ -30,6 +31,8 @@ from .serialization import (
     graph_to_dict,
     serialize_graph,
 )
+
+logger = get_logger(__name__)
 
 
 class BeliefGraph:

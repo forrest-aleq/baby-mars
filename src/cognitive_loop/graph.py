@@ -10,6 +10,7 @@ This is the core orchestration that implements the research.
 """
 
 import os
+import time
 from collections.abc import AsyncIterator
 from typing import Any, Literal, Optional, Union
 
@@ -19,7 +20,10 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from ..observability import get_instrumentation, get_logger
 from ..state.schema import BabyMARSState
+
+logger = get_logger(__name__)
 
 # ============================================================
 # ROUTING FUNCTIONS
@@ -422,8 +426,23 @@ async def invoke_cognitive_loop(
     if config is None:
         config = {"configurable": {"thread_id": state.get("thread_id", "default")}}
 
-    result: BabyMARSState = await graph.ainvoke(state, config)  # type: ignore[assignment]
-    return result
+    thread_id = config.get("configurable", {}).get("thread_id", "default")
+    org_id = state.get("org_id", "unknown")
+
+    inst = get_instrumentation()
+    inst.on_loop_start(thread_id, org_id)
+    start_time = time.time()
+
+    try:
+        result: BabyMARSState = await graph.ainvoke(state, config)  # type: ignore[assignment]
+        duration_ms = (time.time() - start_time) * 1000
+        inst.on_loop_end("success", duration_ms)
+        return result
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        inst.on_error(e, "graph")
+        inst.on_loop_end("error", duration_ms)
+        raise
 
 
 async def stream_cognitive_loop(
@@ -442,5 +461,20 @@ async def stream_cognitive_loop(
     if config is None:
         config = {"configurable": {"thread_id": state.get("thread_id", "default")}}
 
-    async for event in graph.astream_events(state, config, version="v2"):
-        yield event
+    thread_id = config.get("configurable", {}).get("thread_id", "default")
+    org_id = state.get("org_id", "unknown")
+
+    inst = get_instrumentation()
+    inst.on_loop_start(thread_id, org_id)
+    start_time = time.time()
+
+    try:
+        async for event in graph.astream_events(state, config, version="v2"):
+            yield event
+        duration_ms = (time.time() - start_time) * 1000
+        inst.on_loop_end("success", duration_ms)
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        inst.on_error(e, "graph")
+        inst.on_loop_end("error", duration_ms)
+        raise

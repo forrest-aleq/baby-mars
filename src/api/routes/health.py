@@ -5,16 +5,16 @@ Health Routes
 Health check and system info endpoints.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Request
 
+from ...observability import get_logger
 from ...persistence.database import get_pool
 from ..schemas.common import HealthResponse
 
-logger = logging.getLogger("baby_mars.api.health")
+logger = get_logger("baby_mars.api.health")
 
 router = APIRouter()
 

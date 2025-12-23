@@ -12,9 +12,12 @@ and professional communication patterns.
 from typing import Any
 
 from ...claude_client import ResponseOutput, get_claude_client
+from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
 )
+
+logger = get_logger(__name__)
 
 # ============================================================
 # CONTEXT BUILDING

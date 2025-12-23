@@ -7,11 +7,12 @@ Will be backed by Redis for multi-instance deployments.
 """
 
 import asyncio
-import logging
 from datetime import datetime
 from typing import Any, Optional
 
-logger = logging.getLogger("baby_mars.api.services.event_bus")
+from ...observability import get_logger
+
+logger = get_logger("baby_mars.api.services.event_bus")
 
 
 class EventBus:

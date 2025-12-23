@@ -18,7 +18,10 @@ from typing import Any, Optional, cast
 
 from ...claude_client import get_claude_client
 from ...graphs.belief_graph import get_belief_graph
+from ...observability import get_logger
 from ...state.schema import BabyMARSState
+
+logger = get_logger(__name__)
 
 # ============================================================
 # IMMUTABLE BELIEF PATTERNS

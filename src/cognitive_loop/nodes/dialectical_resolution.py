@@ -11,7 +11,10 @@ Paper #6: Goal Conflict Resolution
 from typing import Any
 
 from ...claude_client import DialecticalOutput, get_claude_client
+from ...observability import get_logger
 from ...state.schema import BabyMARSState
+
+logger = get_logger(__name__)
 
 # ============================================================
 # CONFLICT ANALYSIS

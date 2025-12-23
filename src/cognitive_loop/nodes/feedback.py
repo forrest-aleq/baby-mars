@@ -17,11 +17,14 @@ from datetime import datetime
 from typing import Any, Optional, cast
 
 from ...graphs.belief_graph_manager import get_org_belief_graph, save_org_belief
+from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
     FeedbackEvent,
     Memory,
 )
+
+logger = get_logger(__name__)
 
 # ============================================================
 # OUTCOME ANALYSIS

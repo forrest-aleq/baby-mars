@@ -28,7 +28,11 @@ from anthropic import (
 )
 from pydantic import BaseModel
 
+from .observability import get_instrumentation, get_logger
+
 T = TypeVar("T", bound=BaseModel)
+
+logger = get_logger(__name__)
 
 # Load .env file if present
 try:
@@ -210,6 +214,7 @@ class ClaudeClient:
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
         temperature: Optional[float] = None,
+        node_name: str = "unknown",
     ) -> str:
         """
         Basic completion - returns text response.
@@ -219,6 +224,7 @@ class ClaudeClient:
             system: System prompt (overrides skills)
             skills: List of skill names to use for system prompt
             temperature: Override default temperature
+            node_name: Name of cognitive node calling this (for instrumentation)
 
         Returns:
             Text response from Claude
@@ -231,7 +237,8 @@ class ClaudeClient:
             system = self.build_system_prompt(skills)
 
         try:
-            # Call Claude
+            # Call Claude with timing
+            start_time = time()
             response = await self.client.messages.create(
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
@@ -239,7 +246,15 @@ class ClaudeClient:
                 system=system or "",
                 messages=cast(Any, messages),
             )
+            latency_ms = (time() - start_time) * 1000
             _circuit_breaker.record_success()
+
+            # Track token usage
+            tokens_in = response.usage.input_tokens
+            tokens_out = response.usage.output_tokens
+            inst = get_instrumentation()
+            inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
+
             # Extract text - content[0] is always TextBlock for text completions
             first_block = response.content[0]
             if hasattr(first_block, "text"):
@@ -260,6 +275,7 @@ class ClaudeClient:
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
         temperature: Optional[float] = None,
+        node_name: str = "unknown",
     ) -> T:
         """
         Completion with structured output.
@@ -272,6 +288,7 @@ class ClaudeClient:
             system: System prompt
             skills: Skills to use
             temperature: Temperature override
+            node_name: Name of cognitive node calling this (for instrumentation)
 
         Returns:
             Instance of response_model with parsed response
@@ -288,6 +305,7 @@ class ClaudeClient:
         full_system = (system or "") + schema_prompt
 
         try:
+            start_time = time()
             response = await self.client.messages.create(
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
@@ -295,7 +313,14 @@ class ClaudeClient:
                 system=full_system,
                 messages=cast(Any, messages),
             )
+            latency_ms = (time() - start_time) * 1000
             _circuit_breaker.record_success()
+
+            # Track token usage
+            tokens_in = response.usage.input_tokens
+            tokens_out = response.usage.output_tokens
+            inst = get_instrumentation()
+            inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
 
             # Parse JSON response into model
             first_block = response.content[0]
@@ -322,6 +347,7 @@ class ClaudeClient:
         schema: dict[str, Any],
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
+        node_name: str = "unknown",
     ) -> dict[str, Any]:
         """
         Completion with JSON schema validation.
@@ -333,6 +359,7 @@ class ClaudeClient:
             schema: JSON schema dict
             system: System prompt
             skills: Skills to use
+            node_name: Name of cognitive node calling this (for instrumentation)
 
         Returns:
             Parsed JSON dict matching schema
@@ -343,6 +370,7 @@ class ClaudeClient:
             system = self.build_system_prompt(skills)
 
         try:
+            start_time = time()
             response = await self.client.beta.messages.create(
                 model=self.config.model,
                 max_tokens=self.config.max_tokens,
@@ -351,7 +379,15 @@ class ClaudeClient:
                 messages=cast(Any, messages),
                 output_format=cast(Any, {"type": "json_schema", "schema": schema}),
             )
+            latency_ms = (time() - start_time) * 1000
             _circuit_breaker.record_success()
+
+            # Track token usage
+            tokens_in = response.usage.input_tokens
+            tokens_out = response.usage.output_tokens
+            inst = get_instrumentation()
+            inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
+
             first_block = response.content[0]
             if hasattr(first_block, "text"):
                 result: dict[str, Any] = json.loads(first_block.text)
@@ -372,6 +408,7 @@ class ClaudeClient:
         system: Optional[str] = None,
         skills: Optional[list[str]] = None,
         tool_choice: Optional[dict[str, Any]] = None,
+        node_name: str = "unknown",
     ) -> dict[str, Any]:
         """
         Completion with tool use.
@@ -382,6 +419,7 @@ class ClaudeClient:
             system: System prompt
             skills: Skills to use
             tool_choice: Optional tool choice constraint
+            node_name: Name of cognitive node calling this (for instrumentation)
 
         Returns:
             Full response including tool_use blocks
@@ -400,7 +438,15 @@ class ClaudeClient:
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
 
+        start_time = time()
         response = await self.client.messages.create(**kwargs)
+        latency_ms = (time() - start_time) * 1000
+
+        # Track token usage
+        tokens_in = response.usage.input_tokens
+        tokens_out = response.usage.output_tokens
+        inst = get_instrumentation()
+        inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
 
         # Parse response into structured format
         result: dict[str, Any] = {

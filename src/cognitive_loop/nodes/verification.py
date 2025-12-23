@@ -12,10 +12,13 @@ whether to proceed, retry, or escalate.
 from typing import Any, cast
 
 from ...claude_client import ValidationOutput, get_claude_client
+from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
     ValidationResult,
 )
+
+logger = get_logger(__name__)
 
 # ============================================================
 # BUILT-IN VALIDATORS

@@ -6,7 +6,6 @@ Belief system endpoints with challenge functionality.
 Per API_CONTRACT_V0.md section 4
 """
 
-import logging
 import uuid
 from datetime import datetime
 from typing import Any, Optional
@@ -14,6 +13,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from ...graphs.belief_graph_manager import get_org_belief_graph
+from ...observability import get_logger
 from ..schemas.beliefs import (
     BeliefChallengeRequest,
     BeliefChallengeResponse,
@@ -23,7 +23,7 @@ from ..schemas.beliefs import (
     BeliefVersion,
 )
 
-logger = logging.getLogger("baby_mars.api.beliefs")
+logger = get_logger("baby_mars.api.beliefs")
 
 router = APIRouter()
 

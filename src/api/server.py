@@ -6,7 +6,6 @@ Production FastAPI server for Baby MARS cognitive architecture.
 Restructured into modular routes per API_CONTRACT_V0.md.
 """
 
-import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,18 +16,18 @@ from fastapi.responses import JSONResponse
 
 from ..cognitive_loop.graph import create_graph_in_memory, create_graph_with_postgres
 from ..graphs.belief_graph_manager import reset_belief_graph_manager
+from ..observability import get_logger, setup_logging
 from ..persistence.database import close_pool, init_database
 from .auth import add_auth_middleware
 from .routes import register_routes
 from .schemas.common import APIError
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+# Configure structured logging
+setup_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    json_format=os.getenv("LOG_JSON", "false").lower() == "true",
 )
-logger = logging.getLogger("baby_mars")
+logger = get_logger("baby_mars")
 
 
 # ============================================================

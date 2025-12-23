@@ -6,12 +6,12 @@ Task management endpoints.
 Per API_CONTRACT_V0.md section 2
 """
 
-import logging
 from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from ...observability import get_logger
 from ..schemas.tasks import (
     TaskDecision,
     TaskDetail,
@@ -22,7 +22,7 @@ from ..schemas.tasks import (
     TaskTimelineEntry,
 )
 
-logger = logging.getLogger("baby_mars.api.tasks")
+logger = get_logger("baby_mars.api.tasks")
 
 router = APIRouter()
 

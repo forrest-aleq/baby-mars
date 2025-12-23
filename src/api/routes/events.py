@@ -8,16 +8,16 @@ Per API_CONTRACT_V0.md section 6
 
 import asyncio
 import json
-import logging
 from datetime import datetime
 from typing import Any, AsyncIterator, Optional
 
 from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
+from ...observability import get_logger
 from ..services.event_bus import get_event_bus
 
-logger = logging.getLogger("baby_mars.api.events")
+logger = get_logger("baby_mars.api.events")
 
 router = APIRouter()
 

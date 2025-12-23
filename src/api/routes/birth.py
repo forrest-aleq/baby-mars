@@ -5,16 +5,16 @@ Birth Routes
 Agent initialization endpoint.
 """
 
-import logging
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
 from ...birth.birth_system import birth_person
+from ...observability import get_logger
 from ..schemas.birth import BirthRequest, BirthResponse
 
-logger = logging.getLogger("baby_mars.api.birth")
+logger = get_logger("baby_mars.api.birth")
 
 router = APIRouter()
 

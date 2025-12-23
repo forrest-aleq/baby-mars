@@ -5,12 +5,13 @@ Sessions Routes
 Session management endpoints.
 """
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-logger = logging.getLogger("baby_mars.api.sessions")
+from ...observability import get_logger
+
+logger = get_logger("baby_mars.api.sessions")
 
 router = APIRouter()
 
