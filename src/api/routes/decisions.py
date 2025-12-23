@@ -32,11 +32,23 @@ router = APIRouter()
 # Structure: {decision_id: DecisionDetail}
 _decisions: dict[str, dict] = {}
 
-# Idempotency tracking: {idempotency_key: decision_id}
-_idempotency_keys: dict[str, str] = {}
+# Idempotency tracking: {idempotency_key: (decision_id, created_at)}
+# Keys are cleaned up after 24 hours
+_idempotency_keys: dict[str, tuple[str, datetime]] = {}
+IDEMPOTENCY_TTL_HOURS = 24
 
 # Soft commit window in seconds
 UNDO_WINDOW_SECONDS = 30
+
+
+def _cleanup_expired_idempotency_keys():
+    """Remove idempotency keys older than 24 hours."""
+    cutoff = datetime.now() - timedelta(hours=IDEMPOTENCY_TTL_HOURS)
+    expired = [k for k, (_, ts) in _idempotency_keys.items() if ts < cutoff]
+    for key in expired:
+        del _idempotency_keys[key]
+    if expired:
+        logger.debug(f"Cleaned up {len(expired)} expired idempotency keys")
 
 
 def _get_decision_or_404(decision_id: str) -> dict:
@@ -124,10 +136,14 @@ async def execute_decision(
     """
     decision = _get_decision_or_404(decision_id)
 
+    # Cleanup expired keys on each request
+    _cleanup_expired_idempotency_keys()
+
     # Check idempotency
     if request.idempotency_key:
-        existing_decision_id = _idempotency_keys.get(request.idempotency_key)
-        if existing_decision_id:
+        existing_entry = _idempotency_keys.get(request.idempotency_key)
+        if existing_entry:
+            existing_decision_id, _ = existing_entry
             existing = _decisions.get(existing_decision_id)
             if existing:
                 return DecisionExecuteResponse(
@@ -168,9 +184,9 @@ async def execute_decision(
 
     now = datetime.now()
 
-    # Track idempotency
+    # Track idempotency with timestamp for TTL
     if request.idempotency_key:
-        _idempotency_keys[request.idempotency_key] = decision_id
+        _idempotency_keys[request.idempotency_key] = (decision_id, datetime.now())
 
     # Handle rejection
     if request.choice == "reject":
@@ -242,21 +258,25 @@ async def execute_decision(
 
 async def _auto_commit_decision(decision_id: str, delay_seconds: int):
     """Auto-commit a staged decision after undo window expires."""
-    await asyncio.sleep(delay_seconds)
+    try:
+        await asyncio.sleep(delay_seconds)
 
-    decision = _decisions.get(decision_id)
-    if not decision:
-        return
+        decision = _decisions.get(decision_id)
+        if not decision:
+            return
 
-    # Only commit if still staged
-    if decision["status"] == "staged":
-        decision["status"] = "committed"
-        decision["updated_at"] = datetime.now().isoformat()
+        # Only commit if still staged
+        if decision["status"] == "staged":
+            decision["status"] = "committed"
+            decision["updated_at"] = datetime.now().isoformat()
 
-        # TODO: Actually commit to ERPNext
-        decision["result"]["committed"] = True
+            # TODO: Actually commit to ERPNext
+            if decision.get("result") and isinstance(decision["result"], dict):
+                decision["result"]["committed"] = True
 
-        logger.info(f"Decision auto-committed: {decision_id}")
+            logger.info(f"Decision auto-committed: {decision_id}")
+    except Exception as e:
+        logger.error(f"Auto-commit failed for {decision_id}: {e}", exc_info=True)
 
 
 @router.post("/{decision_id}/undo", response_model=DecisionUndoResponse)

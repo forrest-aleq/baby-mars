@@ -82,7 +82,7 @@ async def birth(request_data: BirthRequest, request: Request):
             detail={
                 "error": {
                     "code": "BIRTH_FAILED",
-                    "message": f"Failed to create agent: {str(e)}",
+                    "message": "Failed to create agent. Please try again or contact support.",
                     "severity": "error",
                     "recoverable": True,
                     "actions": [

@@ -145,7 +145,6 @@ async def general_exception_handler(request: Request, exc: Exception):
                 },
                 "actions": [
                     {"label": "Try again", "action": "retry"},
-                    {"label": "Report issue", "href": "https://github.com/anthropics/claude-code/issues"},
                 ]
             }
         }

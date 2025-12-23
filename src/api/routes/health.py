@@ -12,7 +12,6 @@ from fastapi import APIRouter, Request
 
 from ..schemas.common import HealthResponse
 from ...persistence.database import get_pool
-from ...graphs.belief_graph_manager import get_belief_graph_manager
 
 logger = logging.getLogger("baby_mars.api.health")
 
@@ -38,8 +37,6 @@ async def health(request: Request):
     Returns status of each service and what capabilities are available.
     Per API_CONTRACT_V0.md section 8.3
     """
-    manager = get_belief_graph_manager()
-
     # Check services
     services = {}
     capabilities = {}

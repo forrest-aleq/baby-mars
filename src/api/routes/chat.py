@@ -71,6 +71,12 @@ async def send_message(request_data: MessageRequest, request: Request):
     """
     session = get_session(request, request_data.session_id)
 
+    # Check for pending message from pivot interrupt
+    pending_message = session.pop("pending_message", None)
+    if pending_message:
+        # Merge pending message with current request
+        request_data.message = f"{pending_message}\n\n{request_data.message}"
+
     try:
         # Create or update state
         if session["state"] is None:

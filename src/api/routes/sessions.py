@@ -80,7 +80,16 @@ async def get_session_context(session_id: str, request: Request):
     """
     session = request.app.state.sessions.get(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Session not found",
+                    "severity": "warning",
+                }
+            }
+        )
 
     pills = session.get("context_pills", [])
 
@@ -111,7 +120,16 @@ async def get_session_history(session_id: str, request: Request, limit: int = 20
     """
     session = request.app.state.sessions.get(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": {
+                    "code": "SESSION_NOT_FOUND",
+                    "message": "Session not found",
+                    "severity": "warning",
+                }
+            }
+        )
 
     state = session.get("state")
     if not state:

@@ -27,6 +27,7 @@ class EventBus:
     def __init__(self):
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
         self._event_counter = 0
+        self._lock = asyncio.Lock()
 
     def subscribe(self, org_id: str) -> asyncio.Queue:
         """Subscribe to events for an org."""
@@ -48,20 +49,24 @@ class EventBus:
 
     async def publish(self, org_id: str, event_type: str, data: dict):
         """Publish an event to all subscribers of an org."""
-        self._event_counter += 1
+        async with self._lock:
+            self._event_counter += 1
+            event_id = f"evt_{self._event_counter}"
+
         event = {
-            "event_id": f"evt_{self._event_counter}",
+            "event_id": event_id,
             "type": event_type,
             "data": data,
             "timestamp": datetime.now().isoformat(),
         }
 
-        if org_id in self._subscribers:
-            for queue in self._subscribers[org_id]:
-                try:
-                    await queue.put(event)
-                except Exception as e:
-                    logger.warning(f"Failed to publish event: {e}")
+        # Copy list to avoid mutation during iteration
+        subscribers = list(self._subscribers.get(org_id, []))
+        for queue in subscribers:
+            try:
+                await queue.put(event)
+            except Exception as e:
+                logger.warning(f"Failed to publish event: {e}")
 
         logger.debug(f"Published {event_type} to org {org_id}")
 

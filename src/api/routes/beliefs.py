@@ -188,18 +188,18 @@ async def challenge_belief(
         # Generate challenge ID
         challenge_id = f"challenge_{uuid.uuid4().hex[:12]}"
 
-        # Calculate strength reduction (challenge reduces by ~50%)
+        # Calculate what strength would be after challenge (reduces by ~50%)
         old_strength = belief.get("strength", 0.5)
-        new_strength = max(0.1, old_strength * 0.5)
+        projected_strength = max(0.1, old_strength * 0.5)
+        projected_status = "disputed" if projected_strength < 0.4 else "active"
 
-        # Update belief
         # TODO: Implement proper challenge flow with graph.challenge_belief()
-        belief_updated = True
-        new_status = "disputed" if new_strength < 0.4 else "active"
+        # For now, we only record the challenge without persisting the change
+        belief_updated = False
 
         logger.info(
-            f"Belief challenged: org={org_id}, belief={belief_id}, "
-            f"old_strength={old_strength:.2f}, new_strength={new_strength:.2f}"
+            f"Belief challenge recorded: org={org_id}, belief={belief_id}, "
+            f"current_strength={old_strength:.2f}, projected_strength={projected_strength:.2f}"
         )
 
         return BeliefChallengeResponse(
@@ -207,10 +207,11 @@ async def challenge_belief(
             belief_id=belief_id,
             accepted=True,
             belief_updated=belief_updated,
-            new_strength=new_strength,
-            new_status=new_status,
+            new_strength=projected_strength,
+            new_status=projected_status,
             existing_evidence=existing_evidence,
-            message=f"Challenge accepted. Belief strength reduced from {old_strength:.2f} to {new_strength:.2f}.",
+            message=f"Challenge recorded. If accepted, strength would change from {old_strength:.2f} to {projected_strength:.2f}. "
+                    f"Note: Full challenge flow not yet implemented - this is a preview.",
         )
 
     except HTTPException:
