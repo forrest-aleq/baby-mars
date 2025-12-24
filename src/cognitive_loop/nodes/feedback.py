@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Any, Optional, cast
 
 from ...analytics import get_belief_analytics
-from ...graphs.belief_graph_manager import get_org_belief_graph, save_org_belief
+from ...graphs.belief_graph_manager import get_org_belief_graph, save_modified_beliefs
 from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
@@ -59,50 +59,22 @@ def _track_belief_update(
 # ============================================================
 
 
-def analyze_outcome(
+def _compute_success_rate(
     execution_results: list[dict[str, Any]], validation_results: list[dict[str, Any]]
-) -> dict[str, Any]:
-    """
-    Analyze execution and validation results to determine outcome.
-
-    Returns:
-        outcome_type: "success", "partial_success", "failure"
-        success_rate: 0.0 to 1.0
-        peak_event: Most significant event (for peak-end rule)
-        failures: List of failure details
-    """
-    if not execution_results:
-        return {
-            "outcome_type": "failure",
-            "success_rate": 0.0,
-            "peak_event": None,
-            "failures": ["No execution results"],
-        }
-
-    # Count successes
+) -> float:
+    """Compute combined success rate from execution and validation results."""
     exec_successes = sum(1 for r in execution_results if r.get("success", False))
     exec_total = len(execution_results)
-
     val_successes = sum(1 for r in validation_results if r.get("passed", True))
     val_total = len(validation_results) if validation_results else 1
-
-    # Combined success rate
     exec_rate = exec_successes / exec_total if exec_total > 0 else 0
     val_rate = val_successes / val_total if val_total > 0 else 1
-    success_rate = (exec_rate + val_rate) / 2
+    return (exec_rate + val_rate) / 2
 
-    # Determine outcome type
-    if success_rate >= 0.9:
-        outcome_type = "success"
-    elif success_rate >= 0.5:
-        outcome_type = "partial_success"
-    else:
-        outcome_type = "failure"
 
-    # Find peak event (most significant)
-    peak_event = None
-    peak_severity = 0
-
+def _find_peak_event(validation_results: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """Find the most significant validation event (Paper #12 peak-end rule)."""
+    peak_event, peak_severity = None, 0
     for r in validation_results:
         severity = r.get("severity", 0)
         if severity > peak_severity:
@@ -112,21 +84,50 @@ def analyze_outcome(
                 "message": r.get("message", ""),
                 "severity": severity,
             }
+    return peak_event
 
-    # Collect failures
-    failures = []
-    for r in execution_results:
-        if not r.get("success", False):
-            failures.append(r.get("message", "Execution failed"))
-    for r in validation_results:
-        if not r.get("passed", True):
-            failures.append(r.get("message", "Validation failed"))
+
+def _collect_failures(
+    execution_results: list[dict[str, Any]], validation_results: list[dict[str, Any]]
+) -> list[str]:
+    """Collect failure messages from execution and validation results."""
+    failures = [
+        r.get("message", "Execution failed")
+        for r in execution_results
+        if not r.get("success", False)
+    ]
+    failures += [
+        r.get("message", "Validation failed")
+        for r in validation_results
+        if not r.get("passed", True)
+    ]
+    return failures
+
+
+def analyze_outcome(
+    execution_results: list[dict[str, Any]], validation_results: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Analyze execution and validation results to determine outcome."""
+    if not execution_results:
+        return {
+            "outcome_type": "failure",
+            "success_rate": 0.0,
+            "peak_event": None,
+            "failures": ["No execution results"],
+        }
+
+    success_rate = _compute_success_rate(execution_results, validation_results)
+    outcome_type = (
+        "success"
+        if success_rate >= 0.9
+        else ("partial_success" if success_rate >= 0.5 else "failure")
+    )
 
     return {
         "outcome_type": outcome_type,
         "success_rate": success_rate,
-        "peak_event": peak_event,
-        "failures": failures,
+        "peak_event": _find_peak_event(validation_results),
+        "failures": _collect_failures(execution_results, validation_results),
     }
 
 
@@ -135,84 +136,93 @@ def analyze_outcome(
 # ============================================================
 
 
+def _outcome_to_signal(outcome_type: str) -> str:
+    """Map outcome type to signal for belief update."""
+    if outcome_type == "success":
+        return "success"
+    elif outcome_type == "partial_success":
+        return "neutral"
+    return "failure"
+
+
 async def update_beliefs_from_outcome(
     state: BabyMARSState, outcome: dict[str, Any]
 ) -> list[dict[str, Any]]:
     """
-    Update beliefs based on outcome.
-
-    Paper #7: Moral Asymmetry Event Sourcing
-    Paper #9: Moral Asymmetry Multiplier
-
-    - Positive outcomes strengthen beliefs gradually
-    - Negative outcomes weaken beliefs more rapidly
-    - Ethical beliefs have special protection
-    - Beliefs are persisted to DB after each update
+    Update beliefs based on outcome (Papers #7, #9, #11).
+    Persists all modified beliefs including cascaded updates.
     """
     org_id = state.get("org_id", "default")
     belief_graph = await get_org_belief_graph(org_id)
-
     appraisal: dict[str, Any] = cast(dict[str, Any], state.get("appraisal") or {})
     attributed_beliefs = appraisal.get("attributed_beliefs", [])
-    outcome_type = outcome.get("outcome_type", "failure")
     context_key = state.get("current_context_key", "*|*|*")
+    outcome_signal = _outcome_to_signal(outcome.get("outcome_type", "failure"))
+    difficulty = appraisal.get("difficulty", 3)
 
     updates = []
-
     for belief_id in attributed_beliefs:
-        # Calculate outcome signal
-        if outcome_type == "success":
-            outcome_signal = "success"
-        elif outcome_type == "partial_success":
-            outcome_signal = "neutral"
-        else:
-            outcome_signal = "failure"
+        update = await _update_single_belief(
+            org_id, belief_graph, belief_id, context_key, outcome_signal, difficulty
+        )
+        if update:
+            updates.append(update)
 
-        # Get difficulty from appraisal
-        difficulty = appraisal.get("difficulty", 3)
-
-        # Update the belief using the proper method
-        try:
-            event = belief_graph.update_belief_from_outcome(
-                belief_id=belief_id,
-                context_key=context_key,
-                outcome=outcome_signal,
-                difficulty_level=difficulty,
-                is_end_memory=False,
-                emotional_intensity=0.5,
-            )
-
-            if event:
-                old_strength = event.get("old_strength", 0)
-                new_strength = event.get("new_strength", 0)
-                updates.append(
-                    {
-                        "belief_id": belief_id,
-                        "old_strength": old_strength,
-                        "new_strength": new_strength,
-                        "outcome": outcome_signal,
-                    }
-                )
-
-                # Track belief update in PostHog and persist
-                updated_belief = belief_graph.get_belief(belief_id)
-                if updated_belief:
-                    _track_belief_update(
-                        org_id,
-                        belief_id,
-                        updated_belief,
-                        old_strength,
-                        new_strength,
-                        outcome_signal,
-                        event.get("category_multiplier", 1.0),
-                        context_key,
-                    )
-                    await save_org_belief(org_id, cast(dict[str, Any], updated_belief))
-
-        except Exception as e:
-            print(f"Error updating belief {belief_id}: {e}")
+    # Persist ALL modified beliefs (including cascaded ones) in a single batch
+    saved_count = await save_modified_beliefs(org_id, belief_graph)
+    if saved_count > len(updates):
+        logger.info(f"Saved {saved_count} beliefs ({saved_count - len(updates)} cascaded)")
 
     return updates
+
+
+async def _update_single_belief(
+    org_id: str,
+    belief_graph: Any,
+    belief_id: str,
+    context_key: str,
+    outcome_signal: str,
+    difficulty: int,
+) -> Optional[dict[str, Any]]:
+    """Update a single belief and track in analytics."""
+    try:
+        event = belief_graph.update_belief_from_outcome(
+            belief_id=belief_id,
+            context_key=context_key,
+            outcome=outcome_signal,
+            difficulty_level=difficulty,
+            is_end_memory=False,
+            emotional_intensity=0.5,
+        )
+        if not event:
+            return None
+
+        old_strength = event.get("old_strength", 0)
+        new_strength = event.get("new_strength", 0)
+
+        # Track in PostHog
+        updated_belief = belief_graph.get_belief(belief_id)
+        if updated_belief:
+            _track_belief_update(
+                org_id,
+                belief_id,
+                updated_belief,
+                old_strength,
+                new_strength,
+                outcome_signal,
+                event.get("category_multiplier", 1.0),
+                context_key,
+            )
+
+        return {
+            "belief_id": belief_id,
+            "old_strength": old_strength,
+            "new_strength": new_strength,
+            "outcome": outcome_signal,
+        }
+    except Exception as e:
+        print(f"Error updating belief {belief_id}: {e}")
+        return None
 
 
 # ============================================================
@@ -220,65 +230,52 @@ async def update_beliefs_from_outcome(
 # ============================================================
 
 
-def create_memory_from_outcome(state: BabyMARSState, outcome: dict[str, Any]) -> Optional[Memory]:
-    """
-    Create a memory from significant outcomes.
-
-    Paper #12: Peak-End Rule Memory Weighting
-    Paper #14: Cognitive Engrams
-
-    Only create memories for:
-    - Significant successes
-    - Failures (for learning)
-    - Events with high emotional/professional impact
-    """
+def _classify_memory(outcome: dict[str, Any]) -> Optional[tuple[str, float]]:
+    """Classify outcome for memory creation. Returns (type, weight) or None if not memorable."""
     outcome_type = outcome.get("outcome_type", "")
-    peak_event = outcome.get("peak_event")
-
-    # Determine if memory-worthy
     if outcome_type == "success":
-        # Only memorable if it was a significant achievement
         if outcome.get("success_rate", 0) < 0.95:
             return None
-        memory_type = "procedural"
-        emotional_weight = 0.3
+        return ("procedural", 0.3)
     elif outcome_type == "failure":
-        # Failures are always memorable for learning
-        memory_type = "episodic"
-        emotional_weight = 0.6
-    else:
-        # Partial success - memorable if notable
-        if not peak_event:
-            return None
-        memory_type = "episodic"
-        emotional_weight = 0.4
+        return ("episodic", 0.6)
+    elif outcome.get("peak_event"):
+        return ("episodic", 0.4)
+    return None
 
-    # Build memory content (find most recent user message)
-    messages = state.get("messages", [])
-    request_content = ""
-    for msg in reversed(messages):
+
+def _extract_request_content(state: BabyMARSState) -> str:
+    """Extract the most recent user request from state messages."""
+    for msg in reversed(state.get("messages", [])):
         if msg.get("role") == "user":
             content = msg.get("content", "")
             if isinstance(content, list):
                 content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
-            request_content = content[:200]  # Truncate
-            break
+            return str(content)[:200]
+    return ""
 
+
+def create_memory_from_outcome(state: BabyMARSState, outcome: dict[str, Any]) -> Optional[Memory]:
+    """Create memory from significant outcomes (Papers #12, #14)."""
+    classification = _classify_memory(outcome)
+    if not classification:
+        return None
+
+    memory_type, emotional_weight = classification
     action: dict[str, Any] = state.get("selected_action") or {}  # type: ignore[assignment]
-    action_summary = f"{action.get('action_type', 'unknown')} with {len(action.get('work_units', []))} work units"
-
     appraisal_data: dict[str, Any] = cast(dict[str, Any], state.get("appraisal") or {})
-    memory = cast(
+
+    return cast(
         Memory,
         {
             "memory_id": f"mem_{uuid.uuid4().hex[:12]}",
             "type": memory_type,
             "content": {
-                "request": request_content,
-                "action": action_summary,
-                "outcome": outcome_type,
-                "failures": outcome.get("failures", [])[:3],  # Top 3 failures
-                "peak_event": peak_event,
+                "request": _extract_request_content(state),
+                "action": f"{action.get('action_type', 'unknown')} with {len(action.get('work_units', []))} work units",
+                "outcome": outcome.get("outcome_type", ""),
+                "failures": outcome.get("failures", [])[:3],
+                "peak_event": outcome.get("peak_event"),
             },
             "created_at": datetime.now().isoformat(),
             "emotional_weight": emotional_weight,
@@ -286,8 +283,6 @@ def create_memory_from_outcome(state: BabyMARSState, outcome: dict[str, Any]) ->
             "associations": appraisal_data.get("attributed_beliefs", []),
         },
     )
-
-    return memory
 
 
 # ============================================================

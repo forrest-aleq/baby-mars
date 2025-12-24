@@ -300,6 +300,67 @@ class TestCascadingUpdates:
         assert effective >= intrinsic
 
 
+class TestModifiedBeliefTracking:
+    """Test modified belief tracking for persistence (Paper #11 persistence fix)."""
+
+    def test_cascade_tracks_modified_beliefs(self, hierarchical_belief_graph):
+        """Cascade should track all modified beliefs."""
+        graph, foundation, derived1, derived2 = hierarchical_belief_graph
+
+        # Clear any prior modified beliefs
+        graph.clear_modified_beliefs()
+        assert len(graph.get_modified_belief_ids()) == 0
+
+        # Update foundation - should cascade
+        graph.cascade_strength_update(foundation["belief_id"], 0.8)
+
+        # Should track all affected beliefs
+        modified = graph.get_modified_belief_ids()
+        assert foundation["belief_id"] in modified
+        # Derived beliefs should also be tracked if they were modified
+        assert len(modified) >= 1
+
+    def test_clear_modified_beliefs(self, hierarchical_belief_graph):
+        """clear_modified_beliefs should empty the tracking set."""
+        graph, foundation, _, _ = hierarchical_belief_graph
+
+        # Trigger a modification
+        graph.cascade_strength_update(foundation["belief_id"], 0.8)
+        assert len(graph.get_modified_belief_ids()) > 0
+
+        # Clear
+        graph.clear_modified_beliefs()
+        assert len(graph.get_modified_belief_ids()) == 0
+
+    def test_get_modified_belief_ids_returns_copy(self, hierarchical_belief_graph):
+        """get_modified_belief_ids should return a copy, not the internal set."""
+        graph, foundation, _, _ = hierarchical_belief_graph
+
+        graph.cascade_strength_update(foundation["belief_id"], 0.8)
+
+        modified1 = graph.get_modified_belief_ids()
+        modified2 = graph.get_modified_belief_ids()
+
+        # Should be equal but different objects
+        assert modified1 == modified2
+        assert modified1 is not modified2
+
+    def test_update_from_outcome_tracks_modified(self, empty_belief_graph, sample_belief):
+        """update_belief_from_outcome should track modified beliefs."""
+        empty_belief_graph.add_belief(sample_belief)
+        empty_belief_graph.clear_modified_beliefs()
+
+        empty_belief_graph.update_belief_from_outcome(
+            sample_belief["belief_id"],
+            sample_belief["context_key"],
+            outcome="success",
+            difficulty_level=3,
+        )
+
+        modified = empty_belief_graph.get_modified_belief_ids()
+        assert sample_belief["belief_id"] in modified
+
+
 class TestBeliefOutcomeUpdates:
     """Test belief updates from outcomes (Papers #1, #9, #12)."""
 
@@ -366,7 +427,7 @@ class TestBeliefOutcomeUpdates:
     def test_peak_end_multiplier(self, empty_belief_graph, sample_belief):
         """High emotional intensity should apply peak-end multiplier."""
         empty_belief_graph.add_belief(sample_belief)
-        initial = sample_belief["strength"]
+        sample_belief["strength"]
 
         empty_belief_graph.update_belief_from_outcome(
             sample_belief["belief_id"],
@@ -377,7 +438,7 @@ class TestBeliefOutcomeUpdates:
             emotional_intensity=0.9,
         )
 
-        assert sample_belief["is_end_memory_influenced"] == True
+        assert sample_belief["is_end_memory_influenced"]
         assert sample_belief["peak_intensity"] >= 0.9
 
     def test_success_count_increments(self, empty_belief_graph, sample_belief):
@@ -419,7 +480,7 @@ class TestACREInvalidation:
             sample_belief["strength"] - 0.05,  # Small decrease
         )
 
-        assert allowed == True
+        assert allowed
 
     def test_blocks_large_decrease_above_threshold(self, empty_belief_graph):
         """Large decrease of high-strength belief should be blocked."""
@@ -433,7 +494,7 @@ class TestACREInvalidation:
             0.5,  # Large decrease
         )
 
-        assert allowed == False
+        assert not allowed
         assert "threshold" in reason.lower()
 
     def test_identity_always_blocked(self, empty_belief_graph, sample_identity_belief):
@@ -446,7 +507,7 @@ class TestACREInvalidation:
         )
 
         # Identity has threshold 1.0, so any significant decrease is blocked
-        assert allowed == False
+        assert not allowed
 
 
 class TestActivation:

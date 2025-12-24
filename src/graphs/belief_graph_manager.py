@@ -208,3 +208,26 @@ async def save_all_org_beliefs(org_id: str) -> None:
     """
     manager = get_belief_graph_manager()
     await manager.save_all_beliefs(org_id)
+
+
+async def save_modified_beliefs(org_id: str, belief_graph: "BeliefGraph") -> int:
+    """
+    Save all beliefs modified since last clear.
+    Called from feedback node after cascade updates.
+    Returns number of beliefs saved.
+    """
+    modified_ids = belief_graph.get_modified_belief_ids()
+    if not modified_ids:
+        return 0
+
+    beliefs_to_save = []
+    for belief_id in modified_ids:
+        belief = belief_graph.get_belief(belief_id)
+        if belief:
+            beliefs_to_save.append(cast(dict[str, Any], belief))
+
+    if beliefs_to_save:
+        await save_beliefs_batch(org_id, beliefs_to_save)
+
+    belief_graph.clear_modified_beliefs()
+    return len(beliefs_to_save)

@@ -50,9 +50,9 @@ class BeliefGraph:
     def __init__(self) -> None:
         self.G = nx.DiGraph()
         self.beliefs: dict[str, BeliefState] = {}
+        self._modified_beliefs: set[str] = set()  # Track beliefs modified since last clear
 
     # --- GRAPH MANAGEMENT ---
-
     def add_belief(self, belief: dict[str, Any]) -> None:
         """Add belief node to graph. Accepts partial dict, fills in defaults."""
         if "supports" not in belief:
@@ -239,6 +239,9 @@ class BeliefGraph:
         belief["strength"] = new_strength
         self.G.nodes[belief_id]["strength"] = new_strength
 
+        # Track this belief as modified for persistence
+        self._modified_beliefs.add(belief_id)
+
         affected = [belief_id]
 
         for _, supported_id, data in self.G.out_edges(belief_id, data=True):
@@ -260,6 +263,14 @@ class BeliefGraph:
             affected.extend(self.cascade_strength_update(supported_id, new_effective, _visited))
 
         return affected
+
+    def get_modified_belief_ids(self) -> set[str]:
+        """Get IDs of all beliefs modified since last clear (for persistence)."""
+        return self._modified_beliefs.copy()
+
+    def clear_modified_beliefs(self) -> None:
+        """Clear the modified beliefs tracker after persistence."""
+        self._modified_beliefs.clear()
 
     def compute_effective_strength(
         self, belief_id: str, _memo: Optional[dict[str, float]] = None
@@ -482,10 +493,8 @@ class BeliefGraph:
         return deserialize_graph(json_str, cls)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
         return graph_to_dict(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "BeliefGraph":
-        """Restore from dictionary."""
         return graph_from_dict(data, cls)
