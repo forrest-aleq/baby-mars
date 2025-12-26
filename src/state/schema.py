@@ -12,6 +12,7 @@ This module re-exports all types and functions for backwards compatibility.
 
 # Constants
 from .constants import (
+    APPROVAL_TIMEOUT_SECONDS,
     AUTONOMY_THRESHOLDS,
     CATEGORY_MULTIPLIERS,
     DIFFICULTY_WEIGHTS,
@@ -60,6 +61,7 @@ from .types import (
 
 __all__ = [
     # Constants
+    "APPROVAL_TIMEOUT_SECONDS",
     "CATEGORY_MULTIPLIERS",
     "INVALIDATION_THRESHOLDS",
     "AUTONOMY_THRESHOLDS",

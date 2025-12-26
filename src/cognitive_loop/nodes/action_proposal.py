@@ -13,12 +13,14 @@ Flow:
    - reject: Go to guidance_seeking mode
 """
 
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from langgraph.types import interrupt
 
 from ...claude_singleton import get_claude_client
 from ...observability import get_logger
+from ...state.constants import APPROVAL_TIMEOUT_SECONDS
 from ...state.schema import BabyMARSState, SelectedAction
 
 logger = get_logger(__name__)
@@ -100,7 +102,12 @@ def build_interrupt_payload(
     """
     Build the payload that will be sent to the frontend
     when the graph pauses for approval.
+
+    Includes timeout_at for HITL timeout handling.
     """
+    now = datetime.now(timezone.utc)
+    timeout_at = now.timestamp() + APPROVAL_TIMEOUT_SECONDS
+
     return {
         "type": "action_proposal",
         "summary": summary,
@@ -110,6 +117,9 @@ def build_interrupt_payload(
         "requires_tools": action.get("requires_tools", []),
         "thread_id": state.get("thread_id"),
         "options": ["approve", "reject"],
+        "created_at": now.isoformat(),
+        "timeout_at": timeout_at,
+        "timeout_seconds": APPROVAL_TIMEOUT_SECONDS,
     }
 
 

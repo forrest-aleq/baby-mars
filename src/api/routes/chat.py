@@ -8,6 +8,7 @@ Per API_CONTRACT_V0.md sections 1.1-1.4
 
 import asyncio
 import json
+import time
 from datetime import datetime
 from typing import Any, AsyncIterator, cast
 
@@ -18,6 +19,7 @@ from sse_starlette.sse import EventSourceResponse
 from ...birth.birth_system import create_initial_state
 from ...cognitive_loop.graph import invoke_cognitive_loop, stream_cognitive_loop
 from ...observability import get_logger
+from ...state.constants import APPROVAL_TIMEOUT_SECONDS
 from ...state.schema import BabyMARSState
 from ..schemas.chat import (
     ApprovalRequest,
@@ -100,6 +102,34 @@ def get_session(request: Request, session_id: str) -> dict[str, Any]:
     return session
 
 
+def _build_message_response(
+    session_id: str, result: BabyMARSState, session: dict[str, Any]
+) -> MessageResponse:
+    """Build MessageResponse from cognitive loop result."""
+    supervision_mode = result.get("supervision_mode") or "guidance_seeking"
+    belief_strength = result.get("belief_strength_for_action") or 0.0
+    approval_needed = supervision_mode == "action_proposal"
+
+    # Store approval timeout if action proposal is pending
+    if approval_needed:
+        session["approval_timeout_at"] = time.time() + APPROVAL_TIMEOUT_SECONDS
+    else:
+        session.pop("approval_timeout_at", None)
+
+    logger.info(f"Message processed: session={session_id}, mode={supervision_mode}")
+
+    return MessageResponse(
+        session_id=session_id,
+        response=str(result.get("final_response", "")),
+        supervision_mode=supervision_mode,
+        belief_strength=belief_strength,
+        approval_needed=approval_needed,
+        approval_summary=result.get("approval_summary") if approval_needed else None,
+        references=_extract_references(result),
+        context_budget=None,
+    )
+
+
 @router.post("", response_model=MessageResponse)
 async def send_message(request_data: MessageRequest, request: Request) -> MessageResponse:
     """Send a message and run the full cognitive loop."""
@@ -120,25 +150,7 @@ async def send_message(request_data: MessageRequest, request: Request) -> Messag
             state=state, graph=request.app.state.graph, config=config
         )
         session["state"] = result
-
-        supervision_mode = result.get("supervision_mode") or "guidance_seeking"
-        belief_strength = result.get("belief_strength_for_action") or 0.0
-        approval_needed = supervision_mode == "action_proposal"
-
-        logger.info(
-            f"Message processed: session={request_data.session_id}, mode={supervision_mode}, strength={belief_strength:.2f}"
-        )
-
-        return MessageResponse(
-            session_id=request_data.session_id,
-            response=str(result.get("final_response", "")),
-            supervision_mode=supervision_mode,
-            belief_strength=belief_strength,
-            approval_needed=approval_needed,
-            approval_summary=result.get("approval_summary") if approval_needed else None,
-            references=_extract_references(result),
-            context_budget=None,
-        )
+        return _build_message_response(request_data.session_id, result, session)
 
     except Exception as e:
         logger.error(f"Message processing failed: {e}", exc_info=True)
@@ -268,8 +280,31 @@ async def interrupt_stream(
     )
 
 
+def _check_approval_timeout(session: dict[str, Any]) -> None:
+    """Check if approval has timed out and raise HTTPException if so."""
+    timeout_at = session.get("approval_timeout_at")
+    if timeout_at and time.time() > timeout_at:
+        # Clear the timeout to prevent repeated errors
+        session.pop("approval_timeout_at", None)
+        raise HTTPException(
+            status_code=408,
+            detail={
+                "error": {
+                    "code": "APPROVAL_TIMEOUT",
+                    "message": "Approval request has expired. Please send a new message.",
+                    "severity": "warning",
+                    "recoverable": True,
+                    "timeout_seconds": APPROVAL_TIMEOUT_SECONDS,
+                }
+            },
+        )
+
+
 def _validate_approval_state(session: dict[str, Any]) -> BabyMARSState:
     """Validate session state for approval and return state or raise HTTPException."""
+    # Check timeout first
+    _check_approval_timeout(session)
+
     state = session.get("state")
     if not state:
         raise HTTPException(
@@ -320,6 +355,9 @@ async def approve_action(request_data: ApprovalRequest, request: Request) -> Mes
     state = _validate_approval_state(session)
 
     try:
+        # Clear approval timeout since user responded
+        session.pop("approval_timeout_at", None)
+
         state["approval_status"] = "approved" if request_data.approved else "rejected"
         if request_data.feedback:
             _add_feedback_note(state, request_data.feedback, request_data.approved)

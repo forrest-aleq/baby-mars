@@ -40,3 +40,7 @@ PEAK_INTENSITY_THRESHOLD = 0.7
 
 # Learning rate for EMA updates
 LEARNING_RATE = 0.15
+
+# HITL Approval Timeout (seconds)
+# Default 5 minutes - after this, pending approvals expire
+APPROVAL_TIMEOUT_SECONDS = 300
