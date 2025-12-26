@@ -17,7 +17,7 @@ from typing import Any, Literal
 
 from langgraph.types import interrupt
 
-from ...claude_client import get_claude_client
+from ...claude_singleton import get_claude_client
 from ...observability import get_logger
 from ...state.schema import BabyMARSState, SelectedAction
 
@@ -28,54 +28,39 @@ logger = get_logger(__name__)
 # ============================================================
 
 
-async def generate_action_summary(state: BabyMARSState, action: SelectedAction) -> str:
-    """
-    Generate a human-readable summary of the proposed action.
-
-    Example output:
-        I'd like to:
-        • Post a $5,000 payment to Acme Corp (Invoice #1234)
-        • Create journal entry: Debit AP, Credit Cash
-
-        This action requires your approval because the amount exceeds
-        your configured threshold.
-    """
-    client = get_claude_client()
-
-    # Build context
+def _format_work_units(action: SelectedAction) -> str:
+    """Format work units as bullet points for display."""
     work_units = action.get("work_units", [])
-    work_unit_descriptions = []
+    descriptions = []
     for wu in work_units:
         tool = wu.get("tool", "unknown")
         verb = wu.get("verb", "unknown")
         entities = wu.get("entities", {})
-        slots = wu.get("slots", {})
-
-        # Build a readable description
         desc = f"• {verb.replace('_', ' ').title()} via {tool}"
         if entities:
             entity_str = ", ".join(f"{k}: {v}" for k, v in entities.items())
             desc += f" ({entity_str})"
-        work_unit_descriptions.append(desc)
+        descriptions.append(desc)
+    return "\n".join(descriptions) if descriptions else "• (No specific actions defined)"
 
-    work_units_text = (
-        "\n".join(work_unit_descriptions)
-        if work_unit_descriptions
-        else "• (No specific actions defined)"
-    )
 
-    # Get the original request (find most recent user message)
-    messages = state.get("messages", [])
-    original_request = ""
-    for msg in reversed(messages):
+def _get_original_request(state: BabyMARSState) -> str:
+    """Extract the most recent user message (truncated to 200 chars)."""
+    for msg in reversed(state.get("messages", [])):
         if msg.get("role") == "user":
             content = msg.get("content", "")
             if isinstance(content, list):
                 content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
-            original_request = content[:200]
-            break
+            return str(content)[:200]
+    return ""
 
-    # Generate the summary using Claude
+
+async def generate_action_summary(state: BabyMARSState, action: SelectedAction) -> str:
+    """Generate a human-readable summary of the proposed action for approval."""
+    client = get_claude_client()
+    work_units_text = _format_work_units(action)
+    original_request = _get_original_request(state)
+
     prompt = f"""Generate a brief, professional summary of this proposed action for human approval.
 
 Original request: {original_request}
@@ -93,12 +78,8 @@ End with a brief reason why approval is needed (e.g., amount threshold, sensitiv
 Keep it under 150 words. Be professional but conversational."""
 
     try:
-        response = await client.complete(
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response
+        return await client.complete(messages=[{"role": "user", "content": prompt}])
     except Exception:
-        # Fallback to basic summary
         return f"""I'd like to perform the following action:
 
 {work_units_text}

@@ -16,7 +16,7 @@ regardless of what the cognitive loop produced.
 
 from typing import Any, Optional, cast
 
-from ...claude_client import get_claude_client
+from ...claude_singleton import get_claude_client
 from ...graphs.belief_graph import get_belief_graph
 from ...observability import get_logger
 from ...state.schema import BabyMARSState
@@ -94,23 +94,10 @@ def quick_violation_check(response: str) -> Optional[str]:
 # ============================================================
 
 
-async def claude_violation_check(
-    response: str, immutable_beliefs: list[dict[str, Any]]
-) -> Optional[dict[str, Any]]:
-    """
-    Use Claude to check for subtle violations.
-
-    Returns violation details or None if clean.
-    """
-    client = get_claude_client()
-
-    # Build belief list for prompt
+def _build_violation_check_prompt(response: str, immutable_beliefs: list[dict[str, Any]]) -> str:
+    """Build prompt for Claude violation check."""
     belief_statements = "\n".join([f"- {b['statement']}" for b in immutable_beliefs])
-
-    messages = [
-        {
-            "role": "user",
-            "content": f"""Check if this response violates any of these personality constraints:
+    return f"""Check if this response violates any of these personality constraints:
 
 CONSTRAINTS (must NEVER be violated):
 {belief_statements}
@@ -122,46 +109,39 @@ Does this response violate any constraint? Answer in this format:
 - If NO violation: "CLEAN"
 - If violation: "VIOLATION: [belief that was violated] - [brief explanation]"
 
-Be strict. Even subtle violations count.""",
+Be strict. Even subtle violations count."""
+
+
+def _parse_violation_result(result: str, response: str) -> Optional[dict[str, Any]]:
+    """Parse Claude's violation check result."""
+    if result.strip().upper().startswith("CLEAN"):
+        return None
+    if "VIOLATION" in result.upper():
+        return {"detected": True, "explanation": result}
+    # Ambiguous - fall back to pattern check
+    logger.warning(f"Ambiguous gate result from Claude: {result[:100]}...")
+    pattern_violation = quick_violation_check(response)
+    if pattern_violation:
+        return {
+            "detected": True,
+            "explanation": f"Pattern match on {pattern_violation} (Claude response ambiguous)",
         }
-    ]
+    return None
 
+
+async def claude_violation_check(
+    response: str, immutable_beliefs: list[dict[str, Any]]
+) -> Optional[dict[str, Any]]:
+    """Use Claude to check for subtle violations. Returns violation details or None if clean."""
     try:
+        client = get_claude_client()
+        prompt = _build_violation_check_prompt(response, immutable_beliefs)
         result = await client.complete(
-            messages=messages,
-            temperature=0.0,  # Deterministic for safety checks
+            messages=[{"role": "user", "content": prompt}], temperature=0.0
         )
-
-        if result.strip().upper().startswith("CLEAN"):
-            return None
-        elif "VIOLATION" in result.upper():
-            return {
-                "detected": True,
-                "explanation": result,
-            }
-        else:
-            # Ambiguous - fall back to pattern check
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Ambiguous gate result from Claude: {result[:100]}...")
-
-            # Use pattern check as fallback
-            pattern_violation = quick_violation_check(response)
-            if pattern_violation:
-                return {
-                    "detected": True,
-                    "explanation": f"Pattern match on {pattern_violation} (Claude response ambiguous)",
-                }
-            return None
-
+        return _parse_violation_result(result, response)
     except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.error(f"Gate check error: {e}, response_preview={response[:100]}...")
-
-        # On error, fall back to pattern check instead of letting through
         pattern_violation = quick_violation_check(response)
         if pattern_violation:
             return {
@@ -211,103 +191,66 @@ Do NOT explain the violation or be preachy. Just redirect naturally.""",
 # ============================================================
 
 
+def _get_original_request(state: BabyMARSState) -> str:
+    """Extract original user request from state."""
+    messages = state.get("messages", [])
+    if not messages:
+        return ""
+    content = messages[0].get("content", "")
+    if isinstance(content, list):
+        content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
+    return str(content)
+
+
+def _build_violation_result(
+    state: BabyMARSState, new_response: str, gate_retries: int, fallback: bool = False
+) -> dict[str, Any]:
+    """Build result dict for violation case."""
+    updated_messages = state.get("messages", [])[:-1]
+    updated_messages.append({"role": "assistant", "content": new_response})
+    result: dict[str, Any] = {
+        "messages": updated_messages,
+        "final_response": new_response,
+        "gate_violation_detected": True,
+    }
+    if fallback:
+        result["gate_fallback_used"] = True
+    else:
+        result["gate_retries"] = gate_retries + 1
+    return result
+
+
 async def process(state: BabyMARSState) -> dict[str, Any]:
-    """
-    Personality Gate Node
-
-    Validates final response against immutable beliefs.
-
-    Flow:
-    1. Quick pattern check
-    2. If suspicious, Claude validation
-    3. If violation, regenerate (max 2 tries)
-    4. If still violating, use boundary response
-    """
-
+    """Personality Gate: validate response against immutable beliefs."""
     final_response = str(state.get("final_response") or "")
-
     if not final_response:
-        return {}  # Nothing to check
+        return {}
 
-    # Get immutable beliefs
     graph = get_belief_graph()
     immutable_beliefs = cast(
         list[dict[str, Any]], [b for b in graph.beliefs.values() if b.get("immutable", False)]
     )
 
-    # Track retries
     gate_retries_val = state.get("gate_retries")
     gate_retries = int(gate_retries_val) if isinstance(gate_retries_val, (int, float, str)) else 0
-    max_gate_retries = 2
 
     # Step 1: Quick pattern check
     quick_violation = quick_violation_check(final_response)
-
     if quick_violation:
-        # Definite violation - regenerate
-        if gate_retries < max_gate_retries:
-            original_request = ""
-            messages = state.get("messages", [])
-            if messages:
-                msg = messages[0]
-                content = msg.get("content", "")
-                if isinstance(content, list):
-                    content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
-                original_request = content
-
+        if gate_retries < 2:
             new_response = await generate_boundary_response(
-                original_request, {"explanation": f"Violated: {quick_violation}"}
+                _get_original_request(state), {"explanation": f"Violated: {quick_violation}"}
             )
+            return _build_violation_result(state, new_response, gate_retries)
+        return _build_violation_result(state, BOUNDARY_RESPONSE, gate_retries, fallback=True)
 
-            # Update messages with new response
-            updated_messages = state.get("messages", [])[:-1]  # Remove old response
-            updated_messages.append({"role": "assistant", "content": new_response})
-
-            return {
-                "messages": updated_messages,
-                "final_response": new_response,
-                "gate_retries": gate_retries + 1,
-                "gate_violation_detected": True,
-            }
-        else:
-            # Max retries - use safe default
-            updated_messages = state.get("messages", [])[:-1]
-            updated_messages.append({"role": "assistant", "content": BOUNDARY_RESPONSE})
-
-            return {
-                "messages": updated_messages,
-                "final_response": BOUNDARY_RESPONSE,
-                "gate_violation_detected": True,
-                "gate_fallback_used": True,
-            }
-
-    # Step 2: Claude check for subtle violations (only on first pass)
+    # Step 2: Claude check for subtle violations (first pass only)
     if gate_retries == 0 and immutable_beliefs:
         claude_violation = await claude_violation_check(final_response, immutable_beliefs)
-
         if claude_violation:
-            original_request = ""
-            messages = state.get("messages", [])
-            if messages:
-                msg = messages[0]
-                content = msg.get("content", "")
-                if isinstance(content, list):
-                    content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
-                original_request = content
+            new_response = await generate_boundary_response(
+                _get_original_request(state), claude_violation
+            )
+            return _build_violation_result(state, new_response, gate_retries)
 
-            new_response = await generate_boundary_response(original_request, claude_violation)
-
-            updated_messages = state.get("messages", [])[:-1]
-            updated_messages.append({"role": "assistant", "content": new_response})
-
-            return {
-                "messages": updated_messages,
-                "final_response": new_response,
-                "gate_retries": gate_retries + 1,
-                "gate_violation_detected": True,
-            }
-
-    # No violation - pass through
-    return {
-        "gate_violation_detected": False,
-    }
+    return {"gate_violation_detected": False}

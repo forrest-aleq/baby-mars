@@ -14,7 +14,8 @@ Key responsibilities:
 
 from typing import Any, Optional
 
-from ...claude_client import ActionSelectionOutput, get_claude_client
+from ...claude_models import ActionSelectionOutput
+from ...claude_singleton import get_claude_client
 from ...observability import get_logger
 from ...state.schema import (
     AUTONOMY_THRESHOLDS,
@@ -86,39 +87,26 @@ def build_action_context(state: BabyMARSState) -> str:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict[str, Any]:
-    """
-    Action Selection Node
+def _build_work_units(raw_units: list[dict[str, Any]]) -> list[WorkUnit]:
+    """Convert raw work unit dicts to typed WorkUnit list."""
+    work_units: list[WorkUnit] = []
+    for wu in raw_units:
+        work_units.append(
+            {
+                "unit_id": wu.get("unit_id", f"wu_{len(work_units)}"),
+                "tool": wu.get("tool", "workflow"),
+                "verb": wu.get("verb", "query_records"),
+                "entities": wu.get("entities", {}),
+                "slots": wu.get("slots", {}),
+                "constraints": wu.get("constraints", []),
+            }
+        )
+    return work_units
 
-    Determines appropriate action based on:
-    1. Appraisal results
-    2. Belief strength (autonomy level)
-    3. Available tools and capabilities
-    4. Current supervision mode
 
-    Returns:
-    - selected_action: The action to take (or None for guidance)
-    - supervision_mode: May be updated based on action requirements
-    """
-
-    supervision_mode = state.get("supervision_mode", "guidance_seeking")
-    belief_strength = state.get("belief_strength_for_action", 0.0)
-    appraisal = state.get("appraisal")
-
-    # For guidance_seeking mode, don't select an action
-    if supervision_mode == "guidance_seeking":
-        return {"selected_action": None, "supervision_mode": "guidance_seeking"}
-
-    client = get_claude_client()
-
-    # Build context
-    context = build_action_context(state)
-
-    # Build messages
-    messages = [
-        {
-            "role": "user",
-            "content": f"""Based on the appraisal, select an appropriate action.
+def _build_selection_prompt(context: str) -> str:
+    """Build the prompt for action selection."""
+    return f"""Based on the appraisal, select an appropriate action.
 
 {context}
 
@@ -132,39 +120,32 @@ Create work units using the semantic vocabulary:
 - slots: Parameters
 - constraints: Verification requirements
 
-Return your action selection in the structured format.""",
-        }
-    ]
+Return your action selection in the structured format."""
+
+
+async def process(state: BabyMARSState) -> dict[str, Any]:
+    """Action Selection: determine action based on appraisal and beliefs (Paper #1)."""
+    supervision_mode = state.get("supervision_mode", "guidance_seeking")
+    if supervision_mode == "guidance_seeking":
+        return {"selected_action": None, "supervision_mode": "guidance_seeking"}
 
     try:
-        # Call Claude for action selection
+        client = get_claude_client()
+        context = build_action_context(state)
+        messages = [{"role": "user", "content": _build_selection_prompt(context)}]
+
         selection = await client.complete_structured(
             messages=messages,
             response_model=ActionSelectionOutput,
             skills=["work_unit_vocabulary", "accounting_domain"],
         )
 
-        # Check if human approval required (override to action_proposal)
         if selection.requires_human_approval:
             supervision_mode = "action_proposal"
 
-        # Build selected action
-        work_units: list[WorkUnit] = []
-        for wu in selection.work_units:
-            work_units.append(
-                {
-                    "unit_id": wu.get("unit_id", f"wu_{len(work_units)}"),
-                    "tool": wu.get("tool", "workflow"),
-                    "verb": wu.get("verb", "query_records"),
-                    "entities": wu.get("entities", {}),
-                    "slots": wu.get("slots", {}),
-                    "constraints": wu.get("constraints", []),
-                }
-            )
-
         selected_action: SelectedAction = {
             "action_type": selection.action_type,
-            "work_units": work_units,
+            "work_units": _build_work_units(selection.work_units),
             "requires_tools": selection.tool_requirements,
             "estimated_difficulty": selection.estimated_difficulty,
         }
@@ -174,10 +155,8 @@ Return your action selection in the structured format.""",
             "supervision_mode": supervision_mode,
             "belief_strength_for_action": selection.confidence,
         }
-
     except Exception as e:
-        # On error, fall back to guidance seeking
-        print(f"Action selection error: {e}")
+        logger.error(f"Action selection error: {e}")
         return {"selected_action": None, "supervision_mode": "guidance_seeking"}
 
 

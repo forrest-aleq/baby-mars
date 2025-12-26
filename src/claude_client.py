@@ -28,6 +28,13 @@ from anthropic import (
 )
 from pydantic import BaseModel
 
+from .claude_models import (
+    ActionSelectionOutput,
+    AppraisalOutput,
+    DialecticalOutput,
+    ResponseOutput,
+    ValidationOutput,
+)
 from .observability import get_instrumentation, get_logger
 
 T = TypeVar("T", bound=BaseModel)
@@ -216,28 +223,12 @@ class ClaudeClient:
         temperature: Optional[float] = None,
         node_name: str = "unknown",
     ) -> str:
-        """
-        Basic completion - returns text response.
-
-        Args:
-            messages: Conversation history in Claude format
-            system: System prompt (overrides skills)
-            skills: List of skill names to use for system prompt
-            temperature: Override default temperature
-            node_name: Name of cognitive node calling this (for instrumentation)
-
-        Returns:
-            Text response from Claude
-        """
-        # Check circuit breaker
+        """Basic completion - returns text response."""
         _circuit_breaker.check_or_raise()
-
-        # Build system prompt
         if system is None and skills:
             system = self.build_system_prompt(skills)
 
         try:
-            # Call Claude with timing
             start_time = time()
             response = await self.client.messages.create(
                 model=self.config.model,
@@ -246,23 +237,27 @@ class ClaudeClient:
                 system=system or "",
                 messages=cast(Any, messages),
             )
-            latency_ms = (time() - start_time) * 1000
-            _circuit_breaker.record_success()
-
-            # Track token usage
-            tokens_in = response.usage.input_tokens
-            tokens_out = response.usage.output_tokens
-            inst = get_instrumentation()
-            inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
-
-            # Extract text - content[0] is always TextBlock for text completions
-            first_block = response.content[0]
-            if hasattr(first_block, "text"):
-                return first_block.text
-            raise ValueError("Response did not contain text block")
+            self._track_response(response, node_name, start_time)
+            return self._extract_text(response)
         except (RateLimitError, APIConnectionError, APIError):
             _circuit_breaker.record_failure()
             raise
+
+    def _track_response(self, response: Any, node_name: str, start_time: float) -> None:
+        """Track response metrics and record success."""
+        latency_ms = (time() - start_time) * 1000
+        _circuit_breaker.record_success()
+        inst = get_instrumentation()
+        inst.on_claude_call(
+            node_name, response.usage.input_tokens, response.usage.output_tokens, latency_ms
+        )
+
+    def _extract_text(self, response: Any) -> str:
+        """Extract text from response content."""
+        first_block = response.content[0]
+        if hasattr(first_block, "text"):
+            return str(first_block.text)
+        raise ValueError("Response did not contain text block")
 
     # ============================================================
     # STRUCTURED OUTPUTS (Beta)
@@ -277,31 +272,13 @@ class ClaudeClient:
         temperature: Optional[float] = None,
         node_name: str = "unknown",
     ) -> T:
-        """
-        Completion with structured output.
-
-        Uses JSON mode with schema in prompt for Azure Foundry compatibility.
-
-        Args:
-            messages: Conversation history
-            response_model: Pydantic model class for response
-            system: System prompt
-            skills: Skills to use
-            temperature: Temperature override
-            node_name: Name of cognitive node calling this (for instrumentation)
-
-        Returns:
-            Instance of response_model with parsed response
-        """
+        """Completion with structured output using JSON mode."""
         _circuit_breaker.check_or_raise()
-
         if system is None and skills:
             system = self.build_system_prompt(skills)
 
-        # Add JSON schema to system prompt for structured output
         schema = response_model.model_json_schema()
-        schema_prompt = f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}\n\nOutput ONLY valid JSON, no other text."
-
+        schema_prompt = f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}\n\nOutput ONLY valid JSON."
         full_system = (system or "") + schema_prompt
 
         try:
@@ -313,33 +290,22 @@ class ClaudeClient:
                 system=full_system,
                 messages=cast(Any, messages),
             )
-            latency_ms = (time() - start_time) * 1000
-            _circuit_breaker.record_success()
-
-            # Track token usage
-            tokens_in = response.usage.input_tokens
-            tokens_out = response.usage.output_tokens
-            inst = get_instrumentation()
-            inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
-
-            # Parse JSON response into model
-            first_block = response.content[0]
-            if not hasattr(first_block, "text"):
-                raise ValueError("Response did not contain text block")
-            response_text: str = first_block.text
-            # Handle potential markdown code blocks
-            if response_text.startswith("```"):
-                import re
-
-                match = re.search(r"```(?:json)?\s*(.*?)\s*```", response_text, re.DOTALL)
-                if match:
-                    response_text = match.group(1)
-
-            data = json.loads(response_text)
-            return response_model(**data)
+            self._track_response(response, node_name, start_time)
+            return self._parse_structured_response(response, response_model)
         except (RateLimitError, APIConnectionError, APIError):
             _circuit_breaker.record_failure()
             raise
+
+    def _parse_structured_response(self, response: Any, response_model: Type[T]) -> T:
+        """Parse JSON response into Pydantic model."""
+        import re
+
+        text = self._extract_text(response)
+        if text.startswith("```"):
+            match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+            if match:
+                text = match.group(1)
+        return response_model(**json.loads(text))
 
     async def complete_json(
         self,
@@ -349,23 +315,8 @@ class ClaudeClient:
         skills: Optional[list[str]] = None,
         node_name: str = "unknown",
     ) -> dict[str, Any]:
-        """
-        Completion with JSON schema validation.
-
-        For cases where you have a raw JSON schema instead of Pydantic.
-
-        Args:
-            messages: Conversation history
-            schema: JSON schema dict
-            system: System prompt
-            skills: Skills to use
-            node_name: Name of cognitive node calling this (for instrumentation)
-
-        Returns:
-            Parsed JSON dict matching schema
-        """
+        """Completion with JSON schema validation (for raw JSON schema instead of Pydantic)."""
         _circuit_breaker.check_or_raise()
-
         if system is None and skills:
             system = self.build_system_prompt(skills)
 
@@ -379,23 +330,19 @@ class ClaudeClient:
                 messages=cast(Any, messages),
                 output_format=cast(Any, {"type": "json_schema", "schema": schema}),
             )
-            latency_ms = (time() - start_time) * 1000
-            _circuit_breaker.record_success()
-
-            # Track token usage
-            tokens_in = response.usage.input_tokens
-            tokens_out = response.usage.output_tokens
-            inst = get_instrumentation()
-            inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
-
-            first_block = response.content[0]
-            if hasattr(first_block, "text"):
-                result: dict[str, Any] = json.loads(first_block.text)
-                return result
-            raise ValueError("Response did not contain text block")
+            self._track_response(response, node_name, start_time)
+            return self._parse_json_response(response)
         except (RateLimitError, APIConnectionError, APIError):
             _circuit_breaker.record_failure()
             raise
+
+    def _parse_json_response(self, response: Any) -> dict[str, Any]:
+        """Parse JSON from response content."""
+        first_block = response.content[0]
+        if hasattr(first_block, "text"):
+            result: dict[str, Any] = json.loads(first_block.text)
+            return result
+        raise ValueError("Response did not contain text block")
 
     # ============================================================
     # TOOL USE
@@ -410,20 +357,7 @@ class ClaudeClient:
         tool_choice: Optional[dict[str, Any]] = None,
         node_name: str = "unknown",
     ) -> dict[str, Any]:
-        """
-        Completion with tool use.
-
-        Args:
-            messages: Conversation history
-            tools: Tool definitions (name, description, input_schema)
-            system: System prompt
-            skills: Skills to use
-            tool_choice: Optional tool choice constraint
-            node_name: Name of cognitive node calling this (for instrumentation)
-
-        Returns:
-            Full response including tool_use blocks
-        """
+        """Completion with tool use - returns text and tool_use blocks."""
         if system is None and skills:
             system = self.build_system_prompt(skills)
 
@@ -434,27 +368,21 @@ class ClaudeClient:
             "messages": messages,
             "tools": tools,
         }
-
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
 
         start_time = time()
         response = await self.client.messages.create(**kwargs)
-        latency_ms = (time() - start_time) * 1000
+        self._track_response(response, node_name, start_time)
+        return self._parse_tool_response(response)
 
-        # Track token usage
-        tokens_in = response.usage.input_tokens
-        tokens_out = response.usage.output_tokens
-        inst = get_instrumentation()
-        inst.on_claude_call(node_name, tokens_in, tokens_out, latency_ms)
-
-        # Parse response into structured format
+    def _parse_tool_response(self, response: Any) -> dict[str, Any]:
+        """Parse tool use response into structured format."""
         result: dict[str, Any] = {
             "text_blocks": [],
             "tool_use_blocks": [],
             "stop_reason": response.stop_reason,
         }
-
         for block in response.content:
             if block.type == "text":
                 result["text_blocks"].append(block.text)
@@ -462,7 +390,6 @@ class ClaudeClient:
                 result["tool_use_blocks"].append(
                     {"id": block.id, "name": block.name, "input": block.input}
                 )
-
         return result
 
     # ============================================================
@@ -493,77 +420,11 @@ class ClaudeClient:
                 yield text
 
 
-# ============================================================
-# PYDANTIC MODELS FOR STRUCTURED OUTPUTS
-# ============================================================
-
-
-class AppraisalOutput(BaseModel):
-    """Structured output for appraisal node"""
-
-    face_threat_level: float  # 0.0-1.0
-    expectancy_violation: Optional[str]
-    goal_alignment: dict[str, float]  # goal_id -> alignment score
-    urgency: float  # 0.0-1.0
-    uncertainty_areas: list[str]
-    recommended_approach: str  # "seek_guidance", "propose_action", "execute"
-    relevant_belief_ids: list[str]
-    difficulty_assessment: int  # 1-5
-    involves_ethical_beliefs: bool
-    reasoning: str
-
-
-class ActionSelectionOutput(BaseModel):
-    """Structured output for action selection node"""
-
-    action_type: str
-    work_units: list[dict[str, Any]]
-    tool_requirements: list[str]
-    confidence: float
-    requires_human_approval: bool
-    approval_reason: Optional[str]
-    estimated_difficulty: int
-
-
-class ValidationOutput(BaseModel):
-    """Structured output for validation node"""
-
-    all_passed: bool
-    results: list[dict[str, Any]]  # ValidationResult items
-    recommended_action: str  # "proceed", "retry", "escalate"
-    fix_suggestions: list[str]
-
-
-class ResponseOutput(BaseModel):
-    """Structured output for response generation"""
-
-    main_content: str
-    tone: str  # "professional", "explanatory", "apologetic", etc.
-    action_items: list[str] = []
-    questions: list[str] = []  # For guidance_seeking mode
-    confirmation_prompt: Optional[str] = None  # For action_proposal mode
-    awaiting_input: bool = False
-
-
-class DialecticalOutput(BaseModel):
-    """Structured output for dialectical resolution"""
-
-    synthesis: str
-    chosen_goal_id: str
-    deferred_goal_ids: list[str]
-    resolution_reasoning: str
-    requires_human_input: bool
-
-
-# Backwards-compatible re-exports from singleton module
-from .claude_singleton import get_claude_client
-
 __all__ = [
     "ClaudeClient",
     "ClaudeConfig",
     "CircuitBreaker",
     "CircuitBreakerOpenError",
-    "get_claude_client",
     "AppraisalOutput",
     "ActionSelectionOutput",
     "ValidationOutput",

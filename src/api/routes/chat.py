@@ -18,6 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 from ...birth.birth_system import create_initial_state
 from ...cognitive_loop.graph import invoke_cognitive_loop, stream_cognitive_loop
 from ...observability import get_logger
+from ...state.schema import BabyMARSState
 from ..schemas.chat import (
     ApprovalRequest,
     ChatInterruptRequest,
@@ -30,6 +31,52 @@ from ..schemas.chat import (
 logger = get_logger("baby_mars.api.chat")
 
 router = APIRouter()
+
+
+def _update_session_state(
+    session: dict[str, Any], message: str, birth_result: Any
+) -> BabyMARSState:
+    """Create or update session state with new message."""
+    if session["state"] is None:
+        session["state"] = create_initial_state(birth_result, message)
+    else:
+        session["state"]["messages"].append({"role": "user", "content": message})
+        session["state"]["current_turn"] += 1
+    session["message_count"] += 1
+    return cast(BabyMARSState, session["state"])
+
+
+def _extract_references(result: BabyMARSState) -> list[Reference]:
+    """Extract references from cognitive loop result."""
+    references: list[Reference] = []
+    referenced_objs: list[dict[str, Any]] = cast(
+        list[dict[str, Any]], result.get("referenced_objects") or []
+    )
+    for ref in referenced_objs:
+        references.append(
+            Reference(
+                type=ref.get("type", "widget"),
+                id=ref.get("id", ""),
+                intensity=ref.get("intensity", "mention"),
+            )
+        )
+    return references
+
+
+def _build_error_detail(code: str, message: str, retryable: bool = False) -> dict[str, Any]:
+    """Build error detail dict for HTTPException."""
+    detail: dict[str, Any] = {
+        "error": {"code": code, "message": message, "severity": "error", "recoverable": True}
+    }
+    if retryable:
+        detail["error"]["retryable"] = True
+        detail["error"]["retry"] = {
+            "after_seconds": 2,
+            "max_attempts": 3,
+            "strategy": "exponential",
+        }
+        detail["error"]["actions"] = [{"label": "Try again", "action": "retry"}]
+    return detail
 
 
 def get_session(request: Request, session_id: str) -> dict[str, Any]:
@@ -55,94 +102,41 @@ def get_session(request: Request, session_id: str) -> dict[str, Any]:
 
 @router.post("", response_model=MessageResponse)
 async def send_message(request_data: MessageRequest, request: Request) -> MessageResponse:
-    """
-    Send a message and get a response.
-
-    Runs the full cognitive loop:
-    1. Cognitive Activation (load beliefs, context)
-    2. Appraisal (analyze situation)
-    3. Action Selection (determine autonomy)
-    4. Execution (if autonomous)
-    5. Verification
-    6. Feedback (update beliefs)
-    7. Response Generation
-    8. Personality Gate (validate against immutable beliefs)
-
-    If stream=true, use /chat/stream instead for SSE.
-    """
+    """Send a message and run the full cognitive loop."""
     session = get_session(request, request_data.session_id)
-
-    # Check for pending message from pivot interrupt
     pending_message = session.pop("pending_message", None)
     if pending_message:
-        # Merge pending message with current request
         request_data.message = f"{pending_message}\n\n{request_data.message}"
 
     try:
-        # Create or update state
-        if session["state"] is None:
-            session["state"] = create_initial_state(session["birth_result"], request_data.message)
-        else:
-            session["state"]["messages"].append({"role": "user", "content": request_data.message})
-            session["state"]["current_turn"] += 1
-
-        session["message_count"] += 1
-
-        # Store context pills in state
+        state = _update_session_state(session, request_data.message, session["birth_result"])
         if request_data.context_pills:
             session["context_pills"] = [
                 {"type": p.type, "id": p.id} for p in request_data.context_pills
             ]
-            # TODO: Resolve pills to actual data and add to state
 
-        # Run cognitive loop
-        config = cast(
-            RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}}
-        )
-
+        config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
         result = await invoke_cognitive_loop(
-            state=session["state"],
-            graph=request.app.state.graph,
-            config=config,
+            state=state, graph=request.app.state.graph, config=config
         )
-
-        # Update session
         session["state"] = result
 
-        # Extract response
-        final_response = str(result.get("final_response", ""))
         supervision_mode = result.get("supervision_mode") or "guidance_seeking"
         belief_strength = result.get("belief_strength_for_action") or 0.0
-
-        # Check for approval
         approval_needed = supervision_mode == "action_proposal"
-        approval_summary = result.get("approval_summary") if approval_needed else None
-
-        # Extract references for highlighting (referenced_objects may not exist in state)
-        references: list[Reference] = []
-        referenced_objs: list[dict[str, Any]] = result.get("referenced_objects") or []  # type: ignore[assignment]
-        for ref in referenced_objs:
-            references.append(
-                Reference(
-                    type=ref.get("type", "widget"),
-                    id=ref.get("id", ""),
-                    intensity=ref.get("intensity", "mention"),
-                )
-            )
 
         logger.info(
-            f"Message processed: session={request_data.session_id}, "
-            f"mode={supervision_mode}, strength={belief_strength:.2f}"
+            f"Message processed: session={request_data.session_id}, mode={supervision_mode}, strength={belief_strength:.2f}"
         )
 
         return MessageResponse(
             session_id=request_data.session_id,
-            response=final_response,
+            response=str(result.get("final_response", "")),
             supervision_mode=supervision_mode,
             belief_strength=belief_strength,
             approval_needed=approval_needed,
-            approval_summary=approval_summary,
-            references=references,
+            approval_summary=result.get("approval_summary") if approval_needed else None,
+            references=_extract_references(result),
             context_budget=None,
         )
 
@@ -150,128 +144,83 @@ async def send_message(request_data: MessageRequest, request: Request) -> Messag
         logger.error(f"Message processing failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail={
-                "error": {
-                    "code": "PROCESSING_FAILED",
-                    "message": f"Failed to process message: {str(e)}",
-                    "severity": "error",
-                    "recoverable": True,
-                    "retryable": True,
-                    "retry": {"after_seconds": 2, "max_attempts": 3, "strategy": "exponential"},
-                    "actions": [
-                        {"label": "Try again", "action": "retry"},
-                    ],
-                }
-            },
+            detail=_build_error_detail(
+                "PROCESSING_FAILED", f"Failed to process message: {e}", retryable=True
+            ),
         )
+
+
+def _process_stream_event(event: dict[str, Any], state: BabyMARSState) -> dict[str, str] | None:
+    """Process a single stream event and return SSE dict or None."""
+    event_type = event.get("event", "")
+    if event_type == "on_chain_start":
+        return {"event": "node_start", "data": json.dumps({"node": event.get("name", "unknown")})}
+    elif event_type == "on_chain_end":
+        output = event.get("data", {}).get("output", {})
+        if isinstance(output, dict):
+            state.update(cast(BabyMARSState, output))
+        return {
+            "event": "node_end",
+            "data": json.dumps(
+                {
+                    "node": event.get("name", "unknown"),
+                    "supervision_mode": state.get("supervision_mode"),
+                }
+            ),
+        }
+    elif event_type == "on_llm_stream":
+        chunk = event.get("data", {}).get("chunk", "")
+        if chunk:
+            return {"event": "token", "data": json.dumps({"text": chunk})}
+    return None
 
 
 @router.post("/stream")
 async def send_message_stream(
     request_data: MessageRequest, request: Request
 ) -> EventSourceResponse:
-    """
-    Send a message and stream the response via SSE.
-
-    Events:
-    - node_start: {node: "name"} - Node execution started
-    - node_end: {node: "name", supervision_mode: "..."} - Node completed
-    - token: {text: "..."} - Response token
-    - complete: {response, mode, belief_strength, approval_needed} - Done
-    - error: {message: "..."} - Error occurred
-
-    Supports interruption via /chat/interrupt endpoint.
-    """
+    """Send a message and stream the response via SSE."""
     session = get_session(request, request_data.session_id)
-
-    # Create interrupt event for this stream
     session["interrupt_event"] = asyncio.Event()
 
     async def event_generator() -> AsyncIterator[dict[str, str]]:
         try:
-            # Create or update state
-            if session["state"] is None:
-                session["state"] = create_initial_state(
-                    session["birth_result"], request_data.message
-                )
-            else:
-                session["state"]["messages"].append(
-                    {"role": "user", "content": request_data.message}
-                )
-                session["state"]["current_turn"] += 1
+            state = _update_session_state(session, request_data.message, session["birth_result"])
+            config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
 
-            session["message_count"] += 1
-
-            config = cast(
-                RunnableConfig, {"configurable": {"thread_id": session["state"]["thread_id"]}}
-            )
-
-            # Stream events from cognitive loop
             async for event in stream_cognitive_loop(
-                state=session["state"],
-                graph=request.app.state.graph,
-                config=config,
+                state=state, graph=request.app.state.graph, config=config
             ):
-                # Check for interruption
                 if session["interrupt_event"].is_set():
                     yield {
                         "event": "interrupted",
                         "data": json.dumps(
                             {
-                                "partial_response": session["state"].get("final_response", ""),
+                                "partial_response": state.get("final_response", ""),
                                 "will_resume": True,
                             }
                         ),
                     }
                     return
+                sse_event = _process_stream_event(event, state)
+                if sse_event:
+                    yield sse_event
 
-                event_type = event.get("event", "")
-
-                if event_type == "on_chain_start":
-                    node_name = event.get("name", "unknown")
-                    yield {"event": "node_start", "data": json.dumps({"node": node_name})}
-
-                elif event_type == "on_chain_end":
-                    node_name = event.get("name", "unknown")
-                    output = event.get("data", {}).get("output", {})
-
-                    if isinstance(output, dict):
-                        session["state"].update(output)
-
-                    yield {
-                        "event": "node_end",
-                        "data": json.dumps(
-                            {
-                                "node": node_name,
-                                "supervision_mode": session["state"].get("supervision_mode"),
-                            }
-                        ),
-                    }
-
-                elif event_type == "on_llm_stream":
-                    chunk = event.get("data", {}).get("chunk", "")
-                    if chunk:
-                        yield {"event": "token", "data": json.dumps({"text": chunk})}
-
-            # Send completion
             yield {
                 "event": "complete",
                 "data": json.dumps(
                     {
-                        "response": session["state"].get("final_response", ""),
-                        "supervision_mode": session["state"].get("supervision_mode", ""),
-                        "belief_strength": session["state"].get("belief_strength_for_action", 0.0),
-                        "approval_needed": session["state"].get("supervision_mode")
-                        == "action_proposal",
+                        "response": state.get("final_response", ""),
+                        "supervision_mode": state.get("supervision_mode", ""),
+                        "belief_strength": state.get("belief_strength_for_action", 0.0),
+                        "approval_needed": state.get("supervision_mode") == "action_proposal",
                     }
                 ),
             }
-
         except Exception as e:
             logger.error(f"Stream error: {e}", exc_info=True)
             yield {"event": "error", "data": json.dumps({"message": str(e)})}
         finally:
-            # Clean up interrupt event
             session["interrupt_event"] = None
 
     return EventSourceResponse(event_generator())
@@ -319,16 +268,8 @@ async def interrupt_stream(
     )
 
 
-@router.post("/approve", response_model=MessageResponse)
-async def approve_action(request_data: ApprovalRequest, request: Request) -> MessageResponse:
-    """
-    Approve or reject a proposed action.
-
-    When supervision_mode is "action_proposal", the system pauses
-    for explicit human approval before executing.
-    """
-    session = get_session(request, request_data.session_id)
-
+def _validate_approval_state(session: dict[str, Any]) -> BabyMARSState:
+    """Validate session state for approval and return state or raise HTTPException."""
     state = session.get("state")
     if not state:
         raise HTTPException(
@@ -341,7 +282,6 @@ async def approve_action(request_data: ApprovalRequest, request: Request) -> Mes
                 }
             },
         )
-
     if state.get("supervision_mode") != "action_proposal":
         raise HTTPException(
             status_code=400,
@@ -353,36 +293,41 @@ async def approve_action(request_data: ApprovalRequest, request: Request) -> Mes
                 }
             },
         )
+    return cast(BabyMARSState, state)
+
+
+def _add_feedback_note(state: BabyMARSState, feedback: str, approved: bool) -> None:
+    """Add approval feedback as a note to state."""
+    import uuid
+
+    state["notes"].append(
+        {
+            "note_id": f"approval_feedback_{uuid.uuid4().hex[:8]}",
+            "content": feedback,
+            "created_at": datetime.now().isoformat(),
+            "ttl_hours": 24,
+            "priority": 0.8,
+            "source": "user",
+            "context": {"approval": approved},
+        }
+    )
+
+
+@router.post("/approve", response_model=MessageResponse)
+async def approve_action(request_data: ApprovalRequest, request: Request) -> MessageResponse:
+    """Approve or reject a proposed action."""
+    session = get_session(request, request_data.session_id)
+    state = _validate_approval_state(session)
 
     try:
-        # Update approval status
         state["approval_status"] = "approved" if request_data.approved else "rejected"
-
-        # Add feedback as note
         if request_data.feedback:
-            import uuid
+            _add_feedback_note(state, request_data.feedback, request_data.approved)
 
-            state["notes"].append(
-                {
-                    "note_id": f"approval_feedback_{uuid.uuid4().hex[:8]}",
-                    "content": request_data.feedback,
-                    "created_at": datetime.now().isoformat(),
-                    "ttl_hours": 24,
-                    "priority": 0.8,
-                    "source": "user",
-                    "context": {"approval": request_data.approved},
-                }
-            )
-
-        # Continue cognitive loop
         config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
-
         result = await invoke_cognitive_loop(
-            state=state,
-            graph=request.app.state.graph,
-            config=config,
+            state=state, graph=request.app.state.graph, config=config
         )
-
         session["state"] = result
 
         logger.info(
@@ -399,18 +344,11 @@ async def approve_action(request_data: ApprovalRequest, request: Request) -> Mes
             references=[],
             context_budget=None,
         )
-
     except Exception as e:
         logger.error(f"Approval processing failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail={
-                "error": {
-                    "code": "APPROVAL_FAILED",
-                    "message": "Failed to process approval",
-                    "severity": "error",
-                    "recoverable": True,
-                    "retryable": True,
-                }
-            },
+            detail=_build_error_detail(
+                "APPROVAL_FAILED", "Failed to process approval", retryable=True
+            ),
         )

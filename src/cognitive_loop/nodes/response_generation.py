@@ -11,7 +11,8 @@ and professional communication patterns.
 
 from typing import Any
 
-from ...claude_client import ResponseOutput, get_claude_client
+from ...claude_models import ResponseOutput
+from ...claude_singleton import get_claude_client
 from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
@@ -24,102 +25,96 @@ logger = get_logger(__name__)
 # ============================================================
 
 
+def _format_appraisal_context(appraisal: Any) -> str:
+    """Format appraisal summary for response context."""
+    face_threat = appraisal.get("face_threat")
+    face_threat_level = face_threat.get("level", 0) if isinstance(face_threat, dict) else "none"
+    return f"""<appraisal>
+  Difficulty: {appraisal.get("difficulty", "unknown")}
+  Recommended action: {appraisal.get("recommended_action_type", "unknown")}
+  Face threat: {face_threat_level}
+</appraisal>"""
+
+
+def _format_action_context(selected_action: Any) -> str:
+    """Format selected action for response context."""
+    work_units = selected_action.get("work_units", [])
+    wu_summary = [f"- {wu.get('tool', '?')}.{wu.get('verb', '?')}" for wu in work_units[:5]]
+    return f"""<selected_action>
+  Type: {selected_action.get("action_type", "unknown")}
+  Work units:
+{chr(10).join(wu_summary)}
+</selected_action>"""
+
+
+def _format_execution_context(execution_results: list[dict[str, Any]]) -> str:
+    """Format execution results for response context."""
+    result_summary = []
+    for r in execution_results:
+        status = "✓" if r.get("success", False) else "✗"
+        result_summary.append(
+            f"- {status} {r.get('tool', '?')}.{r.get('verb', '?')}: {r.get('message', '')}"
+        )
+    return f"<execution_results>\n{chr(10).join(result_summary)}\n</execution_results>"
+
+
+def _format_outcome_context(outcome: dict[str, Any]) -> str:
+    """Format outcome summary for response context."""
+    failures = outcome.get("failures", [])
+    failure_list = failures[:3] if isinstance(failures, list) else []
+    return f"""<outcome>
+  Type: {outcome.get("outcome_type", "unknown")}
+  Success rate: {float(outcome.get("success_rate", 0)):.0%}
+  Failures: {", ".join(failure_list) or "none"}
+</outcome>"""
+
+
 def build_response_context(state: BabyMARSState) -> str:
-    """Build context for response generation"""
+    """Build context for response generation."""
     parts = []
 
     # Original request
     messages = state.get("messages", [])
     if messages:
-        last_msg = messages[-1]
-        content = last_msg.get("content", "")
+        content = messages[-1].get("content", "")
         if isinstance(content, list):
             content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
         parts.append(f"<original_request>\n{content}\n</original_request>")
 
-    # Supervision mode
-    supervision_mode = state.get("supervision_mode", "guidance_seeking")
-    parts.append(f"<supervision_mode>{supervision_mode}</supervision_mode>")
+    parts.append(
+        f"<supervision_mode>{state.get('supervision_mode', 'guidance_seeking')}</supervision_mode>"
+    )
 
-    # Appraisal summary
-    appraisal = state.get("appraisal")
-    if appraisal:
-        face_threat = appraisal.get("face_threat")
-        face_threat_level = face_threat.get("level", 0) if isinstance(face_threat, dict) else "none"
-        parts.append(f"""<appraisal>
-  Difficulty: {appraisal.get("difficulty", "unknown")}
-  Recommended action: {appraisal.get("recommended_action_type", "unknown")}
-  Face threat: {face_threat_level}
-</appraisal>""")
+    if appraisal := state.get("appraisal"):
+        parts.append(_format_appraisal_context(appraisal))
+    if selected_action := state.get("selected_action"):
+        parts.append(_format_action_context(selected_action))
+    if execution_results := state.get("execution_results", []):
+        parts.append(_format_execution_context(execution_results))
+    if (outcome := state.get("execution_outcome")) and isinstance(outcome, dict):
+        parts.append(_format_outcome_context(outcome))
 
-    # Selected action (if any)
-    selected_action = state.get("selected_action")
-    if selected_action:
-        work_units = selected_action.get("work_units", [])
-        wu_summary = []
-        for wu in work_units[:5]:
-            wu_summary.append(f"- {wu.get('tool', '?')}.{wu.get('verb', '?')}")
-        parts.append(f"""<selected_action>
-  Type: {selected_action.get("action_type", "unknown")}
-  Work units:
-{chr(10).join(wu_summary)}
-</selected_action>""")
-
-    # Execution results (if any)
-    execution_results = state.get("execution_results", [])
-    if execution_results:
-        result_summary = []
-        for r in execution_results:
-            status = "✓" if r.get("success", False) else "✗"
-            result_summary.append(
-                f"- {status} {r.get('tool', '?')}.{r.get('verb', '?')}: {r.get('message', '')}"
-            )
-        parts.append(f"""<execution_results>
-{chr(10).join(result_summary)}
-</execution_results>""")
-
-    # Outcome summary
-    outcome = state.get("execution_outcome")
-    if outcome and isinstance(outcome, dict):
-        outcome_type = outcome.get("outcome_type", "unknown")
-        success_rate = float(outcome.get("success_rate", 0))
-        failures = outcome.get("failures", [])
-        failure_list = failures[:3] if isinstance(failures, list) else []
-        parts.append(f"""<outcome>
-  Type: {outcome_type}
-  Success rate: {success_rate:.0%}
-  Failures: {", ".join(failure_list) or "none"}
-</outcome>""")
-
-    # Validation results
     validation_results = state.get("validation_results", [])
-    if validation_results:
-        failures = [r for r in validation_results if not r.get("passed", True)]
-        if failures:
-            failure_msgs = [f.get("message", "") for f in failures[:3]]
-            parts.append(f"""<validation_issues>
-{chr(10).join("- " + m for m in failure_msgs)}
-</validation_issues>""")
+    failures = [r for r in validation_results if not r.get("passed", True)]
+    if failures:
+        failure_msgs = [f.get("message", "") for f in failures[:3]]
+        parts.append(
+            f"<validation_issues>\n{chr(10).join('- ' + m for m in failure_msgs)}\n</validation_issues>"
+        )
 
-    # People context (for tone adjustment)
     objects = state.get("objects", {})
-    people = objects.get("people", [])
-    if people:
-        primary = people[0]
-        parts.append(f"""<communication_context>
-  Primary person: {primary.get("name", "unknown")} ({primary.get("role", "unknown")})
-  Authority level: {primary.get("authority", 0):.2f}
-  Relationship value: {primary.get("relationship_value", 0):.2f}
-</communication_context>""")
+    if people := objects.get("people", []):
+        p = people[0]
+        parts.append(
+            f"<communication_context>\n  Primary person: {p.get('name', 'unknown')} ({p.get('role', 'unknown')})\n  Authority level: {p.get('authority', 0):.2f}\n  Relationship value: {p.get('relationship_value', 0):.2f}\n</communication_context>"
+        )
 
-    # Relevant beliefs for tone
     beliefs = state.get("activated_beliefs", [])
     style_beliefs = [b for b in beliefs if str(b.get("category", "")) == "style"][:3]
     if style_beliefs:
-        style_strs = [f"- {b['statement']}" for b in style_beliefs]
-        parts.append(f"""<style_beliefs>
-{chr(10).join(style_strs)}
-</style_beliefs>""")
+        parts.append(
+            f"<style_beliefs>\n{chr(10).join('- ' + b['statement'] for b in style_beliefs)}\n</style_beliefs>"
+        )
 
     return "\n\n".join(parts)
 
@@ -164,28 +159,9 @@ Generate a response that:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict[str, Any]:
-    """
-    Response Generation Node
-
-    Generates the final response:
-    1. Determine response type from supervision mode
-    2. Build context from state
-    3. Generate response via Claude
-    4. Format appropriately
-    """
-
-    client = get_claude_client()
-
-    supervision_mode = state.get("supervision_mode") or "guidance_seeking"
-    context = build_response_context(state)
-    template = get_response_template(supervision_mode)
-
-    # Build messages
-    messages = [
-        {
-            "role": "user",
-            "content": f"""Generate a response to the user based on this context.
+def _build_response_prompt(template: str, context: str) -> str:
+    """Build the response generation prompt."""
+    return f"""Generate a response to the user based on this context.
 
 {template}
 
@@ -197,39 +173,37 @@ Generate a professional, helpful response that:
 3. Is clear and concise
 4. Follows the supervision mode guidelines
 
-Return your response in the structured format.""",
-        }
-    ]
+Return your response in the structured format."""
+
+
+def _build_result(state: BabyMARSState, final_response: str) -> dict[str, Any]:
+    """Build result dict with updated messages and final response."""
+    return {
+        "messages": state.get("messages", []) + [{"role": "assistant", "content": final_response}],
+        "final_response": final_response,
+    }
+
+
+async def process(state: BabyMARSState) -> dict[str, Any]:
+    """Response Generation: generate final response based on supervision mode."""
+    supervision_mode = state.get("supervision_mode") or "guidance_seeking"
 
     try:
-        # Call Claude for response generation
+        client = get_claude_client()
+        context = build_response_context(state)
+        template = get_response_template(supervision_mode)
+        prompt = _build_response_prompt(template, context)
+
         response = await client.complete_structured(
-            messages=messages,
+            messages=[{"role": "user", "content": prompt}],
             response_model=ResponseOutput,
             skills=["response_generation", "accounting_domain"],
         )
 
-        # Build final response
-        final_response = _format_response(response, supervision_mode)
-
-        # Add to messages
-        new_message = {"role": "assistant", "content": final_response}
-
-        return {
-            "messages": state.get("messages", []) + [new_message],
-            "final_response": final_response,
-        }
-
+        return _build_result(state, _format_response(response, supervision_mode))
     except Exception as e:
-        # Fallback response on error
-        print(f"Response generation error: {e}")
-
-        fallback = _generate_fallback_response(state, supervision_mode)
-
-        return {
-            "messages": state.get("messages", []) + [{"role": "assistant", "content": fallback}],
-            "final_response": fallback,
-        }
+        logger.error(f"Response generation error: {e}")
+        return _build_result(state, _generate_fallback_response(state, supervision_mode))
 
 
 def _format_response(response: ResponseOutput, supervision_mode: str) -> str:

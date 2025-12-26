@@ -15,7 +15,8 @@ Implements the appraisal phase of the cognitive loop:
 from typing import Any, cast
 
 from ...analytics import get_belief_analytics
-from ...claude_client import AppraisalOutput, get_claude_client
+from ...claude_models import AppraisalOutput
+from ...claude_singleton import get_claude_client
 from ...observability import get_logger
 from ...state.schema import (
     AppraisalResult,
@@ -52,11 +53,51 @@ def _track_autonomy_decision(
 # ============================================================
 
 
+def _format_beliefs_context(beliefs: list[Any]) -> str:
+    """Format activated beliefs prioritizing competence over identity."""
+    if not beliefs:
+        return ""
+    competence = [b for b in beliefs if b.get("category") in ("competence", "technical")]
+    other = [b for b in beliefs if b.get("category") not in ("competence", "technical", "identity")]
+    identity = [b for b in beliefs if b.get("category") == "identity"]
+    prioritized = competence[:6] + other[:2] + identity[:2]
+
+    lines = []
+    for b in prioritized:
+        strength = b.get("resolved_strength", b.get("strength", 0))
+        lines.append(
+            f"- [{b['belief_id']}] {b['statement']} (category={b['category']}, strength={strength:.2f})"
+        )
+    return "<activated_beliefs>\n" + "\n".join(lines) + "\n</activated_beliefs>"
+
+
+def _format_people_context(people: list[Any]) -> str:
+    """Format people context for appraisal."""
+    if not people:
+        return ""
+    lines = []
+    for p in people[:5]:
+        lines.append(
+            f"- {p['name']} ({p['role']}) - authority={p.get('authority', 0):.2f}, relationship_value={p.get('relationship_value', 0):.2f}"
+        )
+    return "<people_context>\n" + "\n".join(lines) + "\n</people_context>"
+
+
+def _format_temporal_context(temporal: Any) -> str:
+    """Format temporal context for appraisal."""
+    if not temporal:
+        return ""
+    return f"""<temporal_context>
+- Current time: {temporal.get("current_time", "unknown")}
+- Month-end: {temporal.get("is_month_end", False)}
+- Quarter-end: {temporal.get("is_quarter_end", False)}
+- Year-end: {temporal.get("is_year_end", False)}
+- Urgency multiplier: {temporal.get("urgency_multiplier", 1.0)}
+</temporal_context>"""
+
+
 def build_appraisal_context(state: BabyMARSState) -> str:
-    """
-    Build context string for Claude appraisal.
-    Includes activated beliefs, current context, and conversation history.
-    """
+    """Build context string for Claude appraisal."""
     parts = []
 
     # Current message
@@ -68,66 +109,25 @@ def build_appraisal_context(state: BabyMARSState) -> str:
             content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
         parts.append(f"<current_request>\n{content}\n</current_request>")
 
-    # Context key
-    context_key = state.get("current_context_key", "*|*|*")
-    parts.append(f"<context_key>{context_key}</context_key>")
+    parts.append(f"<context_key>{state.get('current_context_key', '*|*|*')}</context_key>")
 
-    # Activated beliefs - prioritize competence/technical over identity
-    # Identity beliefs are constraints, competence beliefs drive capability
-    beliefs = state.get("activated_beliefs", [])
-    if beliefs:
-        # Group by category
-        competence_beliefs = [
-            b for b in beliefs if b.get("category") in ("competence", "technical")
-        ]
-        other_beliefs = [
-            b for b in beliefs if b.get("category") not in ("competence", "technical", "identity")
-        ]
-        identity_beliefs = [b for b in beliefs if b.get("category") == "identity"]
+    beliefs_ctx = _format_beliefs_context(state.get("activated_beliefs", []))
+    if beliefs_ctx:
+        parts.append(beliefs_ctx)
 
-        # Show competence first (most relevant for autonomy), then others, then identity
-        prioritized = competence_beliefs[:6] + other_beliefs[:2] + identity_beliefs[:2]
-
-        belief_strs = []
-        for b in prioritized:
-            strength = b.get("resolved_strength", b.get("strength", 0))
-            belief_strs.append(
-                f"- [{b['belief_id']}] {b['statement']} "
-                f"(category={b['category']}, strength={strength:.2f})"
-            )
-        parts.append("<activated_beliefs>\n" + "\n".join(belief_strs) + "\n</activated_beliefs>")
-
-    # Active goals
     goals = state.get("active_goals", [])
     if goals:
-        goal_strs = []
-        for g in goals:
-            goal_strs.append(f"- [{g.get('goal_id', 'unknown')}] {g.get('description', '')}")
+        goal_strs = [f"- [{g.get('goal_id', 'unknown')}] {g.get('description', '')}" for g in goals]
         parts.append("<active_goals>\n" + "\n".join(goal_strs) + "\n</active_goals>")
 
-    # People in context
     objects = state.get("objects", {})
-    people = objects.get("people", [])
-    if people:
-        people_strs = []
-        for p in people[:5]:  # Top 5
-            people_strs.append(
-                f"- {p['name']} ({p['role']}) - "
-                f"authority={p.get('authority', 0):.2f}, "
-                f"relationship_value={p.get('relationship_value', 0):.2f}"
-            )
-        parts.append("<people_context>\n" + "\n".join(people_strs) + "\n</people_context>")
+    people_ctx = _format_people_context(objects.get("people", []))
+    if people_ctx:
+        parts.append(people_ctx)
 
-    # Temporal context
-    temporal = objects.get("temporal", {})
-    if temporal:
-        parts.append(f"""<temporal_context>
-- Current time: {temporal.get("current_time", "unknown")}
-- Month-end: {temporal.get("is_month_end", False)}
-- Quarter-end: {temporal.get("is_quarter_end", False)}
-- Year-end: {temporal.get("is_year_end", False)}
-- Urgency multiplier: {temporal.get("urgency_multiplier", 1.0)}
-</temporal_context>""")
+    temporal_ctx = _format_temporal_context(objects.get("temporal", {}))
+    if temporal_ctx:
+        parts.append(temporal_ctx)
 
     return "\n\n".join(parts)
 
@@ -137,27 +137,9 @@ def build_appraisal_context(state: BabyMARSState) -> str:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict[str, Any]:
-    """
-    Appraisal Node
-
-    Analyzes the current situation:
-    1. Build context from state
-    2. Call Claude with appraisal skill
-    3. Parse structured response
-    4. Return appraisal result
-    """
-
-    client = get_claude_client()
-
-    # Build context for Claude
-    context = build_appraisal_context(state)
-
-    # Build messages
-    messages = [
-        {
-            "role": "user",
-            "content": f"""Perform cognitive appraisal of this situation.
+def _build_appraisal_prompt(context: str) -> str:
+    """Build the appraisal prompt for Claude."""
+    return f"""Perform cognitive appraisal of this situation.
 
 {context}
 
@@ -172,46 +154,66 @@ Analyze the request and provide a structured appraisal including:
 - Difficulty assessment (1-5)
 - Whether ethical beliefs are involved
 
-Return your appraisal in the structured format.""",
-        }
-    ]
+Return your appraisal in the structured format."""
 
+
+def _convert_to_appraisal_result(appraisal: AppraisalOutput) -> AppraisalResult:
+    """Convert AppraisalOutput to AppraisalResult format."""
+    return {
+        "expectancy_violation": {"type": appraisal.expectancy_violation, "description": None}
+        if appraisal.expectancy_violation
+        else None,
+        "face_threat": {
+            "level": appraisal.face_threat_level,
+            "mitigation_needed": appraisal.face_threat_level > 0.3,
+        }
+        if appraisal.face_threat_level > 0
+        else None,
+        "goal_alignment": appraisal.goal_alignment,
+        "attributed_beliefs": appraisal.relevant_belief_ids,
+        "recommended_action_type": _map_approach(appraisal.recommended_approach),  # type: ignore[typeddict-item]
+        "difficulty": appraisal.difficulty_assessment,
+        "involves_ethical_beliefs": appraisal.involves_ethical_beliefs,
+    }
+
+
+def _fallback_appraisal_result() -> dict[str, Any]:
+    """Return fallback result when appraisal fails."""
+    return {
+        "appraisal": {
+            "expectancy_violation": None,
+            "face_threat": None,
+            "goal_alignment": {},
+            "attributed_beliefs": [],
+            "recommended_action_type": "guidance_needed",
+            "difficulty": 3,
+            "involves_ethical_beliefs": False,
+        },
+        "supervision_mode": "guidance_seeking",
+        "belief_strength_for_action": 0.3,
+    }
+
+
+async def process(state: BabyMARSState) -> dict[str, Any]:
+    """Appraisal Node: analyze situation against beliefs and determine autonomy."""
     try:
-        # Call Claude with structured output
+        client = get_claude_client()
+        context = build_appraisal_context(state)
+        messages = [{"role": "user", "content": _build_appraisal_prompt(context)}]
+
         appraisal = await client.complete_structured(
             messages=messages,
             response_model=AppraisalOutput,
             skills=["situation_appraisal", "accounting_domain"],
         )
 
-        # Convert to AppraisalResult format
-        result: AppraisalResult = {
-            "expectancy_violation": {"type": appraisal.expectancy_violation, "description": None}
-            if appraisal.expectancy_violation
-            else None,
-            "face_threat": {
-                "level": appraisal.face_threat_level,
-                "mitigation_needed": appraisal.face_threat_level > 0.3,
-            }
-            if appraisal.face_threat_level > 0
-            else None,
-            "goal_alignment": appraisal.goal_alignment,
-            "attributed_beliefs": appraisal.relevant_belief_ids,
-            "recommended_action_type": _map_approach(appraisal.recommended_approach),  # type: ignore[typeddict-item]
-            "difficulty": appraisal.difficulty_assessment,
-            "involves_ethical_beliefs": appraisal.involves_ethical_beliefs,
-        }
-
-        # Compute belief strength first (Paper #1)
+        result = _convert_to_appraisal_result(appraisal)
         activated_beliefs = state.get("activated_beliefs", [])
         belief_strength = _compute_aggregate_strength(
             appraisal.relevant_belief_ids, cast(list[dict[str, Any]], activated_beliefs)
         )
-
-        # Determine supervision mode from belief strength (Paper #1)
         supervision_mode = _determine_supervision_mode(appraisal, state, belief_strength)
 
-        # Track autonomy decision in PostHog
         _track_autonomy_decision(
             state,
             supervision_mode,
@@ -225,23 +227,9 @@ Return your appraisal in the structured format.""",
             "supervision_mode": supervision_mode,
             "belief_strength_for_action": belief_strength,
         }
-
     except Exception as e:
-        # Fallback to safe defaults on error
-        print(f"Appraisal error: {e}")
-        return {
-            "appraisal": {
-                "expectancy_violation": None,
-                "face_threat": None,
-                "goal_alignment": {},
-                "attributed_beliefs": [],
-                "recommended_action_type": "guidance_needed",
-                "difficulty": 3,
-                "involves_ethical_beliefs": False,
-            },
-            "supervision_mode": "guidance_seeking",
-            "belief_strength_for_action": 0.3,
-        }
+        logger.error(f"Appraisal error: {e}")
+        return _fallback_appraisal_result()
 
 
 def _map_approach(approach: str) -> str:

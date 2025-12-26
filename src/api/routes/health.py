@@ -8,7 +8,7 @@ Health check and system info endpoints.
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 
 from ...observability import get_logger
 from ...persistence.database import get_pool
@@ -19,55 +19,33 @@ logger = get_logger("baby_mars.api.health")
 router = APIRouter()
 
 
-@router.get("/", response_model=dict)
-async def root() -> dict[str, str]:
-    """Root endpoint - API info"""
-    return {
-        "name": "Baby MARS",
-        "version": "0.1.0",
-        "description": "Cognitive architecture with a rented brain",
-        "docs": "/docs",
-    }
-
-
-@router.get("/health", response_model=HealthResponse)
-async def health(request: Request) -> HealthResponse:
-    """
-    Health check with capability matrix.
-
-    Returns status of each service and what capabilities are available.
-    Per API_CONTRACT_V0.md section 8.3
-    """
-    # Check services
-    services = {}
-    capabilities = {}
-
-    # Database
+async def _check_database() -> str:
+    """Check database connectivity."""
     try:
         pool = await get_pool()
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
-        services["database"] = "healthy"
+        return "healthy"
     except Exception as e:
         logger.warning(f"Database health check failed: {e}")
-        services["database"] = "unavailable"
+        return "unavailable"
 
-    # Baby MARS core (always healthy if we're responding)
-    services["baby_mars"] = "healthy"
 
-    # Claude (check if client is configured)
+def _check_claude() -> str:
+    """Check Claude client availability."""
     try:
-        from ...claude_client import get_claude_client
+        from ...claude_singleton import get_claude_client
 
         client = get_claude_client()
-        services["claude"] = "healthy" if client else "unavailable"
+        return "healthy" if client else "unavailable"
     except Exception:
-        services["claude"] = "unavailable"
+        return "unavailable"
 
-    # ERPNext (stubbed for now)
-    services["erpnext"] = "unavailable"  # Will be implemented with data endpoints
 
-    # Determine capabilities based on service status
+def _determine_capabilities(services: dict[str, str]) -> dict[str, str]:
+    """Determine capabilities based on service status."""
+    capabilities: dict[str, str] = {}
+
     if services["database"] == "healthy":
         capabilities["view_tasks"] = "full"
         capabilities["view_beliefs"] = "full"
@@ -89,19 +67,44 @@ async def health(request: Request) -> HealthResponse:
         capabilities["view_widgets"] = "cached"
         capabilities["drill_down"] = "unavailable"
 
-    # Overall status
-    status: Literal["healthy", "degraded", "unavailable"]
+    return capabilities
+
+
+def _determine_status(services: dict[str, str]) -> Literal["healthy", "degraded", "unavailable"]:
+    """Determine overall health status from services."""
     if all(s == "healthy" for s in services.values()):
-        status = "healthy"
+        return "healthy"
     elif services["baby_mars"] == "healthy" and services["claude"] == "healthy":
-        status = "degraded"
+        return "degraded"
     else:
-        status = "unavailable"
+        return "unavailable"
+
+
+@router.get("/", response_model=dict)
+async def root() -> dict[str, str]:
+    """Root endpoint - API info"""
+    return {
+        "name": "Baby MARS",
+        "version": "0.1.0",
+        "description": "Cognitive architecture with a rented brain",
+        "docs": "/docs",
+    }
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    """Health check with capability matrix. Per API_CONTRACT_V0.md section 8.3"""
+    services = {
+        "database": await _check_database(),
+        "baby_mars": "healthy",  # Always healthy if we're responding
+        "claude": _check_claude(),
+        "erpnext": "unavailable",  # Stubbed for now
+    }
 
     return HealthResponse(
-        status=status,
+        status=_determine_status(services),
         version="0.1.0",
         timestamp=datetime.now(timezone.utc).isoformat(),
         services=services,
-        capabilities=capabilities,
+        capabilities=_determine_capabilities(services),
     )

@@ -10,7 +10,8 @@ Paper #6: Goal Conflict Resolution
 
 from typing import Any
 
-from ...claude_client import DialecticalOutput, get_claude_client
+from ...claude_models import DialecticalOutput
+from ...claude_singleton import get_claude_client
 from ...observability import get_logger
 from ...state.schema import BabyMARSState
 
@@ -77,36 +78,9 @@ def build_conflict_context(state: BabyMARSState) -> str:
 # ============================================================
 
 
-async def process(state: BabyMARSState) -> dict[str, Any]:
-    """
-    Dialectical Resolution Node
-
-    Resolves conflicts between competing goals:
-    1. Identify the conflicting goals
-    2. Analyze the nature of the conflict
-    3. Attempt synthesis (combining goals)
-    4. If synthesis fails, prioritize based on:
-       - Goal priority
-       - Resource constraints
-       - Authority guidance
-       - Temporal urgency
-    5. Defer non-chosen goals appropriately
-    """
-
-    # If no conflict detected, pass through
-    if not state.get("goal_conflict_detected", False):
-        return {}
-
-    client = get_claude_client()
-
-    # Build conflict context
-    context = build_conflict_context(state)
-
-    # Build messages
-    messages = [
-        {
-            "role": "user",
-            "content": f"""A goal conflict has been detected. Please resolve it.
+def _build_resolution_prompt(context: str) -> str:
+    """Build prompt for goal conflict resolution."""
+    return f"""A goal conflict has been detected. Please resolve it.
 
 {context}
 
@@ -116,83 +90,90 @@ Analyze the conflicting goals and determine:
 3. How should the deferred goal(s) be handled?
 4. Does this require human input to resolve?
 
-Provide your resolution in the structured format.""",
-        }
-    ]
+Provide your resolution in the structured format."""
+
+
+def _build_human_input_result(resolution: DialecticalOutput) -> dict[str, Any]:
+    """Build result when human input is required."""
+    return {
+        "supervision_mode": "guidance_seeking",
+        "goal_conflict_detected": True,
+        "appraisal": {
+            "expectancy_violation": {
+                "type": "negative",
+                "description": f"Goal conflict requiring resolution: {resolution.resolution_reasoning}",
+            },
+            "face_threat": None,
+            "goal_alignment": {},
+            "attributed_beliefs": [],
+            "recommended_action_type": "guidance_needed",
+            "difficulty": 4,
+            "involves_ethical_beliefs": False,
+        },
+    }
+
+
+def _process_resolution(state: BabyMARSState, resolution: DialecticalOutput) -> dict[str, Any]:
+    """Process the resolution and update goals."""
+    active_goals = state.get("active_goals", [])
+    updated_goals = []
+    deferred_notes = []
+    current_time = state.get("objects", {}).get("temporal", {}).get("current_time", "")
+
+    for goal in active_goals:
+        goal_id = goal.get("goal_id", "")
+        if goal_id == resolution.chosen_goal_id:
+            updated_goals.append(
+                {
+                    **goal,
+                    "synthesized_with": resolution.deferred_goal_ids
+                    if resolution.synthesis
+                    else [],
+                    "resolution_note": resolution.synthesis if resolution.synthesis else None,
+                }
+            )
+        elif goal_id in resolution.deferred_goal_ids:
+            deferred_notes.append(
+                {
+                    "note_id": f"deferred_{goal_id}",
+                    "content": f"Deferred goal: {goal.get('description', '')}. Reason: {resolution.resolution_reasoning}",
+                    "created_at": current_time,
+                    "ttl_hours": 24,
+                    "priority": goal.get("priority", 0.5) * 0.8,
+                    "source": "system",
+                    "context": {"original_goal": goal},
+                }
+            )
+        else:
+            updated_goals.append(goal)
+
+    return {
+        "active_goals": updated_goals,
+        "notes": state.get("notes", []) + deferred_notes,
+        "goal_conflict_detected": False,
+    }
+
+
+async def process(state: BabyMARSState) -> dict[str, Any]:
+    """Dialectical Resolution: resolve conflicts between competing goals (Paper #6)."""
+    if not state.get("goal_conflict_detected", False):
+        return {}
 
     try:
-        # Call Claude for resolution
+        client = get_claude_client()
+        context = build_conflict_context(state)
+        prompt = _build_resolution_prompt(context)
+
         resolution = await client.complete_structured(
-            messages=messages, response_model=DialecticalOutput, skills=["accounting_domain"]
+            messages=[{"role": "user", "content": prompt}],
+            response_model=DialecticalOutput,
+            skills=["accounting_domain"],
         )
 
-        # Check if human input needed
         if resolution.requires_human_input:
-            return {
-                "supervision_mode": "guidance_seeking",
-                "goal_conflict_detected": True,  # Keep flag
-                "appraisal": {
-                    "expectancy_violation": {
-                        "type": "negative",
-                        "description": f"Goal conflict requiring resolution: {resolution.resolution_reasoning}",
-                    },
-                    "face_threat": None,
-                    "goal_alignment": {},
-                    "attributed_beliefs": [],
-                    "recommended_action_type": "guidance_needed",
-                    "difficulty": 4,
-                    "involves_ethical_beliefs": False,
-                },
-            }
+            return _build_human_input_result(resolution)
 
-        # Update goals based on resolution
-        active_goals = state.get("active_goals", [])
-        updated_goals = []
-        deferred_notes = []
-
-        for goal in active_goals:
-            goal_id = goal.get("goal_id", "")
-
-            if goal_id == resolution.chosen_goal_id:
-                # This is the prioritized goal
-                updated_goals.append(
-                    {
-                        **goal,
-                        "synthesized_with": resolution.deferred_goal_ids
-                        if resolution.synthesis
-                        else [],
-                        "resolution_note": resolution.synthesis if resolution.synthesis else None,
-                    }
-                )
-            elif goal_id in resolution.deferred_goal_ids:
-                # Create note to revisit this goal
-                deferred_notes.append(
-                    {
-                        "note_id": f"deferred_{goal_id}",
-                        "content": f"Deferred goal: {goal.get('description', '')}. Reason: {resolution.resolution_reasoning}",
-                        "created_at": state.get("objects", {})
-                        .get("temporal", {})
-                        .get("current_time", ""),
-                        "ttl_hours": 24,  # Revisit within 24 hours
-                        "priority": goal.get("priority", 0.5) * 0.8,  # Slightly lower priority
-                        "source": "system",
-                        "context": {"original_goal": goal},
-                    }
-                )
-            else:
-                # Keep other goals as-is
-                updated_goals.append(goal)
-
-        return {
-            "active_goals": updated_goals,
-            "notes": state.get("notes", []) + deferred_notes,
-            "goal_conflict_detected": False,  # Resolved
-        }
-
+        return _process_resolution(state, resolution)
     except Exception as e:
-        # On error, escalate to human
-        print(f"Dialectical resolution error: {e}")
-        return {
-            "supervision_mode": "guidance_seeking",
-            "goal_conflict_detected": True,  # Keep flag
-        }
+        logger.error(f"Dialectical resolution error: {e}")
+        return {"supervision_mode": "guidance_seeking", "goal_conflict_detected": True}

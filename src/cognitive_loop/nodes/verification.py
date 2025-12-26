@@ -11,7 +11,8 @@ whether to proceed, retry, or escalate.
 
 from typing import Any, cast
 
-from ...claude_client import ValidationOutput, get_claude_client
+from ...claude_models import ValidationOutput
+from ...claude_singleton import get_claude_client
 from ...observability import get_logger
 from ...state.schema import (
     BabyMARSState,
@@ -315,16 +316,9 @@ def _needs_complex_validation(
     return False
 
 
-async def _claude_validation(
-    state: BabyMARSState, execution_results: list[dict[str, Any]]
-) -> list[ValidationResult]:
-    """Use Claude for complex validation"""
-    client = get_claude_client()
-
-    # Build context
+def _build_validation_prompt(state: BabyMARSState, execution_results: list[dict[str, Any]]) -> str:
+    """Build validation prompt for Claude."""
     context_parts = [f"<execution_results>\n{execution_results}\n</execution_results>"]
-
-    # Add beliefs for context
     beliefs = state.get("activated_beliefs", [])[:5]
     if beliefs:
         belief_strs = [f"- {b['statement']}" for b in beliefs]
@@ -332,10 +326,7 @@ async def _claude_validation(
             "<relevant_beliefs>\n" + "\n".join(belief_strs) + "\n</relevant_beliefs>"
         )
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"""Validate these execution results against accounting best practices.
+    return f"""Validate these execution results against accounting best practices.
 
 {chr(10).join(context_parts)}
 
@@ -345,43 +336,48 @@ Check for:
 3. Compliance - follows accounting standards
 4. Consistency - internal logic coherent
 
-Return validation results in structured format.""",
-        }
-    ]
+Return validation results in structured format."""
 
+
+def _convert_validation_results(response: ValidationOutput) -> list[ValidationResult]:
+    """Convert ValidationOutput to ValidationResult list."""
+    results: list[ValidationResult] = []
+    for r in response.results:
+        results.append(
+            cast(
+                ValidationResult,
+                {
+                    "validator": r.get("validator", "claude_validator"),
+                    "passed": r.get("passed", True),
+                    "severity": r.get("severity", 0.0),
+                    "message": r.get("message", ""),
+                    "fix_hint": r.get("fix_hint"),
+                },
+            )
+        )
+    return results
+
+
+async def _claude_validation(
+    state: BabyMARSState, execution_results: list[dict[str, Any]]
+) -> list[ValidationResult]:
+    """Use Claude for complex validation."""
     try:
+        client = get_claude_client()
+        prompt = _build_validation_prompt(state, execution_results)
         response = await client.complete_structured(
-            messages=messages,
+            messages=[{"role": "user", "content": prompt}],
             response_model=ValidationOutput,
             skills=["validation_rules", "accounting_domain"],
         )
-
-        # Convert to ValidationResult list
-        results: list[ValidationResult] = []
-        for r in response.results:
-            results.append(
-                cast(
-                    ValidationResult,
-                    {
-                        "validator": r.get("validator", "claude_validator"),
-                        "passed": r.get("passed", True),
-                        "severity": r.get("severity", 0.0),
-                        "message": r.get("message", ""),
-                        "fix_hint": r.get("fix_hint"),
-                    },
-                )
-            )
-
-        return results
-
+        return _convert_validation_results(response)
     except Exception as e:
-        # Return a single error result
         return cast(
             list[ValidationResult],
             [
                 {
                     "validator": "claude_validator",
-                    "passed": True,  # Don't block on validation error
+                    "passed": True,
                     "severity": 0.1,
                     "message": f"Claude validation skipped: {e}",
                     "fix_hint": None,
