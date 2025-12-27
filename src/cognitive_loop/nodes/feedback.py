@@ -19,6 +19,7 @@ from typing import Any, Optional, cast
 from ...analytics import get_belief_analytics
 from ...graphs.belief_graph_manager import get_org_belief_graph, save_modified_beliefs
 from ...observability import get_logger
+from ...persistence.rapport import record_interaction
 from ...state.schema import (
     BabyMARSState,
     BeliefState,
@@ -323,6 +324,7 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
     2. Update attributed beliefs
     3. Create memories for significant events
     4. Log feedback event
+    5. Update rapport (relationship tracking)
     """
 
     execution_results = state.get("execution_results", [])
@@ -347,6 +349,11 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
     # Create feedback event
     feedback_event = create_feedback_event(state, outcome, belief_updates)
 
+    # ============================================================
+    # UPDATE RAPPORT: Track relationship development
+    # ============================================================
+    await _update_rapport_from_outcome(state, outcome, memory)
+
     # Build state updates
     feedback_events: list[Any] = cast(list[Any], state.get("feedback_events") or [])
     updates: dict[str, Any] = {"feedback_events": feedback_events + [feedback_event]}
@@ -359,3 +366,64 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
     updates["execution_outcome"] = outcome
 
     return updates
+
+
+async def _update_rapport_from_outcome(
+    state: BabyMARSState,
+    outcome: dict[str, Any],
+    memory: Optional[Memory],
+) -> None:
+    """
+    Update rapport based on interaction outcome.
+
+    This is what makes Aleq's relationships feel real - every interaction
+    affects the relationship, and she remembers what happened.
+    """
+    org_id = state.get("org_id", "")
+    user_id = state.get("user_id", "")
+
+    if not org_id or not user_id or user_id == "system":
+        return
+
+    # Map outcome to rapport signal
+    outcome_type = outcome.get("outcome_type", "failure")
+    if outcome_type == "success":
+        rapport_outcome = "positive"
+    elif outcome_type == "partial_success":
+        rapport_outcome = "neutral"
+    else:
+        rapport_outcome = "negative"
+
+    # Extract topics from the interaction
+    topics: list[str] = []
+    action = state.get("selected_action")
+    if action and isinstance(action, dict):
+        action_type = action.get("action_type")
+        if action_type:
+            topics.append(str(action_type))
+
+    # Create memorable moment if this was significant
+    memorable_moment: Optional[dict[str, Any]] = None
+    if memory:
+        memory_dict = cast(dict[str, Any], memory)
+        content = memory_dict.get("content", {})
+        summary = ""
+        if isinstance(content, dict):
+            summary = str(content.get("request", ""))[:100]
+        memorable_moment = {
+            "summary": summary,
+            "outcome": outcome_type,
+            "emotional_weight": memory_dict.get("emotional_weight", 0.5),
+        }
+
+    try:
+        await record_interaction(
+            org_id=org_id,
+            person_id=user_id,
+            outcome=rapport_outcome,  # type: ignore[arg-type]
+            topics=topics if topics else None,
+            memorable_moment=memorable_moment,
+        )
+    except Exception as e:
+        # Non-fatal: rapport update failure shouldn't break the loop
+        logger.warning(f"Failed to update rapport: {e}")

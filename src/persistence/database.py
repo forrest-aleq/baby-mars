@@ -135,6 +135,115 @@ async def init_database() -> None:
             ON feedback_events(org_id)
         """)
 
+        # Notes table (TTL-based queue from Paper #8)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS notes (
+                note_id TEXT PRIMARY KEY,
+                org_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                ttl_hours INTEGER NOT NULL DEFAULT 24,
+                priority FLOAT NOT NULL DEFAULT 0.5,
+                source TEXT NOT NULL DEFAULT 'system',
+                context JSONB NOT NULL DEFAULT '{}'
+            )
+        """)
+
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_notes_org_id
+            ON notes(org_id)
+        """)
+
+        # Scheduled triggers table (SYSTEM_PULSE)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS scheduled_triggers (
+                trigger_id TEXT PRIMARY KEY,
+                org_id TEXT NOT NULL,
+                user_id TEXT,
+                trigger_type TEXT NOT NULL,
+                config JSONB NOT NULL,
+                action TEXT NOT NULL,
+                action_context JSONB NOT NULL DEFAULT '{}',
+                description TEXT NOT NULL DEFAULT '',
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                last_fired TIMESTAMPTZ,
+                next_fire TIMESTAMPTZ,
+                fire_count INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                created_by TEXT NOT NULL DEFAULT 'system'
+            )
+        """)
+
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_triggers_org_id
+            ON scheduled_triggers(org_id)
+        """)
+
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_triggers_enabled
+            ON scheduled_triggers(org_id, enabled)
+        """)
+
+        # ============================================================
+        # RAPPORT TRACKING
+        # ============================================================
+        # Tracks relationship state between Aleq and each person.
+        # This is what makes Aleq feel human - remembering people
+        # and how the relationship has developed over time.
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS rapport (
+                rapport_id TEXT PRIMARY KEY,
+                org_id TEXT NOT NULL,
+                person_id TEXT NOT NULL,
+                person_name TEXT NOT NULL,
+
+                -- Core rapport metrics (0.0 to 1.0)
+                rapport_level FLOAT NOT NULL DEFAULT 0.3,
+                trust_level FLOAT NOT NULL DEFAULT 0.3,
+                familiarity FLOAT NOT NULL DEFAULT 0.0,
+
+                -- Interaction tracking
+                interaction_count INTEGER NOT NULL DEFAULT 0,
+                positive_interactions INTEGER NOT NULL DEFAULT 0,
+                negative_interactions INTEGER NOT NULL DEFAULT 0,
+                last_interaction TIMESTAMPTZ,
+                first_interaction TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+                -- Relationship memory
+                memorable_moments JSONB NOT NULL DEFAULT '[]',
+                topics_discussed JSONB NOT NULL DEFAULT '{}',
+                preferences_learned JSONB NOT NULL DEFAULT '{}',
+                inside_references JSONB NOT NULL DEFAULT '[]',
+
+                -- Communication style adaptation
+                preferred_formality TEXT DEFAULT 'casual',
+                preferred_verbosity TEXT DEFAULT 'concise',
+                humor_receptivity FLOAT NOT NULL DEFAULT 0.5,
+
+                -- First impression record
+                first_impression_given BOOLEAN NOT NULL DEFAULT FALSE,
+                first_impression_text TEXT,
+                first_impression_at TIMESTAMPTZ,
+
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+                UNIQUE(org_id, person_id)
+            )
+        """)
+
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rapport_org_id
+            ON rapport(org_id)
+        """)
+
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rapport_person_id
+            ON rapport(org_id, person_id)
+        """)
+
 
 async def get_pool() -> asyncpg.Pool:
     """Get or create connection pool (thread-safe with double-check locking)"""

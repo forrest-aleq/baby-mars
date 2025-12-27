@@ -10,7 +10,6 @@ relevant beliefs, memories, and social context for the current
 interaction.
 """
 
-from datetime import datetime
 from typing import Any, Optional, cast
 
 from ...claude_models import EntityExtractionOutput
@@ -19,10 +18,11 @@ from ...graphs.belief_graph import BeliefGraph
 from ...graphs.belief_graph_manager import get_org_belief_graph
 from ...graphs.social_graph import SocialGraph
 from ...observability import get_logger
+from ...persistence.rapport import RapportState, get_rapport
+from ...scheduler.time_awareness import build_temporal_context
 from ...state.schema import (
     BabyMARSState,
     Objects,
-    TemporalContext,
 )
 
 logger = get_logger(__name__)
@@ -177,34 +177,6 @@ def entities_to_entity_objects(entities: Optional[EntityExtractionOutput]) -> li
     return result
 
 
-def build_temporal_context() -> TemporalContext:
-    """Build temporal context for current time"""
-    now = datetime.now()
-
-    # Check for period boundaries
-    is_month_end = now.day >= 25
-    is_quarter_end = is_month_end and now.month in [3, 6, 9, 12]
-    is_year_end = is_quarter_end and now.month == 12
-
-    # Calculate urgency
-    urgency = 1.0
-    if is_year_end:
-        urgency = 2.0
-    elif is_quarter_end:
-        urgency = 1.75
-    elif is_month_end:
-        urgency = 1.5
-
-    return {
-        "current_time": now.isoformat(),
-        "is_month_end": is_month_end,
-        "is_quarter_end": is_quarter_end,
-        "is_year_end": is_year_end,
-        "days_until_deadline": None,
-        "urgency_multiplier": urgency,
-    }
-
-
 def detect_goal_conflict(goals: list[dict[str, Any]]) -> dict[str, Any] | None:
     """
     Detect conflicts between active goals.
@@ -243,8 +215,10 @@ def detect_goal_conflict(goals: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 async def process(state: BabyMARSState) -> dict[str, Any]:
-    """Cognitive Activation: load beliefs, people, entities for current context."""
+    """Cognitive Activation: load beliefs, people, entities, and rapport for current context."""
     org_id = state.get("org_id", "default")
+    user_id = state.get("user_id", "")
+    org_timezone = str(state.get("org_timezone", "America/Los_Angeles"))
     belief_graph = await load_belief_graph(org_id)
     social_graph = await load_social_graph(org_id)
 
@@ -259,6 +233,25 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
         context_key=context_key, min_strength=0.3, limit=20
     )
 
+    # ============================================================
+    # LOAD RAPPORT: Get relationship state with current person
+    # ============================================================
+    # This is what makes Aleq feel human - she remembers people
+    # and adapts based on the relationship history.
+    rapport: Optional[RapportState] = None
+    if user_id and user_id != "system":
+        try:
+            rapport = await get_rapport(org_id, user_id)
+            if rapport:
+                logger.debug(
+                    f"Loaded rapport for {rapport['person_name']}: "
+                    f"rapport={rapport['rapport_level']:.2f}, "
+                    f"familiarity={rapport['familiarity']:.2f}, "
+                    f"interactions={rapport['interaction_count']}"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to load rapport: {e}")
+
     # Build Objects column (Paper #8)
     objects: Objects = {
         "people": cast(list[Any], _load_salient_people(social_graph)[:10]),
@@ -266,17 +259,38 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
         "beliefs": cast(list[dict[str, Any]], activated_beliefs[:20]),
         "knowledge": [],
         "goals": state.get("active_goals", []),
-        "temporal": build_temporal_context(),
+        "temporal": build_temporal_context(org_timezone),
     }
 
     goal_conflict = detect_goal_conflict(state.get("active_goals", []))
-    return {
+
+    # Build result with rapport context
+    result: dict[str, Any] = {
         "current_context_key": context_key,
         "activated_beliefs": activated_beliefs,
         "objects": objects,
         "goal_conflict_detected": goal_conflict is not None,
         "current_turn": state.get("current_turn", 0) + 1,
     }
+
+    # Add rapport context if available - this influences response generation
+    if rapport:
+        result["rapport_context"] = {
+            "person_name": rapport["person_name"],
+            "rapport_level": rapport["rapport_level"],
+            "trust_level": rapport["trust_level"],
+            "familiarity": rapport["familiarity"],
+            "interaction_count": rapport["interaction_count"],
+            "preferred_formality": rapport["preferred_formality"],
+            "preferred_verbosity": rapport["preferred_verbosity"],
+            "humor_receptivity": rapport["humor_receptivity"],
+            "inside_references": rapport["inside_references"],
+            "topics_discussed": rapport["topics_discussed"],
+            "is_first_meeting": rapport["interaction_count"] == 0,
+            "memorable_moments": rapport["memorable_moments"][-3:],  # Last 3 moments
+        }
+
+    return result
 
 
 def _load_salient_people(social_graph: SocialGraph) -> list[dict[str, Any]]:

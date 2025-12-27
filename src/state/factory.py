@@ -10,7 +10,46 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Literal, Optional
 
 from .constants import INVALIDATION_THRESHOLDS
-from .types import BeliefState, Memory, PersonObject
+from .types import BeliefState, Memory, PersonObject, TemporalContext
+
+# Default timezone for orgs
+DEFAULT_TIMEZONE = "America/Los_Angeles"
+
+
+def _build_initial_temporal() -> TemporalContext:
+    """Build initial temporal context with basic defaults."""
+    now = datetime.now()
+    day = now.day
+    month = now.month
+
+    is_month_end = day >= 25
+    is_quarter_end = is_month_end and month in (3, 6, 9, 12)
+    is_year_end = is_quarter_end and month == 12
+
+    return {
+        "current_time": now.isoformat(),
+        "day_of_week": now.strftime("%A"),
+        "time_of_day": "morning"
+        if 5 <= now.hour < 12
+        else ("afternoon" if now.hour < 18 else ("evening" if now.hour < 22 else "night")),
+        "hour": now.hour,
+        "is_business_hours": 8 <= now.hour < 18 and now.weekday() < 5,
+        "is_weekend": now.weekday() >= 5,
+        "week_of_month": (now.day + now.replace(day=1).weekday() - 1) // 7 + 1,
+        "day_of_month": day,
+        "month": month,
+        "year": now.year,
+        "is_month_end": is_month_end,
+        "is_quarter_end": is_quarter_end,
+        "is_year_end": is_year_end,
+        "days_until_month_end": 0,  # Will be refreshed on cognitive activation
+        "days_until_quarter_end": 0,
+        "days_until_deadline": None,
+        "urgency_multiplier": 2.0
+        if is_year_end
+        else (1.75 if is_quarter_end else (1.5 if is_month_end else 1.0)),
+    }
+
 
 if TYPE_CHECKING:
     from .main import BabyMARSState
@@ -21,11 +60,17 @@ def generate_id() -> str:
     return str(uuid.uuid4())
 
 
-def create_initial_state(thread_id: str, org_id: str, user_id: str) -> "BabyMARSState":
+def create_initial_state(
+    thread_id: str,
+    org_id: str,
+    user_id: str,
+    org_timezone: str = DEFAULT_TIMEZONE,
+) -> "BabyMARSState":
     """Create initial state for a new conversation."""
     return {
         "thread_id": thread_id,
         "org_id": org_id,
+        "org_timezone": org_timezone,
         "user_id": user_id,
         "active_tasks": [],
         "notes": [],
@@ -35,14 +80,7 @@ def create_initial_state(thread_id: str, org_id: str, user_id: str) -> "BabyMARS
             "beliefs": [],
             "knowledge": [],
             "goals": [],
-            "temporal": {
-                "current_time": datetime.now().isoformat(),
-                "is_month_end": False,
-                "is_quarter_end": False,
-                "is_year_end": False,
-                "days_until_deadline": None,
-                "urgency_multiplier": 1.0,
-            },
+            "temporal": _build_initial_temporal(),
         },
         "messages": [],
         "current_turn": 0,
@@ -63,6 +101,9 @@ def create_initial_state(thread_id: str, org_id: str, user_id: str) -> "BabyMARS
         "retry_count": 0,
         "max_retries": 3,
         "events": [],
+        "trigger_context": None,
+        "rapport_context": None,
+        "final_response": None,
     }
 
 

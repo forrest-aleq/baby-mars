@@ -177,13 +177,37 @@ async def publish_presence_update(org_id: str, task_id: str, users: list[str]) -
     )
 
 
-async def publish_aleq_message(org_id: str, message: str, references: list[dict[str, Any]]) -> None:
-    """Publish aleq:message event for proactive communication."""
+async def publish_aleq_message(
+    org_id: str,
+    message: str,
+    references: Optional[list[dict[str, Any]]] = None,
+    user_id: Optional[str] = None,
+    message_type: str = "info",
+    source: str = "cognitive_loop",
+    metadata: Optional[dict[str, Any]] = None,
+) -> None:
+    """
+    Publish aleq:message event for proactive communication.
+
+    Args:
+        org_id: Organization ID
+        message: Message content
+        references: Optional list of referenced items
+        user_id: Optional target user (None = org-wide)
+        message_type: Type of message (info, proposal, action_proposal)
+        source: Origin of message (cognitive_loop, system_pulse)
+        metadata: Optional additional data
+    """
     await _event_bus.publish(
         org_id,
         "aleq:message",
         {
             "message": message,
-            "references": references,
+            "references": references or [],
+            "user_id": user_id,
+            "message_type": message_type,
+            "source": source,
+            "metadata": metadata or {},
+            "timestamp": datetime.now().isoformat(),
         },
     )

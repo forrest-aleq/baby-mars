@@ -27,6 +27,9 @@ class BirthRequest(BaseModel):
     org_size: str = Field(
         "mid_market", description="Org size: startup, smb, mid_market, enterprise"
     )
+    timezone: str = Field(
+        "America/Los_Angeles", description="Organization timezone for time-aware interactions"
+    )
     capabilities_override: Optional[dict[str, Any]] = Field(
         None, description="Override default capabilities"
     )
@@ -41,3 +44,7 @@ class BirthResponse(BaseModel):
     salience: float = Field(..., ge=0, le=1, description="Initial relationship salience")
     belief_count: int = Field(..., description="Number of initial beliefs seeded")
     session_id: str = Field(..., description="Use this for subsequent chat requests")
+    greeting: Optional[str] = Field(
+        None,
+        description="Aleq's first impression greeting - the critical first moment of rapport building",
+    )

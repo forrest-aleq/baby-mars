@@ -18,6 +18,7 @@ from ..cognitive_loop.graph import create_graph_in_memory, create_graph_with_pos
 from ..graphs.belief_graph_manager import reset_belief_graph_manager
 from ..observability import get_logger, setup_logging
 from ..persistence.database import close_pool, init_database
+from ..scheduler import get_pulse_scheduler
 from .auth import add_auth_middleware
 from .routes import register_routes
 from .schemas.common import APIError
@@ -77,12 +78,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Initialize session store
     app.state.sessions = {}
 
+    # Start SYSTEM_PULSE scheduler
+    scheduler_enabled = os.getenv("PULSE_SCHEDULER_ENABLED", "true").lower() == "true"
+    if scheduler_enabled:
+        try:
+            scheduler = get_pulse_scheduler()
+            await scheduler.start()
+            app.state.scheduler = scheduler
+            logger.info("SYSTEM_PULSE scheduler started")
+        except Exception as e:
+            logger.warning(f"Scheduler failed to start: {e}")
+    else:
+        logger.info("SYSTEM_PULSE scheduler disabled")
+
     logger.info("Baby MARS API ready")
 
     yield
 
     # Cleanup
     logger.info("Shutting down Baby MARS API...")
+
+    # Stop scheduler
+    if hasattr(app.state, "scheduler"):
+        try:
+            await app.state.scheduler.stop()
+            logger.info("SYSTEM_PULSE scheduler stopped")
+        except Exception:
+            pass
+
     try:
         await close_pool()
     except Exception:

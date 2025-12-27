@@ -114,7 +114,6 @@ async def _run_chat(name: str, role: str, industry: str) -> None:
 
     # Quick birth for chat
     state = None
-    session_started = False
 
     console.print("[green]Ready![/green] Type your message or [bold]/quit[/bold] to exit.\n")
 
@@ -171,7 +170,6 @@ async def _run_chat(name: str, role: str, industry: str) -> None:
             # Initialize or update state
             if state is None:
                 state = quick_birth(name, role, industry, user_input)
-                session_started = True
             else:
                 state["messages"].append({"role": "user", "content": user_input})
                 state["current_turn"] += 1

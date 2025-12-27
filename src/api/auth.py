@@ -9,11 +9,14 @@ Can be extended to support OAuth, JWT, etc.
 import hashlib
 import os
 import secrets
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Request, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader, APIKeyQuery
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 # ============================================================
 # API KEY AUTH
@@ -207,12 +210,6 @@ async def check_rate_limit(
 # MIDDLEWARE
 # ============================================================
 
-from collections.abc import Awaitable, Callable
-
-from fastapi import FastAPI
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
-
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """
@@ -250,3 +247,48 @@ class AuthMiddleware(BaseHTTPMiddleware):
 def add_auth_middleware(app: FastAPI) -> None:
     """Add authentication middleware to an app."""
     app.add_middleware(AuthMiddleware)
+
+
+# ============================================================
+# COMMON DEPENDENCIES
+# ============================================================
+
+
+async def get_current_org(
+    request: Request,
+    api_key: str = Depends(verify_api_key),
+) -> str:
+    """
+    Get the current organization ID from the request.
+
+    Extracts org_id from:
+    1. X-Org-ID header
+    2. Query parameter org_id
+    3. API key to org mapping
+
+    For development, defaults to "dev_org" if no org is specified.
+    """
+    # Check header
+    org_id = request.headers.get("X-Org-ID")
+    if org_id:
+        return org_id
+
+    # Check query parameter
+    org_id = request.query_params.get("org_id")
+    if org_id:
+        return org_id
+
+    # Check API key mapping
+    org_auth = get_org_auth()
+    mapped_org = org_auth.get_org_id(api_key)
+    if mapped_org:
+        return mapped_org
+
+    # Default for development
+    if api_key == "dev-mode":
+        return "dev_org"
+
+    raise HTTPException(
+        status_code=400,
+        detail="Organization ID required. Provide X-Org-ID header or org_id query parameter.",
+    )

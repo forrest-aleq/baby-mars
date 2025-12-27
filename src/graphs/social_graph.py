@@ -208,7 +208,6 @@ class SocialGraph:
             # Clear authority winner - auto-resolve
             winner_id = person_a_id if auth_a > auth_b else person_b_id
             winner_guidance = guidance_a if auth_a > auth_b else guidance_b
-            loser_id = person_b_id if auth_a > auth_b else person_a_id
 
             return {
                 "resolution": "auto_defer",

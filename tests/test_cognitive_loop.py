@@ -82,8 +82,9 @@ class TestStateFlow:
                     )
                     mock_claude_client.complete.return_value = "I'll help you with that invoice."
 
-                    # Run the graph
-                    result = await graph.ainvoke(sample_state_with_message)
+                    # Run the graph (with thread_id for checkpointer)
+                    config = {"configurable": {"thread_id": "test-thread-123"}}
+                    result = await graph.ainvoke(sample_state_with_message, config)
 
         # Should have progressed through states
         assert result is not None
@@ -279,7 +280,8 @@ class TestEndToEndScenarios:
                         "I've processed invoice #1234 from Acme Corp."
                     )
 
-                    result = await graph.ainvoke(state)
+                    config = {"configurable": {"thread_id": "test-invoice-123"}}
+                    result = await graph.ainvoke(state, config)
 
         # Should complete successfully
         assert result is not None
@@ -330,7 +332,8 @@ class TestEndToEndScenarios:
                             "I can't help with that. Let me redirect you..."
                         )
 
-                        result = await graph.ainvoke(state)
+                        config = {"configurable": {"thread_id": "test-boundary-123"}}
+                        result = await graph.ainvoke(state, config)
 
         # Should still complete (with appropriate response)
         assert result is not None
@@ -345,10 +348,10 @@ class TestNodeOrdering:
 
         graph = create_graph_in_memory()
 
-        # Check edges
-        edges = list(graph.edges)
-        # Should have edge from appraisal to action_selection or through routing
-        # This is a structural check
+        # Check that required nodes exist (structural check)
+        # CompiledStateGraph doesn't expose edges directly, so we verify nodes
+        assert "appraisal" in graph.nodes
+        assert "action_selection" in graph.nodes
 
     def test_feedback_after_execution(self):
         """Feedback should run after execution."""

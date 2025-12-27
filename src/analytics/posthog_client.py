@@ -7,9 +7,8 @@ Tracks belief lifecycle, autonomy decisions, and learning patterns.
 """
 
 import os
-from typing import Optional
-
 import types
+from typing import Optional
 
 try:
     import posthog

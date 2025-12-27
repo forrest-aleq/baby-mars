@@ -310,3 +310,111 @@ def sample_bank_work_unit():
         "slots": {"amount": 2500, "payment_date": "2024-01-15"},
         "constraints": [],
     }
+
+
+# ============================================================
+# RAPPORT FIXTURES
+# ============================================================
+
+
+@pytest.fixture
+def sample_rapport_state():
+    """Create a fresh rapport state for testing."""
+    from src.persistence.rapport import RapportState
+
+    return RapportState(
+        rapport_id="rapport_test123",
+        org_id="org_test",
+        person_id="person_test",
+        person_name="Test User",
+        rapport_level=0.3,
+        trust_level=0.3,
+        familiarity=0.0,
+        interaction_count=0,
+        positive_interactions=0,
+        negative_interactions=0,
+        last_interaction=None,
+        first_interaction="2024-01-01T00:00:00+00:00",
+        memorable_moments=[],
+        topics_discussed={},
+        preferences_learned={},
+        inside_references=[],
+        preferred_formality="casual",
+        preferred_verbosity="concise",
+        humor_receptivity=0.5,
+        first_impression_given=False,
+        first_impression_text=None,
+        first_impression_at=None,
+    )
+
+
+@pytest.fixture
+def high_rapport_state(sample_rapport_state):
+    """Create a rapport state after many positive interactions."""
+    state = dict(sample_rapport_state)
+    state["rapport_level"] = 0.85
+    state["trust_level"] = 0.75
+    state["familiarity"] = 0.7
+    state["interaction_count"] = 50
+    state["positive_interactions"] = 45
+    state["negative_interactions"] = 5
+    state["inside_references"] = ["the month-end incident", "lockbox humor"]
+    state["topics_discussed"] = {"invoices": 20, "payments": 15, "reconciliation": 10}
+    state["preferences_learned"] = {"communication_style": "brief", "humor": True}
+    return state
+
+
+@pytest.fixture
+def sample_rapport_db_row():
+    """Create a sample database row for rapport testing."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    now = datetime.now(ZoneInfo("UTC"))
+    return {
+        "rapport_id": "rapport_db_test",
+        "org_id": "org_test",
+        "person_id": "person_test",
+        "person_name": "Test User",
+        "rapport_level": 0.5,
+        "trust_level": 0.4,
+        "familiarity": 0.3,
+        "interaction_count": 10,
+        "positive_interactions": 8,
+        "negative_interactions": 2,
+        "last_interaction": now,
+        "first_interaction": now,
+        "memorable_moments": [{"summary": "test moment", "outcome": "positive"}],
+        "topics_discussed": {"invoices": 5},
+        "preferences_learned": {"detail_level": "high"},
+        "inside_references": ["test reference"],
+        "preferred_formality": "casual",
+        "preferred_verbosity": "concise",
+        "humor_receptivity": 0.6,
+        "first_impression_given": True,
+        "first_impression_text": "Nice to meet you!",
+        "first_impression_at": now,
+    }
+
+
+@pytest.fixture
+def mock_rapport_db(mock_db_pool):
+    """Create a mock database configured for rapport operations."""
+    _, mock_conn = mock_db_pool
+    mock_conn.fetchrow.return_value = None  # Default: no rapport exists
+    mock_conn.fetch.return_value = []
+    mock_conn.execute.return_value = "UPDATE 1"
+    return mock_conn
+
+
+@pytest.fixture
+def sample_birth_request():
+    """Create a sample birth API request."""
+    return {
+        "name": "Alice Smith",
+        "email": "alice@example.com",
+        "role": "CFO",
+        "org_name": "Acme Corp",
+        "industry": "manufacturing",
+        "timezone": "America/New_York",
+    }

@@ -53,7 +53,6 @@ async def list_beliefs(
             beliefs = [b for b in beliefs if b.get("status", "active") == status]
 
         # Paginate
-        total = len(beliefs)
         beliefs = beliefs[offset : offset + limit]
 
         return [

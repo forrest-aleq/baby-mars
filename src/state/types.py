@@ -98,13 +98,38 @@ class TemporalContext(TypedDict):
     """
     Time-based context affecting urgency and behavior.
     Paper #18: Time-Based Context Activation
+
+    Aleq always knows what time/day it is. This is part of consciousness,
+    not just passive context. Influences all behavior and responses.
     """
 
-    current_time: str
-    is_month_end: bool
-    is_quarter_end: bool
-    is_year_end: bool
+    # Core timestamp
+    current_time: str  # ISO datetime
+
+    # Active time awareness - Aleq's "sense of time"
+    day_of_week: str  # "Monday", "Tuesday", etc.
+    time_of_day: str  # "morning", "afternoon", "evening", "night"
+    hour: int  # 0-23 for precise checks
+    is_business_hours: bool  # 8am-6pm weekdays
+    is_weekend: bool
+
+    # Calendar awareness
+    week_of_month: int  # 1-5
+    day_of_month: int  # 1-31
+    month: int  # 1-12
+    year: int
+
+    # Business period awareness
+    is_month_end: bool  # Day >= 25
+    is_quarter_end: bool  # Month-end + month in [3, 6, 9, 12]
+    is_year_end: bool  # Quarter-end + month == 12
+    days_until_month_end: int
+    days_until_quarter_end: int
+
+    # Deadline tracking
     days_until_deadline: Optional[int]
+
+    # Urgency calibration
     urgency_multiplier: float  # 1.0 normal, 1.5 elevated, 2.0 critical
 
 

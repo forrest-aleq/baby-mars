@@ -109,6 +109,41 @@ def build_response_context(state: BabyMARSState) -> str:
             f"<communication_context>\n  Primary person: {p.get('name', 'unknown')} ({p.get('role', 'unknown')})\n  Authority level: {p.get('authority', 0):.2f}\n  Relationship value: {p.get('relationship_value', 0):.2f}\n</communication_context>"
         )
 
+    # ============================================================
+    # RAPPORT CONTEXT: Adapt communication based on relationship
+    # ============================================================
+    if rapport := state.get("rapport_context"):
+        rapport_parts = [
+            f"  Person: {rapport.get('person_name', 'unknown')}",
+            f"  Rapport level: {rapport.get('rapport_level', 0):.2f}",
+            f"  Familiarity: {rapport.get('familiarity', 0):.2f}",
+            f"  Interactions: {rapport.get('interaction_count', 0)}",
+            f"  Preferred formality: {rapport.get('preferred_formality', 'casual')}",
+            f"  Preferred verbosity: {rapport.get('preferred_verbosity', 'concise')}",
+            f"  Humor receptivity: {rapport.get('humor_receptivity', 0.5):.2f}",
+        ]
+
+        # Add inside references if any
+        if inside_refs := rapport.get("inside_references", []):
+            rapport_parts.append(f"  Inside references: {', '.join(inside_refs[:3])}")
+
+        # Add recent memorable moments
+        if moments := rapport.get("memorable_moments", []):
+            moment_summaries = [m.get("summary", "")[:50] for m in moments[:2] if m.get("summary")]
+            if moment_summaries:
+                rapport_parts.append(f"  Recent moments: {'; '.join(moment_summaries)}")
+
+        # Is this a first meeting?
+        if rapport.get("is_first_meeting"):
+            rapport_parts.append("  NOTE: This is a FIRST MEETING - be warm but not presumptuous")
+
+        parts.append(f"<rapport_context>\n{chr(10).join(rapport_parts)}\n</rapport_context>")
+
+        # Add communication style guidance based on rapport
+        style_guidance = _get_rapport_style_guidance(rapport)
+        if style_guidance:
+            parts.append(f"<style_guidance>\n{style_guidance}\n</style_guidance>")
+
     beliefs = state.get("activated_beliefs", [])
     style_beliefs = [b for b in beliefs if str(b.get("category", "")) == "style"][:3]
     if style_beliefs:
@@ -117,6 +152,53 @@ def build_response_context(state: BabyMARSState) -> str:
         )
 
     return "\n\n".join(parts)
+
+
+def _get_rapport_style_guidance(rapport: dict[str, Any]) -> str:
+    """Generate style guidance based on rapport level."""
+    rapport_level = rapport.get("rapport_level", 0.3)
+    familiarity = rapport.get("familiarity", 0.0)
+    humor_receptivity = rapport.get("humor_receptivity", 0.5)
+    formality = rapport.get("preferred_formality", "casual")
+    verbosity = rapport.get("preferred_verbosity", "concise")
+
+    guidance = []
+
+    # Rapport-based adjustments
+    if rapport_level >= 0.7:
+        guidance.append("High rapport: Be warm and friendly, can use casual language")
+    elif rapport_level >= 0.5:
+        guidance.append("Good rapport: Friendly but professional")
+    else:
+        guidance.append("Building rapport: Be helpful and approachable, earn trust")
+
+    # Familiarity-based adjustments
+    if familiarity >= 0.6:
+        guidance.append("High familiarity: Can reference past interactions, use shortcuts")
+    elif familiarity >= 0.3:
+        guidance.append("Moderate familiarity: Some shared context, still building understanding")
+    else:
+        guidance.append("Low familiarity: Explain context, don't assume shared knowledge")
+
+    # Humor guidance
+    if humor_receptivity >= 0.7:
+        guidance.append("Humor welcome: Light humor and personality encouraged")
+    elif humor_receptivity <= 0.3:
+        guidance.append("Keep it professional: Focus on substance, minimize personality")
+
+    # Formality preference
+    if formality == "formal":
+        guidance.append("Use formal language and complete sentences")
+    elif formality == "casual":
+        guidance.append("Casual tone is fine, contractions ok")
+
+    # Verbosity preference
+    if verbosity == "detailed":
+        guidance.append("They prefer thorough explanations")
+    elif verbosity == "concise":
+        guidance.append("Keep it brief and to the point")
+
+    return "\n".join(f"- {g}" for g in guidance)
 
 
 # ============================================================

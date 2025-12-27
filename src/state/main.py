@@ -35,6 +35,7 @@ class BabyMARSState(TypedDict):
     # ---- Identity ----
     thread_id: str
     org_id: str
+    org_timezone: str  # IANA timezone for the org (e.g., "America/Los_Angeles")
     user_id: str
 
     # ---- Three-Column Working Memory (Paper #8) ----
@@ -78,3 +79,12 @@ class BabyMARSState(TypedDict):
 
     # ---- Event Log (Paper #7) ----
     events: Annotated[list[BeliefStrengthEvent], add]
+
+    # ---- SYSTEM_PULSE Trigger Context ----
+    trigger_context: Optional[dict[str, Any]]
+
+    # ---- Rapport Context (Relationship Memory) ----
+    rapport_context: Optional[dict[str, Any]]
+
+    # ---- Final Response ----
+    final_response: Optional[str]

@@ -41,6 +41,26 @@ from .tasks import (
     TaskSummary,
     TaskTimeline,
 )
+from .triggers import (
+    CreateTriggerRequest,
+    FireTriggerRequest,
+    SchedulerStatusResponse,
+    TriggerFireResult,
+    TriggerListResponse,
+    TriggerResponse,
+    UpdateTriggerRequest,
+)
+from .webhooks import (
+    EmailAttachment,
+    EmailWebhookPayload,
+    EmailWebhookResponse,
+    GenericWebhookPayload,
+    GenericWebhookResponse,
+    SlackChannel,
+    SlackUser,
+    SlackWebhookPayload,
+    SlackWebhookResponse,
+)
 
 __all__ = [
     # Common
@@ -73,4 +93,22 @@ __all__ = [
     "BeliefDetailResponse",
     "BeliefChallengeRequest",
     "BeliefChallengeResponse",
+    # Triggers
+    "CreateTriggerRequest",
+    "UpdateTriggerRequest",
+    "FireTriggerRequest",
+    "TriggerResponse",
+    "TriggerListResponse",
+    "TriggerFireResult",
+    "SchedulerStatusResponse",
+    # Webhooks
+    "EmailAttachment",
+    "EmailWebhookPayload",
+    "EmailWebhookResponse",
+    "SlackUser",
+    "SlackChannel",
+    "SlackWebhookPayload",
+    "SlackWebhookResponse",
+    "GenericWebhookPayload",
+    "GenericWebhookResponse",
 ]

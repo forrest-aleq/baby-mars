@@ -5,7 +5,7 @@ API Routes
 All route modules for Baby MARS API.
 """
 
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 
 from .beliefs import router as beliefs_router
 from .birth import router as birth_router
@@ -15,6 +15,8 @@ from .events import router as events_router
 from .health import router as health_router
 from .sessions import router as sessions_router
 from .tasks import router as tasks_router
+from .triggers import router as triggers_router
+from .webhooks import router as webhooks_router
 
 
 def register_routes(app: FastAPI) -> None:
@@ -30,6 +32,8 @@ def register_routes(app: FastAPI) -> None:
     app.include_router(tasks_router, prefix="/tasks", tags=["Tasks"])
     app.include_router(decisions_router, prefix="/decisions", tags=["Decisions"])
     app.include_router(events_router, prefix="/events", tags=["Events"])
+    app.include_router(triggers_router, prefix="/triggers", tags=["Triggers"])
+    app.include_router(webhooks_router, prefix="/webhooks", tags=["Webhooks"])
 
 
 __all__ = [
@@ -42,4 +46,6 @@ __all__ = [
     "tasks_router",
     "decisions_router",
     "events_router",
+    "triggers_router",
+    "webhooks_router",
 ]
