@@ -202,6 +202,21 @@ def create_trigger(
     return trigger
 
 
+def _parse_json_field(value: Any) -> dict[str, Any]:
+    """Parse a JSON field that may be string or already parsed dict."""
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return cast(dict[str, Any], parsed) if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
 def _row_to_trigger(row: Any) -> ScheduledTrigger:
     """Convert a database row to a ScheduledTrigger."""
     return cast(
@@ -211,9 +226,9 @@ def _row_to_trigger(row: Any) -> ScheduledTrigger:
             "org_id": row["org_id"],
             "user_id": row["user_id"],
             "trigger_type": row["trigger_type"],
-            "config": row["config"] if row["config"] else {},
+            "config": _parse_json_field(row["config"]),
             "action": row["action"],
-            "action_context": row["action_context"] if row["action_context"] else {},
+            "action_context": _parse_json_field(row["action_context"]),
             "description": row["description"] or "",
             "enabled": row["enabled"],
             "last_fired": row["last_fired"].isoformat() if row["last_fired"] else None,

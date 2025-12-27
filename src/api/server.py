@@ -14,7 +14,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from ..cognitive_loop.graph import create_graph_in_memory, create_graph_with_postgres
+from ..cognitive_loop.checkpointer import cleanup_async_checkpointer
+from ..cognitive_loop.graph import (
+    create_graph_in_memory,
+    create_graph_with_async_postgres,
+)
 from ..graphs.belief_graph_manager import reset_belief_graph_manager
 from ..observability import get_logger, setup_logging
 from ..persistence.database import close_pool, init_database
@@ -48,26 +52,19 @@ def _init_langsmith() -> None:
     logger.info("LangSmith tracing enabled", project=project)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Application lifespan - initialize and cleanup resources"""
-    logger.info("Starting Baby MARS API...")
-
-    # Initialize LangSmith tracing
+async def _startup(app: FastAPI) -> None:
+    """Initialize all application resources on startup."""
     _init_langsmith()
-
-    # Initialize database
     try:
         await init_database()
         logger.info("Database initialized")
     except Exception as e:
         logger.warning(f"Database init skipped (will use in-memory): {e}")
 
-    # Create graph (Postgres if available, else in-memory)
     try:
         if os.environ.get("DATABASE_URL"):
-            app.state.graph = create_graph_with_postgres()
-            logger.info("Using Postgres checkpointer")
+            app.state.graph = await create_graph_with_async_postgres()
+            logger.info("Using async Postgres checkpointer")
         else:
             app.state.graph = create_graph_in_memory()
             logger.info("Using in-memory checkpointer")
@@ -75,12 +72,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(f"Postgres graph failed, using in-memory: {e}")
         app.state.graph = create_graph_in_memory()
 
-    # Initialize session store
     app.state.sessions = {}
 
-    # Start SYSTEM_PULSE scheduler
-    scheduler_enabled = os.getenv("PULSE_SCHEDULER_ENABLED", "true").lower() == "true"
-    if scheduler_enabled:
+    if os.getenv("PULSE_SCHEDULER_ENABLED", "true").lower() == "true":
         try:
             scheduler = get_pulse_scheduler()
             await scheduler.start()
@@ -88,29 +82,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("SYSTEM_PULSE scheduler started")
         except Exception as e:
             logger.warning(f"Scheduler failed to start: {e}")
-    else:
-        logger.info("SYSTEM_PULSE scheduler disabled")
 
-    logger.info("Baby MARS API ready")
 
-    yield
-
-    # Cleanup
-    logger.info("Shutting down Baby MARS API...")
-
-    # Stop scheduler
+async def _shutdown(app: FastAPI) -> None:
+    """Cleanup all application resources on shutdown."""
     if hasattr(app.state, "scheduler"):
         try:
             await app.state.scheduler.stop()
-            logger.info("SYSTEM_PULSE scheduler stopped")
         except Exception:
             pass
-
+    try:
+        await cleanup_async_checkpointer()
+    except Exception:
+        pass
     try:
         await close_pool()
     except Exception:
         pass
     reset_belief_graph_manager()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan - initialize and cleanup resources."""
+    logger.info("Starting Baby MARS API...")
+    await _startup(app)
+    logger.info("Baby MARS API ready")
+    yield
+    logger.info("Shutting down Baby MARS API...")
+    await _shutdown(app)
     logger.info("Shutdown complete")
 
 

@@ -5,7 +5,7 @@ Triggers Routes
 API endpoints for managing proactive triggers.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
@@ -115,7 +115,7 @@ async def get_scheduler_status(
 async def seed_default_triggers(
     org_id: str = Depends(get_current_org),
     timezone: str = Query("America/Los_Angeles", description="Org timezone"),
-) -> dict:
+) -> dict[str, Any]:
     """
     Seed default triggers for the organization.
 
@@ -179,7 +179,7 @@ async def update_trigger_by_id(
 async def delete_trigger_by_id(
     trigger_id: str = Path(..., description="Trigger ID"),
     org_id: str = Depends(get_current_org),
-) -> dict:
+) -> dict[str, Any]:
     """
     Delete a trigger.
     """

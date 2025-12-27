@@ -22,62 +22,47 @@ logger = get_logger(__name__)
 _delayed_triggers: dict[str, asyncio.Task[Any]] = {}
 
 
+def _success_result(
+    trigger_id: str, start_time: datetime, result_state: Any, supervision_mode: str
+) -> TriggerResult:
+    """Build success TriggerResult."""
+    duration = (datetime.now(ZoneInfo("UTC")) - start_time).total_seconds() * 1000
+    return {
+        "trigger_id": trigger_id,
+        "success": True,
+        "fired_at": start_time.isoformat(),
+        "duration_ms": duration,
+        "supervision_mode": supervision_mode,
+        "message_generated": result_state.get("generated_response"),
+        "action_taken": result_state.get("selected_action", {}).get("action_type"),
+        "error": None,
+    }
+
+
 async def execute_trigger(
     trigger_id: str,
     event_data: Optional[dict[str, Any]] = None,
 ) -> TriggerResult:
-    """
-    Execute a trigger by invoking the cognitive loop.
-
-    Args:
-        trigger_id: ID of trigger to execute
-        event_data: Optional event data for event-based triggers
-
-    Returns:
-        TriggerResult with execution outcome
-    """
+    """Execute a trigger by invoking the cognitive loop."""
     start_time = datetime.now(ZoneInfo("UTC"))
 
-    # Load trigger
     trigger = await get_trigger(trigger_id)
     if not trigger:
         return _error_result(trigger_id, start_time, "Trigger not found")
-
     if not trigger["enabled"]:
         return _error_result(trigger_id, start_time, "Trigger disabled")
 
     logger.info(
-        f"Executing trigger {trigger_id}: {trigger['action']} " f"(type: {trigger['trigger_type']})"
+        f"Executing trigger {trigger_id}: {trigger['action']} (type: {trigger['trigger_type']})"
     )
 
     try:
-        # Create synthetic state for cognitive loop
         state = create_trigger_state(trigger, event_data)
-
-        # Invoke cognitive loop
         result_state = await _invoke_cognitive_loop(state)
-
-        # Handle result based on supervision mode
         supervision_mode = result_state.get("supervision_mode", "guidance_seeking")
         await _handle_result(trigger, result_state, supervision_mode)
-
-        # Update trigger fired status
         await update_trigger_fired(trigger_id)
-
-        # Build result
-        duration = (datetime.now(ZoneInfo("UTC")) - start_time).total_seconds() * 1000
-
-        return {
-            "trigger_id": trigger_id,
-            "success": True,
-            "fired_at": start_time.isoformat(),
-            "duration_ms": duration,
-            "supervision_mode": supervision_mode,
-            "message_generated": result_state.get("generated_response"),
-            "action_taken": result_state.get("selected_action", {}).get("action_type"),
-            "error": None,
-        }
-
+        return _success_result(trigger_id, start_time, result_state, supervision_mode)
     except Exception as e:
         logger.error(f"Trigger execution failed: {trigger_id}: {e}", exc_info=True)
         return _error_result(trigger_id, start_time, str(e))
@@ -98,7 +83,7 @@ async def _invoke_cognitive_loop(state: Any) -> Any:
     # Run the graph
     result = await graph.ainvoke(
         state,
-        {"configurable": {"thread_id": state["thread_id"]}},  # type: ignore[arg-type]
+        {"configurable": {"thread_id": state["thread_id"]}},
     )
 
     return result

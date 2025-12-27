@@ -14,7 +14,6 @@ import httpx
 
 from ...observability import get_logger, get_metrics, timed, traced
 from .config import (
-    ERROR_RETRY_MAP,
     RetryStrategy,
     StargateConfig,
     get_stargate_config,
@@ -109,7 +108,7 @@ class StargateClient:
             try:
                 result = await self._try_execute(request_body)
 
-                if result.get("success", False):
+                if result.get("status") == "success":
                     self._log_success(capability_key, attempt)
                     return result
 
@@ -150,15 +149,24 @@ class StargateClient:
         self, result: dict[str, Any], capability_key: str, attempt: int, backoff: float
     ) -> bool:
         """Handle error response. Returns True if should continue retrying."""
-        error = result.get("error", {})
-        error_type = error.get("error_type", "ExecutionError")
-        retry_strategy = ERROR_RETRY_MAP.get(error_type, RetryStrategy.DO_NOT_RETRY)
+        # Per Stargate API v2.0: error_code and retry_strategy at top level
+        error_code = result.get("error_code", "EXTERNAL_API_ERROR")
+        retry_strategy_str = result.get("retry_strategy", "none")
+        error_message = result.get("error_message", "Unknown error")
 
-        metrics.increment("stargate_errors", capability=capability_key, error_type=error_type)
+        # Map retry_strategy string to enum
+        retry_strategy = {
+            "human_intervention": RetryStrategy.DO_NOT_RETRY,
+            "backoff": RetryStrategy.RETRY_WITH_BACKOFF,
+            "none": RetryStrategy.DO_NOT_RETRY,
+        }.get(retry_strategy_str, RetryStrategy.DO_NOT_RETRY)
+
+        metrics.increment("stargate_errors", capability=capability_key, error_code=error_code)
         logger.warning(
             "Stargate execution failed",
             capability=capability_key,
-            error_type=error_type,
+            error_code=error_code,
+            error_message=error_message,
             retry_strategy=retry_strategy.value,
             attempt=attempt + 1,
         )
@@ -167,7 +175,8 @@ class StargateClient:
             return False
 
         if retry_strategy == RetryStrategy.RETRY_AFTER_DELAY:
-            retry_after = error.get("details", {}).get("retry_after", 60)
+            # Stargate doesn't specify retry_after in docs, use default
+            retry_after = 60
             if attempt < self.config.max_retries - 1:
                 logger.info(f"Rate limited, waiting {retry_after}s")
                 await asyncio.sleep(retry_after)
@@ -200,14 +209,11 @@ class StargateClient:
             return None
 
         return {
-            "success": False,
+            "status": "error",
             "capability_key": capability_key,
-            "error": {
-                "error_type": "NetworkError",
-                "error_code": "HTTP_ERROR",
-                "message": f"HTTP {e.response.status_code}",
-                "retry_strategy": "RETRY_WITH_BACKOFF",
-            },
+            "error_code": "EXTERNAL_API_ERROR",
+            "error_message": f"HTTP {e.response.status_code}",
+            "retry_strategy": "backoff",
         }
 
     async def _handle_request_error(
@@ -222,26 +228,21 @@ class StargateClient:
             return None
 
         return {
-            "success": False,
+            "status": "error",
             "capability_key": capability_key,
-            "error": {
-                "error_type": "NetworkError",
-                "error_code": "CONNECTION_ERROR",
-                "message": str(e),
-                "retry_strategy": "RETRY_WITH_BACKOFF",
-            },
+            "error_code": "EXTERNAL_API_ERROR",
+            "error_message": f"Connection error: {e}",
+            "retry_strategy": "backoff",
         }
 
     def _max_retries_error(self, capability_key: str) -> dict[str, Any]:
         """Return max retries exceeded error."""
         return {
-            "success": False,
+            "status": "error",
             "capability_key": capability_key,
-            "error": {
-                "error_type": "ExecutionError",
-                "error_code": "MAX_RETRIES",
-                "message": "Max retries exceeded",
-            },
+            "error_code": "EXTERNAL_API_ERROR",
+            "error_message": "Max retries exceeded",
+            "retry_strategy": "none",
         }
 
     async def health_check(self) -> dict[str, Any]:

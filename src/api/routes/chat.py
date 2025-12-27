@@ -40,10 +40,20 @@ def _update_session_state(
 ) -> BabyMARSState:
     """Create or update session state with new message."""
     if session["state"] is None:
-        session["state"] = create_initial_state(birth_result, message)
+        # Primitive 1 (thread.create) or 2 (thread.load)
+        thread_id = session.get("thread_id")  # None for new, existing for resume
+        new_state = create_initial_state(birth_result, message, thread_id=thread_id)
+        session["state"] = new_state
+        # Store thread_id in session for future turns
+        if not thread_id:
+            session["thread_id"] = new_state["thread_id"]
     else:
         session["state"]["messages"].append({"role": "user", "content": message})
-        session["state"]["current_turn"] += 1
+        # Handle both turn_number and current_turn for backwards compatibility
+        if "turn_number" in session["state"]:
+            session["state"]["turn_number"] += 1
+        if "current_turn" in session["state"]:
+            session["state"]["current_turn"] += 1
     session["message_count"] += 1
     return cast(BabyMARSState, session["state"])
 
@@ -116,10 +126,16 @@ def _build_message_response(
     else:
         session.pop("approval_timeout_at", None)
 
-    logger.info(f"Message processed: session={session_id}, mode={supervision_mode}")
+    # Get thread_id for forever conversations
+    thread_id = result.get("thread_id") or session.get("thread_id", "unknown")
+
+    logger.info(
+        f"Message processed: session={session_id}, thread={thread_id}, mode={supervision_mode}"
+    )
 
     return MessageResponse(
         session_id=session_id,
+        thread_id=thread_id,
         response=str(result.get("final_response", "")),
         supervision_mode=supervision_mode,
         belief_strength=belief_strength,
@@ -139,13 +155,31 @@ async def send_message(request_data: MessageRequest, request: Request) -> Messag
         request_data.message = f"{pending_message}\n\n{request_data.message}"
 
     try:
-        state = _update_session_state(session, request_data.message, session["birth_result"])
+        # Forever conversations: if thread_id provided, use it for checkpoint resume
+        resume_thread_id = request_data.thread_id
+        if resume_thread_id:
+            # Resume from checkpoint: only pass the new message, let LangGraph load the rest
+            session["thread_id"] = resume_thread_id
+            logger.info(f"Resuming conversation from thread_id={resume_thread_id}")
+            # Minimal state - just the new message. LangGraph will merge with checkpoint.
+            state = cast(
+                BabyMARSState,
+                {
+                    "thread_id": resume_thread_id,
+                    "messages": [{"role": "user", "content": request_data.message}],
+                },
+            )
+        else:
+            # New conversation: create full initial state
+            state = _update_session_state(session, request_data.message, session["birth_result"])
+
         if request_data.context_pills:
             session["context_pills"] = [
                 {"type": p.type, "id": p.id} for p in request_data.context_pills
             ]
 
-        config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
+        thread_id = resume_thread_id or state["thread_id"]
+        config = cast(RunnableConfig, {"configurable": {"thread_id": thread_id}})
         result = await invoke_cognitive_loop(
             state=state, graph=request.app.state.graph, config=config
         )
@@ -153,11 +187,14 @@ async def send_message(request_data: MessageRequest, request: Request) -> Messag
         return _build_message_response(request_data.session_id, result, session)
 
     except Exception as e:
-        logger.error(f"Message processing failed: {e}", exc_info=True)
+        import traceback
+
+        tb = traceback.format_exc()
+        logger.error(f"Message processing failed: {e!r}\n{tb}")
         raise HTTPException(
             status_code=500,
             detail=_build_error_detail(
-                "PROCESSING_FAILED", f"Failed to process message: {e}", retryable=True
+                "PROCESSING_FAILED", f"Failed to process message: {e!r}", retryable=True
             ),
         )
 
@@ -187,6 +224,22 @@ def _process_stream_event(event: dict[str, Any], state: BabyMARSState) -> dict[s
     return None
 
 
+def _build_complete_event(state: BabyMARSState, thread_id: str) -> dict[str, str]:
+    """Build the 'complete' SSE event."""
+    return {
+        "event": "complete",
+        "data": json.dumps(
+            {
+                "thread_id": state.get("thread_id", thread_id),
+                "response": state.get("final_response", ""),
+                "supervision_mode": state.get("supervision_mode", ""),
+                "belief_strength": state.get("belief_strength_for_action", 0.0),
+                "approval_needed": state.get("supervision_mode") == "action_proposal",
+            }
+        ),
+    }
+
+
 @router.post("/stream")
 async def send_message_stream(
     request_data: MessageRequest, request: Request
@@ -197,8 +250,14 @@ async def send_message_stream(
 
     async def event_generator() -> AsyncIterator[dict[str, str]]:
         try:
+            resume_thread_id = request_data.thread_id
+            if resume_thread_id:
+                session["thread_id"] = resume_thread_id
+                logger.info(f"Resuming stream from thread_id={resume_thread_id}")
+
             state = _update_session_state(session, request_data.message, session["birth_result"])
-            config = cast(RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}})
+            thread_id = resume_thread_id or state["thread_id"]
+            config = cast(RunnableConfig, {"configurable": {"thread_id": thread_id}})
 
             async for event in stream_cognitive_loop(
                 state=state, graph=request.app.state.graph, config=config
@@ -218,17 +277,7 @@ async def send_message_stream(
                 if sse_event:
                     yield sse_event
 
-            yield {
-                "event": "complete",
-                "data": json.dumps(
-                    {
-                        "response": state.get("final_response", ""),
-                        "supervision_mode": state.get("supervision_mode", ""),
-                        "belief_strength": state.get("belief_strength_for_action", 0.0),
-                        "approval_needed": state.get("supervision_mode") == "action_proposal",
-                    }
-                ),
-            }
+            yield _build_complete_event(state, thread_id)
         except Exception as e:
             logger.error(f"Stream error: {e}", exc_info=True)
             yield {"event": "error", "data": json.dumps({"message": str(e)})}
@@ -374,6 +423,7 @@ async def approve_action(request_data: ApprovalRequest, request: Request) -> Mes
 
         return MessageResponse(
             session_id=request_data.session_id,
+            thread_id=result.get("thread_id") or state["thread_id"],
             response=str(result.get("final_response", "")),
             supervision_mode=result.get("supervision_mode") or "guidance_seeking",
             belief_strength=result.get("belief_strength_for_action") or 0.0,

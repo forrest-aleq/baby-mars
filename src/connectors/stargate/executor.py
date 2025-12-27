@@ -61,24 +61,25 @@ class StargateExecutor:
 
     def _transform_response(self, response: dict[str, Any], capability_key: str) -> dict[str, Any]:
         """Transform Stargate response to Baby MARS format."""
-        if response.get("success", False):
+        # Per Stargate API v2.0: status is "success" or "error"
+        if response.get("status") == "success":
             return {
                 "success": True,
                 "result": response.get("outputs", {}),
                 "message": f"Executed {capability_key}",
                 "capability_key": capability_key,
-                "execution_logs": response.get("execution_logs", []),
+                "tool_used": response.get("tool_used", capability_key),
+                "logs": response.get("logs", []),
             }
         else:
-            error = response.get("error", {})
+            # Error fields are at top level per Stargate API v2.0
             return {
                 "success": False,
                 "result": None,
-                "message": error.get("message", "Stargate execution failed"),
+                "message": response.get("error_message", "Stargate execution failed"),
                 "capability_key": capability_key,
-                "error_type": error.get("error_type", "ExecutionError"),
-                "error_code": error.get("error_code", "UNKNOWN"),
-                "retry_strategy": error.get("retry_strategy", "DO_NOT_RETRY"),
+                "error_code": response.get("error_code", "EXTERNAL_API_ERROR"),
+                "retry_strategy": response.get("retry_strategy", "none"),
             }
 
     async def execute_batch(
@@ -105,8 +106,9 @@ class StargateExecutor:
             )
 
             if not result.get("success", False):
-                retry_strategy = result.get("retry_strategy", "DO_NOT_RETRY")
-                if retry_strategy == "DO_NOT_RETRY":
+                retry_strategy = result.get("retry_strategy", "none")
+                # Stop batch on non-retryable errors
+                if retry_strategy in ("none", "human_intervention"):
                     break
 
         return results

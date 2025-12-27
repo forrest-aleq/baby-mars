@@ -17,7 +17,7 @@ Stargate provides 295 capabilities across 20+ platforms:
 from .capability_map import CAPABILITY_MAP, map_work_unit_to_capability
 from .client import StargateClient
 from .config import (
-    ERROR_RETRY_MAP,
+    ERROR_CODES,
     RetryStrategy,
     StargateConfig,
     get_stargate_config,
@@ -35,7 +35,7 @@ __all__ = [
     "StargateConfig",
     "get_stargate_config",
     "RetryStrategy",
-    "ERROR_RETRY_MAP",
+    "ERROR_CODES",
     # Capability mapping
     "CAPABILITY_MAP",
     "map_work_unit_to_capability",

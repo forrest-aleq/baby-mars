@@ -69,11 +69,46 @@ def _format_outcome_context(outcome: dict[str, Any]) -> str:
 </outcome>"""
 
 
+def _format_rapport_context(rapport: dict[str, Any]) -> str:
+    """Format rapport context for response generation."""
+    parts = [
+        f"  Person: {rapport.get('person_name', 'unknown')}",
+        f"  Rapport level: {rapport.get('rapport_level', 0):.2f}",
+        f"  Familiarity: {rapport.get('familiarity', 0):.2f}",
+        f"  Interactions: {rapport.get('interaction_count', 0)}",
+        f"  Preferred formality: {rapport.get('preferred_formality', 'casual')}",
+        f"  Preferred verbosity: {rapport.get('preferred_verbosity', 'concise')}",
+        f"  Humor receptivity: {rapport.get('humor_receptivity', 0.5):.2f}",
+    ]
+    if inside_refs := rapport.get("inside_references", []):
+        parts.append(f"  Inside references: {', '.join(inside_refs[:3])}")
+    if moments := rapport.get("memorable_moments", []):
+        summaries = []
+        for m in moments[:2]:
+            if isinstance(m, dict) and m.get("summary"):
+                summaries.append(str(m["summary"])[:50])
+            elif isinstance(m, str):
+                summaries.append(m[:50])
+        if summaries:
+            parts.append(f"  Recent moments: {'; '.join(summaries)}")
+    if rapport.get("is_first_meeting"):
+        parts.append("  NOTE: This is a FIRST MEETING - be warm but not presumptuous")
+    return f"<rapport_context>\n{chr(10).join(parts)}\n</rapport_context>"
+
+
+def _format_validation_issues(validation_results: list[Any]) -> str | None:
+    """Format validation issues for response context."""
+    valid_results = [r for r in validation_results if isinstance(r, dict)]
+    failures = [r for r in valid_results if not r.get("passed", True)]
+    if not failures:
+        return None
+    msgs = [f.get("message", "") for f in failures[:3] if isinstance(f, dict)]
+    return f"<validation_issues>\n{chr(10).join('- ' + m for m in msgs)}\n</validation_issues>"
+
+
 def build_response_context(state: BabyMARSState) -> str:
     """Build context for response generation."""
     parts = []
-
-    # Original request
     messages = state.get("messages", [])
     if messages:
         content = messages[-1].get("content", "")
@@ -85,67 +120,32 @@ def build_response_context(state: BabyMARSState) -> str:
         f"<supervision_mode>{state.get('supervision_mode', 'guidance_seeking')}</supervision_mode>"
     )
 
-    if appraisal := state.get("appraisal"):
+    if (appraisal := state.get("appraisal")) and isinstance(appraisal, dict):
         parts.append(_format_appraisal_context(appraisal))
-    if selected_action := state.get("selected_action"):
-        parts.append(_format_action_context(selected_action))
-    if execution_results := state.get("execution_results", []):
-        parts.append(_format_execution_context(execution_results))
+    if (action := state.get("selected_action")) and isinstance(action, dict):
+        parts.append(_format_action_context(action))
+    exec_results = [r for r in state.get("execution_results", []) if isinstance(r, dict)]
+    if exec_results:
+        parts.append(_format_execution_context(exec_results))
     if (outcome := state.get("execution_outcome")) and isinstance(outcome, dict):
         parts.append(_format_outcome_context(outcome))
+    if issues := _format_validation_issues(state.get("validation_results", [])):
+        parts.append(issues)
 
-    validation_results = state.get("validation_results", [])
-    failures = [r for r in validation_results if not r.get("passed", True)]
-    if failures:
-        failure_msgs = [f.get("message", "") for f in failures[:3]]
-        parts.append(
-            f"<validation_issues>\n{chr(10).join('- ' + m for m in failure_msgs)}\n</validation_issues>"
-        )
-
-    objects = state.get("objects", {})
-    if people := objects.get("people", []):
+    if people := state.get("objects", {}).get("people", []):
         p = people[0]
         parts.append(
-            f"<communication_context>\n  Primary person: {p.get('name', 'unknown')} ({p.get('role', 'unknown')})\n  Authority level: {p.get('authority', 0):.2f}\n  Relationship value: {p.get('relationship_value', 0):.2f}\n</communication_context>"
+            f"<communication_context>\n  Primary person: {p.get('name', 'unknown')} ({p.get('role', 'unknown')})\n  Authority: {p.get('authority', 0):.2f}\n</communication_context>"
         )
 
-    # ============================================================
-    # RAPPORT CONTEXT: Adapt communication based on relationship
-    # ============================================================
     if rapport := state.get("rapport_context"):
-        rapport_parts = [
-            f"  Person: {rapport.get('person_name', 'unknown')}",
-            f"  Rapport level: {rapport.get('rapport_level', 0):.2f}",
-            f"  Familiarity: {rapport.get('familiarity', 0):.2f}",
-            f"  Interactions: {rapport.get('interaction_count', 0)}",
-            f"  Preferred formality: {rapport.get('preferred_formality', 'casual')}",
-            f"  Preferred verbosity: {rapport.get('preferred_verbosity', 'concise')}",
-            f"  Humor receptivity: {rapport.get('humor_receptivity', 0.5):.2f}",
-        ]
+        parts.append(_format_rapport_context(rapport))
+        if style := _get_rapport_style_guidance(rapport):
+            parts.append(f"<style_guidance>\n{style}\n</style_guidance>")
 
-        # Add inside references if any
-        if inside_refs := rapport.get("inside_references", []):
-            rapport_parts.append(f"  Inside references: {', '.join(inside_refs[:3])}")
-
-        # Add recent memorable moments
-        if moments := rapport.get("memorable_moments", []):
-            moment_summaries = [m.get("summary", "")[:50] for m in moments[:2] if m.get("summary")]
-            if moment_summaries:
-                rapport_parts.append(f"  Recent moments: {'; '.join(moment_summaries)}")
-
-        # Is this a first meeting?
-        if rapport.get("is_first_meeting"):
-            rapport_parts.append("  NOTE: This is a FIRST MEETING - be warm but not presumptuous")
-
-        parts.append(f"<rapport_context>\n{chr(10).join(rapport_parts)}\n</rapport_context>")
-
-        # Add communication style guidance based on rapport
-        style_guidance = _get_rapport_style_guidance(rapport)
-        if style_guidance:
-            parts.append(f"<style_guidance>\n{style_guidance}\n</style_guidance>")
-
-    beliefs = state.get("activated_beliefs", [])
-    style_beliefs = [b for b in beliefs if str(b.get("category", "")) == "style"][:3]
+    style_beliefs = [
+        b for b in state.get("activated_beliefs", []) if str(b.get("category", "")) == "style"
+    ][:3]
     if style_beliefs:
         parts.append(
             f"<style_beliefs>\n{chr(10).join('- ' + b['statement'] for b in style_beliefs)}\n</style_beliefs>"
@@ -284,7 +284,9 @@ async def process(state: BabyMARSState) -> dict[str, Any]:
 
         return _build_result(state, _format_response(response, supervision_mode))
     except Exception as e:
-        logger.error(f"Response generation error: {e}")
+        import traceback
+
+        logger.error(f"Response generation error: {e}\n{traceback.format_exc()}")
         return _build_result(state, _generate_fallback_response(state, supervision_mode))
 
 

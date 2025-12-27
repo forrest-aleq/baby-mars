@@ -86,43 +86,24 @@ def determine_birth_mode(salience: float) -> str:
     return "micro"
 
 
-def birth_person(
-    person_id: str,
-    name: str,
-    email: str,
-    role: str,
-    org_id: str,
-    org_name: str,
-    industry: str = "general",
-    birth_mode: str = "standard",
-) -> dict[str, Any]:
-    """
-    Birth a new person into the system.
-
-    Creates the 6 types and seeds initial beliefs.
-    """
-    graph = get_belief_graph()
-
-    # Seed immutable beliefs (identity - NEVER change)
+def _seed_beliefs(
+    graph: Any, birth_mode: str, industry: str, org_id: str, role: str, person_id: str
+) -> None:
+    """Seed beliefs based on birth mode."""
     for belief in IMMUTABLE_BELIEFS:
         graph.add_belief(belief)
-
-    # Seed global beliefs
     seed_global_beliefs(graph)
-
-    # Seed industry beliefs (if mode allows)
     if birth_mode in ("full", "standard"):
         seed_industry_beliefs(graph, industry, org_id)
-
-    # Seed role beliefs (if full mode)
     if birth_mode == "full":
         seed_role_beliefs(graph, role, person_id)
 
-    # Get role info
-    role_info = ROLE_HIERARCHY.get(role, {"reports_to": None, "authority": 0.5})
 
-    # Build person object
-    person = cast(
+def _build_person_object(
+    person_id: str, name: str, role: str, role_info: dict[str, Any]
+) -> PersonObject:
+    """Build the person object with role-appropriate settings."""
+    return cast(
         PersonObject,
         {
             "id": person_id,
@@ -133,14 +114,27 @@ def birth_person(
             "interaction_count": 0,
             "last_interaction": "",
             "expertise_areas": [],
-            "communication_preferences": {
-                **DEFAULT_STYLE,
-                **ROLE_STYLE_OVERRIDES.get(role, {}),
-            },
+            "communication_preferences": {**DEFAULT_STYLE, **ROLE_STYLE_OVERRIDES.get(role, {})},
         },
     )
 
-    # Get role goals
+
+def birth_person(
+    person_id: str,
+    name: str,
+    email: str,
+    role: str,
+    org_id: str,
+    org_name: str,
+    industry: str = "general",
+    birth_mode: str = "standard",
+) -> dict[str, Any]:
+    """Birth a new person into the system. Creates the 6 types and seeds initial beliefs."""
+    graph = get_belief_graph()
+    _seed_beliefs(graph, birth_mode, industry, org_id, role, person_id)
+
+    role_info = ROLE_HIERARCHY.get(role, {"reports_to": None, "authority": 0.5})
+    person = _build_person_object(person_id, name, role, role_info)
     goals = ROLE_GOALS.get(
         role,
         [
@@ -148,23 +142,16 @@ def birth_person(
                 "goal_id": "default_accuracy",
                 "description": "Complete tasks accurately",
                 "priority": 0.9,
-            },
+            }
         ],
     )
-
-    # Get knowledge (facts, no strength)
-    knowledge_facts = list(GLOBAL_KNOWLEDGE_FACTS) + load_industry_knowledge(industry)
-    knowledge = facts_to_dicts(knowledge_facts)
+    knowledge = facts_to_dicts(list(GLOBAL_KNOWLEDGE_FACTS) + load_industry_knowledge(industry))
 
     return {
         "birth_mode": birth_mode,
         "salience": calculate_salience(role),
         "person": person,
-        "org": {
-            "org_id": org_id,
-            "org_name": org_name,
-            "industry": industry,
-        },
+        "org": {"org_id": org_id, "org_name": org_name, "industry": industry},
         "capabilities": {**DEFAULT_CAPABILITIES},
         "relationships": {
             "reports_to": role_info["reports_to"],
@@ -173,51 +160,65 @@ def birth_person(
         },
         "knowledge": knowledge,
         "goals": goals,
-        "style": {
-            **DEFAULT_STYLE,
-            **ROLE_STYLE_OVERRIDES.get(role, {}),
-        },
+        "style": {**DEFAULT_STYLE, **ROLE_STYLE_OVERRIDES.get(role, {})},
         "belief_count": len(graph.beliefs),
         "immutable_count": len([b for b in graph.beliefs.values() if b.get("immutable")]),
     }
 
 
-def create_initial_state(birth_result: dict[str, Any], initial_message: str) -> BabyMARSState:
+def _build_working_memory(
+    initial_message: str, person: dict[str, Any], now: datetime
+) -> dict[str, Any]:
+    """Build the three-column working memory structure (Paper #8)."""
+    return {
+        "active_tasks": [
+            {
+                "task_id": f"task_{uuid.uuid4().hex[:8]}",
+                "description": initial_message,
+                "priority": 0.8,
+                "created_at": now.isoformat(),
+                "status": "active",
+            }
+        ],
+        "notes": [],
+        "objects": {
+            "persons": [person],
+            "entities": [],
+            "beliefs_in_focus": [],
+            "temporal": {
+                "current_time": now.isoformat(),
+                "day_of_week": now.strftime("%A"),
+                "is_month_end": now.day >= 25,
+                "is_quarter_end": now.month in (3, 6, 9, 12) and now.day >= 25,
+            },
+        },
+    }
+
+
+def create_initial_state(
+    birth_result: dict[str, Any],
+    initial_message: str,
+    thread_id: str | None = None,
+) -> BabyMARSState:
     """Create initial cognitive state from birth result."""
     now = datetime.now(timezone.utc)
+    thread_id = thread_id or f"thread_{uuid.uuid4().hex[:12]}"
+    person = birth_result["person"]
+    user_id = person.get("id", person.get("person_id", ""))
 
     return cast(
         BabyMARSState,
         {
+            "thread_id": thread_id,
+            "user_id": user_id,
+            "org_timezone": birth_result.get("org", {}).get("timezone", "America/Los_Angeles"),
             "messages": [{"role": "user", "content": initial_message}],
             "org_id": birth_result["org"]["org_id"],
-            "person": birth_result["person"],
+            "person": person,
             "activated_beliefs": list(get_belief_graph().beliefs.values()),
             "current_context_key": "*|*|*",
             "active_goals": birth_result["goals"],
-            "working_memory": {
-                "active_tasks": [
-                    {
-                        "task_id": f"task_{uuid.uuid4().hex[:8]}",
-                        "description": initial_message,
-                        "priority": 0.8,
-                        "created_at": now.isoformat(),
-                        "status": "active",
-                    }
-                ],
-                "notes": [],
-                "objects": {
-                    "persons": [birth_result["person"]],
-                    "entities": [],
-                    "beliefs_in_focus": [],
-                    "temporal": {
-                        "current_time": now.isoformat(),
-                        "day_of_week": now.strftime("%A"),
-                        "is_month_end": now.day >= 25,
-                        "is_quarter_end": now.month in (3, 6, 9, 12) and now.day >= 25,
-                    },
-                },
-            },
+            "working_memory": _build_working_memory(initial_message, person, now),
             "capabilities": birth_result["capabilities"],
             "style": birth_result["style"],
             "supervision_mode": None,

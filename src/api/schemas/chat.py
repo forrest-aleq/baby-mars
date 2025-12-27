@@ -44,6 +44,11 @@ class MessageRequest(BaseModel):
 
     session_id: str = Field(..., description="Session from /birth")
     message: str = Field(..., description="User's message")
+    thread_id: Optional[str] = Field(
+        None,
+        description="Thread ID to resume a previous conversation. "
+        "If provided, loads state from checkpoint. If None, uses session state.",
+    )
     context_pills: list[ContextPill] = Field(
         default_factory=list, description="Objects to include in context"
     )
@@ -54,6 +59,7 @@ class MessageResponse(BaseModel):
     """Response from chat"""
 
     session_id: str
+    thread_id: str = Field(..., description="Thread ID for resuming this conversation later")
     response: str = Field(..., description="Aleq's response text")
     supervision_mode: Literal["guidance_seeking", "action_proposal", "autonomous"]
     belief_strength: float = Field(..., ge=0, le=1)

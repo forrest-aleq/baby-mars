@@ -18,16 +18,18 @@ class RetryStrategy(Enum):
     RETRY_WITH_BACKOFF = "RETRY_WITH_BACKOFF"
 
 
-# Error type to retry strategy mapping (per contract)
-ERROR_RETRY_MAP = {
-    "CredentialMissingError": RetryStrategy.DO_NOT_RETRY,
-    "CredentialInvalidError": RetryStrategy.DO_NOT_RETRY,
-    "PermissionDeniedError": RetryStrategy.DO_NOT_RETRY,
-    "NotFoundError": RetryStrategy.DO_NOT_RETRY,
-    "ValidationError": RetryStrategy.DO_NOT_RETRY,
-    "RateLimitError": RetryStrategy.RETRY_AFTER_DELAY,
-    "NetworkError": RetryStrategy.RETRY_WITH_BACKOFF,
-    "ExecutionError": RetryStrategy.RETRY_WITH_BACKOFF,  # Conditional
+# Error codes per Stargate API v2.0
+# retry_strategy comes from Stargate response directly:
+# - "human_intervention" -> user needs to connect/fix something
+# - "backoff" -> retry with exponential backoff
+# - "none" -> don't retry
+ERROR_CODES = {
+    "CREDENTIAL_MISSING",
+    "CREDENTIAL_INVALID",
+    "RATE_LIMIT",
+    "VALIDATION_ERROR",
+    "NOT_FOUND",
+    "EXTERNAL_API_ERROR",
 }
 
 
